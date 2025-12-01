@@ -232,13 +232,19 @@ export class ToolExecutor {
         {
           duration: params.duration,
           success: params.success,
-          error: params.error
+          ...(params.error ? { error: params.error } : {})
         },
         {
-          inputs: this.sanitizeData(params.inputs),
-          outputs: params.outputs ? this.sanitizeData(params.outputs) : undefined,
-          cached: params.cached,
-          attempt: params.attempt
+          ...(params.inputs !== undefined && (() => {
+            const sanitized = this.sanitizeData(params.inputs);
+            return sanitized !== undefined ? { inputs: sanitized } : {};
+          })()),
+          ...(params.outputs !== undefined && (() => {
+            const sanitized = this.sanitizeData(params.outputs);
+            return sanitized !== undefined ? { outputs: sanitized } : {};
+          })()),
+          ...(params.cached !== undefined && { cached: params.cached }),
+          ...(params.attempt !== undefined && { attempt: params.attempt })
         }
       )
     } catch (err) {

@@ -5,7 +5,7 @@
  * without actually generating the PDF file.
  */
 
-import { extractConversationInsights, buildConversationPairs } from 'src/pdf-generator-puppeteer'
+import { extractConversationInsights, buildConversationPairs } from 'src/core/pdf-generator-puppeteer'
 import { multimodalContextManager } from 'src/core/context/multimodal-context'
 import { ContextStorage } from 'src/core/context/context-storage'
 
@@ -75,10 +75,17 @@ export async function generateSummaryPreview(
     sections.push(`## Executive Summary\n`)
     if (pairs.length > 0) {
       const lastPair = pairs[pairs.length - 1]
-      const summaryText = lastPair.assistant?.content 
-        ? lastPair.assistant.content.slice(0, 300) + (lastPair.assistant.content.length > 300 ? '...' : '')
-        : 'Summary of our discussion about AI strategy and implementation.'
-      sections.push(summaryText + '\n')
+      if (lastPair && lastPair.assistant) {
+        const assistantContent = typeof lastPair.assistant === 'string' 
+          ? lastPair.assistant 
+          : ''
+        const summaryText = assistantContent 
+          ? assistantContent.slice(0, 300) + (assistantContent.length > 300 ? '...' : '')
+          : 'Summary of our discussion about AI strategy and implementation.'
+        sections.push(summaryText + '\n')
+      } else {
+        sections.push('Summary of our discussion about AI strategy and implementation.\n')
+      }
     }
 
     // Key Outcomes & Next Steps

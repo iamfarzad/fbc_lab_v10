@@ -5,7 +5,7 @@
  * from the current conversation history.
  */
 
-import { extractConversationInsights, buildConversationPairs } from 'src/pdf-generator-puppeteer'
+import { extractConversationInsights, buildConversationPairs } from 'src/core/pdf-generator-puppeteer'
 import { multimodalContextManager } from 'src/core/context/multimodal-context'
 import type { ActionItemsResult } from './tool-types'
 

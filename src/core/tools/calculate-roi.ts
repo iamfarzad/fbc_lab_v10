@@ -5,7 +5,7 @@
  */
 
 import type { ROICalculationResult } from './tool-types'
-import { isValidROIData, type ROIData } from 'src/pdf-roi-charts'
+import { isValidROIData, type ROIData } from 'src/core/pdf-roi-charts'
 import { ContextStorage } from 'src/core/context/context-storage'
 
 const contextStorage = new ContextStorage()
@@ -152,22 +152,27 @@ export async function calculateROI(
     }
 
     // Calculate final metrics
-    const investmentTotal = roiData.investment.initial + roiData.investment.annual
+    const roiDataTyped = roiData as {
+      investment: { initial: number; annual: number }
+      savings: { staffReduction: number; efficiency: number; retention: number }
+      roi: { firstYear: number; paybackPeriod: string }
+    }
+    const investmentTotal = roiDataTyped.investment.initial + roiDataTyped.investment.annual
     const savingsTotal = 
-      roiData.savings.staffReduction + 
-      roiData.savings.efficiency + 
-      roiData.savings.retention
+      roiDataTyped.savings.staffReduction + 
+      roiDataTyped.savings.efficiency + 
+      roiDataTyped.savings.retention
     
-    const firstYearROI = roiData.roi.firstYear
+    const firstYearROI = roiDataTyped.roi.firstYear
     const roiPercentage = investmentTotal > 0 
       ? ((firstYearROI - investmentTotal) / investmentTotal) * 100 
       : 0
     
     // Estimate three-year ROI (assume same savings each year)
-    const threeYearROI = (savingsTotal * 3) - (investmentTotal + roiData.investment.annual * 2)
+    const threeYearROI = (savingsTotal * 3) - (investmentTotal + roiDataTyped.investment.annual * 2)
 
     return {
-      paybackPeriod: roiData.roi.paybackPeriod,
+      paybackPeriod: roiDataTyped.roi.paybackPeriod,
       firstYearROI,
       threeYearROI,
       roiPercentage: Number(roiPercentage.toFixed(1)),

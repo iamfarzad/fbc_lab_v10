@@ -10,7 +10,7 @@ import { GEMINI_MODELS } from 'src/config/constants'
 import { multimodalContextManager } from 'src/core/context/multimodal-context'
 import { ContextStorage } from 'src/core/context/context-storage'
 import type { EmailDraftResult } from './tool-types'
-import { extractConversationInsights, buildConversationPairs } from 'src/pdf-generator-puppeteer'
+import { extractConversationInsights, buildConversationPairs } from 'src/core/pdf-generator-puppeteer'
 
 const contextStorage = new ContextStorage()
 

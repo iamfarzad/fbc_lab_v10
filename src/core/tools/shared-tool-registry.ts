@@ -94,7 +94,19 @@ const sharedToolDefinitions: Record<SharedToolName, SharedToolDefinition> = {
     inputSchema: calculateRoiSchema,
     execute: async (sessionId, args) => {
       const parsed = calculateRoiSchema.parse(args)
-      return await calculateROI(sessionId, parsed)
+      // Filter out undefined values for strict optional property types
+      const roiParams: Record<string, number> = {}
+      if (typeof parsed.currentCost === 'number') roiParams.currentCost = parsed.currentCost
+      if (typeof parsed.timeSavings === 'number') roiParams.timeSavings = parsed.timeSavings
+      if (typeof parsed.employeeCostPerHour === 'number') roiParams.employeeCostPerHour = parsed.employeeCostPerHour
+      if (typeof parsed.implementationCost === 'number') roiParams.implementationCost = parsed.implementationCost
+      if (typeof parsed.timeline === 'number') roiParams.timeline = parsed.timeline
+      if (typeof parsed.initialInvestment === 'number') roiParams.initialInvestment = parsed.initialInvestment
+      if (typeof parsed.annualCost === 'number') roiParams.annualCost = parsed.annualCost
+      if (typeof parsed.staffReductionSavings === 'number') roiParams.staffReductionSavings = parsed.staffReductionSavings
+      if (typeof parsed.efficiencySavings === 'number') roiParams.efficiencySavings = parsed.efficiencySavings
+      if (typeof parsed.retentionSavings === 'number') roiParams.retentionSavings = parsed.retentionSavings
+      return await calculateROI(sessionId, roiParams as any)
     }
   },
   draft_follow_up_email: {
