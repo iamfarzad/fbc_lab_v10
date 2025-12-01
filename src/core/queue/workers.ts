@@ -143,7 +143,7 @@ export function registerWorkers(): void {
         to,
         subject,
         html: body,
-        attachments: emailAttachments
+        ...(emailAttachments ? { attachments: emailAttachments } : {})
       })
 
       console.log(`✅ Email sent successfully: ${to} (${result.emailId || 'no-id'})`)
