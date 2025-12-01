@@ -1,0 +1,63 @@
+You are Agent 4: Validation & Fixes
+
+TASK: Validate Phase 4 completion and fix any issues
+
+
+Tasks to complete:
+1. Verify all Phase 4 files can be imported
+2. Run type-check and fix any errors
+3. Run lint and fix any issues
+4. Verify no circular dependencies
+5. Update PROJECT_STATUS.md with Phase 4 completion
+
+REQUIREMENTS:
+1. Read PROJECT_STATUS.md to understand current state
+2. Read docs/PHASE_3_COMPLETE.md for Phase 3 completion status
+3. Read docs/COMMIT_PROCESS_LEARNINGS.md for commit process learnings
+4. Access source files from original project:
+   - Check .source-config.json for source location (/Users/farzad/fbc-lab-9)
+   - Read files directly from that path
+   - Files may be in either api/_lib/services/ or services/ in the original codebase
+   - Use: node scripts/import-file.js <file-path> --validate
+5. For each file to import:
+   a. Check if file exists in original codebase (try both paths)
+   b. Import using: node scripts/import-file.js <source-path>
+   c. Move to target location if needed (should already be in services/)
+   d. Update import paths to absolute from root (no @/ aliases)
+   e. Remove .js extensions from imports
+   f. Fix any obvious type errors
+6. After importing all files:
+   - Run: pnpm type-check (MUST pass or fix errors)
+   - Run: pnpm lint (MUST pass or fix errors)
+   - Run: pnpm test --run (verify tests still pass)
+   - Run: pnpm check:circular (check for circular dependencies)
+7. Update PROJECT_STATUS.md with:
+   - Files imported
+   - Any issues found
+   - Validation results
+
+VALIDATION CHECKLIST:
+- [ ] All files imported to correct locations
+- [ ] All import paths updated (absolute from root)
+- [ ] pnpm type-check passes (or errors documented)
+- [ ] pnpm lint passes
+- [ ] pnpm test --run passes
+- [ ] pnpm check:circular passes (no critical cycles)
+- [ ] PROJECT_STATUS.md updated
+
+IMPORT PATH RULES:
+- Use absolute paths from root: 'src/lib/X', 'src/core/Y', 'services/Z'
+- NO @/ aliases
+- NO .js extensions
+- NO relative paths (../)
+
+DEPENDENCIES TO CHECK:
+- unifiedContext depends on: (check imports)
+- standardChatService depends on: unifiedContext, constants, types
+- aiBrainService depends on: unifiedContext, types
+- chromeAiService depends on: (check imports)
+- leadResearchService depends on: constants, types
+- geminiLiveService depends on: config, unifiedContext, live/client, types, audioUtils
+
+See docs/PARALLEL_AGENT_STRATEGY.md for full workflow.
+See docs/PHASE_3_COMPLETE.md for Phase 3 status.
