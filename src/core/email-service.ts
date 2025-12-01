@@ -1,0 +1,97 @@
+import { logger } from 'src/lib/logger'
+import { CONTACT_CONFIG, EXTERNAL_ENDPOINTS } from 'src/config/constants'
+import { parseJsonSafe, parseJsonResponse } from 'src/lib/json'
+import { z } from 'zod'
+
+export interface EmailAttachment {
+  filename: string
+  content: string | Buffer
+  contentType?: string
+}
+
+export interface EmailTemplate {
+  to: string
+  subject: string
+  html: string
+  text?: string
+  attachments?: EmailAttachment[]
+  tags?: Record<string, string>
+}
+
+const RESEND_ENDPOINT = EXTERNAL_ENDPOINTS.RESEND_EMAIL
+
+export class EmailService {
+  static async sendEmail(template: EmailTemplate) {
+    const apiKey = process.env.RESEND_API_KEY
+    const fromAddress = CONTACT_CONFIG.DEFAULT_FROM_EMAIL
+
+    if (!apiKey) {
+      logger.warn('EmailService: RESEND_API_KEY missing, skipping email send', {
+        to: template.to,
+        subject: template.subject
+      })
+      return { success: true, emailId: 'mock-email-id' }
+    }
+
+    const body = buildPayload(fromAddress, template)
+
+    const response = await fetch(RESEND_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+      const errorBody = await parseJsonSafe(response, z.any(), { error: 'Unknown error' }) as unknown
+      throw new Error(
+        `Resend API error (${response.status}): ${JSON.stringify(errorBody || {})}`
+      )
+    }
+
+    const data = await parseJsonResponse<Record<string, unknown>>(response, {})
+    const emailId = (data && typeof data === 'object' && 'id' in data && typeof data.id === 'string') ? data.id : undefined
+    return { success: true, emailId }
+  }
+}
+
+function buildPayload(from: string, template: EmailTemplate) {
+  const text = template.text ?? stripHtml(template.html)
+
+  return {
+    from,
+    to: [template.to],
+    subject: template.subject,
+    html: template.html,
+    text,
+    ...(template.tags
+      ? {
+          tags: Object.entries(template.tags).map(([name, value]) => ({ name, value }))
+        }
+      : {}),
+    ...(template.attachments && template.attachments.length > 0
+      ? {
+          attachments: template.attachments.map(attachment => ({
+            filename: attachment.filename,
+            content: encodeAttachment(attachment.content),
+            content_type: attachment.contentType ?? 'application/octet-stream'
+          }))
+        }
+      : {})
+  }
+}
+
+function encodeAttachment(content: string | Buffer) {
+  if (typeof content === 'string') {
+    return Buffer.from(content).toString('base64')
+  }
+
+  return Buffer.from(content).toString('base64')
+}
+
+function stripHtml(html: string) {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+

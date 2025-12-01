@@ -17,6 +17,9 @@
     "dev:server": "tsx watch server/live-server.ts",
     "start:server": "tsx server/live-server.ts",
     "build:server": "tsc --project tsconfig.server.json",
+    "dev:api": "tsx watch api/server.ts",
+    "dev:all": "concurrently -n frontend,websocket,api -c blue,green,yellow \"pnpm dev\" \"pnpm dev:server\" \"pnpm dev:api\"",
+    "dev:all:clean": "pnpm install && pnpm dev:all",
     "check:secrets": "node scripts/check-secrets.js",
     "check:circular": "node scripts/check-circular-deps.js",
     "check:unused": "node scripts/check-unused-exports.js",
@@ -28,11 +31,33 @@
     "logs:prod": "node scripts/monitor-logs.js production",
     "status": "node scripts/update-status.js",
     "status:check": "cat PROJECT_STATUS.md | head -30",
-    "verify:context": "node scripts/verify-context-system.js"
+    "verify:context": "node scripts/verify-context-system.js",
+    "generate:prompts": "node scripts/generate-agent-prompts.js",
+    "monitor:phase-1": "node scripts/monitor-agents.js phase-1",
+    "monitor:phase-2": "node scripts/monitor-agents.js phase-2",
+    "monitor:phase-3": "node scripts/monitor-agents.js phase-3",
+    "import:file": "node scripts/import-file.js",
+    "validate:phase-1": "pnpm check:all && pnpm build",
+    "validate:phase-2": "pnpm check:all && pnpm build",
+    "validate:phase-3": "pnpm check:all && pnpm build",
+    "validate:phase-4": "pnpm check:all && pnpm build",
+    "validate:phase-5": "pnpm check:all && pnpm build",
+    "validate:phase-6": "pnpm check:all && pnpm build",
+    "validate:phase-7": "pnpm check:all && pnpm build:server",
+    "validate:phase-8": "pnpm check:all && pnpm build && pnpm build:server",
+    "prepare": "husky install"
   },
   "dependencies": {
+    "@ai-sdk/google": "^2.0.44",
+    "@google/genai": "^1.30.0",
+    "@juggle/resize-observer": "^3.4.0",
+    "@supabase/supabase-js": "^2.86.0",
+    "@types/node": "^24.10.1",
+    "@vercel/kv": "^3.0.0",
+    "ai": "^5.0.104",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.5",
@@ -42,6 +67,7 @@
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -49,12 +75,9 @@
     "husky": "^8.0.3",
     "jsdom": "^23.0.1",
     "prettier": "^3.1.1",
+    "tsx": "^4.7.0",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
     "vitest": "^1.0.4"
-  },
-  "scripts": {
-    "prepare": "husky install"
   }
 }
-

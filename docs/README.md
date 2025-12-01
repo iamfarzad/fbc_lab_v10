@@ -11,6 +11,7 @@ This directory contains all project documentation organized by purpose.
 ## 📋 Import Strategy & Process
 
 ### Core Documents
+- **[Parallel Agent Strategy](./PARALLEL_AGENT_STRATEGY.md)** - **NEW:** How to use parallel agents for incremental, validated imports
 - **[Import Strategy](./IMPORT_STRATEGY.md)** - Overall strategy, file structure, decisions
 - **[Import Order](./IMPORT_ORDER.md)** - Prioritized import list (128 files in order)
 - **[Duplicate Comparison Checklist](./DUPLICATE_COMPARISON_CHECKLIST.md)** - Step-by-step process for comparing duplicates
@@ -18,9 +19,12 @@ This directory contains all project documentation organized by purpose.
 
 ### Quick Reference
 - **[Import Process Summary](./README_IMPORT_PROCESS.md)** - Quick overview and workflow
+- **[Agent Coordination](./AGENT_COORDINATION.md)** - How to run and coordinate parallel agents
+- **[Source Access](./SOURCE_ACCESS.md)** - How to access original project files incrementally
 
 ## ⚙️ Configuration
 
+- **[Development Scripts](./DEV_SCRIPTS.md)** - Running multiple services (frontend, websocket, API)
 - **[Project Configuration](./PROJECT_CONFIG.md)** - Build tool (Vite), import paths, project structure
 - **[Type Check & Lint Setup](./TYPE_CHECK_AND_LINT.md)** - TypeScript, ESLint, Prettier configuration
 - **[Deployment](./DEPLOYMENT.md)** - Vercel, Fly.io, Supabase deployment setup

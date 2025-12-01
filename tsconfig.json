@@ -30,7 +30,7 @@
     },
 
     /* Type definitions */
-    "types": ["vite/client", "vitest/globals"]
+    "types": ["vite/client", "vitest/globals", "node"]
   },
   "include": [
     "**/*.ts",
@@ -44,8 +44,10 @@
     "build",
     "**/*.test.ts",
     "**/*.test.tsx",
-    "**/__tests__/**"
-  },
+    "**/__tests__/**",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
   "references": [
     { "path": "./tsconfig.node.json" }
   ]

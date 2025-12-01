@@ -1,0 +1,60 @@
+You are Agent 2: Queue System
+
+TASK: Import queue system files (2 files) - handles background jobs
+
+
+Files to import (in this order):
+1. src/core/queue/redis-queue.ts
+     Source: Check both api/_lib/core/queue/redis-queue.ts and src/core/queue/redis-queue.ts in original codebase
+2. src/core/queue/workers.ts
+     Source: Check both api/_lib/core/queue/workers.ts and src/core/queue/workers.ts in original codebase
+
+REQUIREMENTS:
+1. Read PROJECT_STATUS.md to understand current state
+2. Read docs/PHASE_2_FINAL_STATUS.md for Phase 2 completion status
+3. Read docs/WHAT_IS_PHASE_3.md to understand Phase 3 goals
+4. Access source files from original project:
+   - Check .source-config.json for source location (/Users/farzad/fbc-lab-9)
+   - Read files directly from that path
+   - Files may be in either api/_lib/ or src/ in the original codebase
+   - Use: node scripts/import-file.js <file-path> --validate
+5. For each file to import:
+   a. Check if file exists in original codebase (try both api/_lib/ and src/ paths)
+   b. Import using: node scripts/import-file.js <source-path>
+   c. Move to target location if needed
+   d. Update import paths to absolute from root (no @/ aliases)
+   e. Remove .js extensions from imports
+   f. Fix any obvious type errors
+6. After importing all files:
+   - Run: pnpm type-check (MUST pass or fix errors)
+   - Run: pnpm lint (MUST pass or fix errors)
+   - Run: pnpm test --run (verify tests still pass)
+   - Run: pnpm check:circular (check for circular dependencies)
+7. Update PROJECT_STATUS.md with:
+   - Files imported
+   - Any issues found
+   - Validation results
+
+VALIDATION CHECKLIST:
+- [ ] All files imported to correct locations
+- [ ] All import paths updated (absolute from root)
+- [ ] pnpm type-check passes (or errors documented)
+- [ ] pnpm lint passes
+- [ ] pnpm test --run passes
+- [ ] pnpm check:circular passes (no critical cycles)
+- [ ] PROJECT_STATUS.md updated
+
+IMPORT PATH RULES:
+- Use absolute paths from root: 'src/lib/X', 'src/core/Y'
+- NO @/ aliases
+- NO .js extensions
+- NO relative paths (../)
+
+DEPENDENCIES TO CHECK:
+- Tools depend on: context-storage, multimodal-context, pdf-generator
+- Queue depends on: job-types, retry-config, vercel-cache, context-storage
+- Email depends on: (check imports)
+- Live client depends on: (check imports)
+
+See docs/PARALLEL_AGENT_STRATEGY.md for full workflow.
+See docs/WHAT_IS_PHASE_3.md for Phase 3 details.

@@ -1,0 +1,51 @@
+You are Agent 3: Core Utilities
+
+TASK: Import Core Utilities files (15 files)
+
+Files to import (in this order):
+1. src/lib/errors.ts
+2. src/lib/logger.ts
+3. src/lib/supabase.ts
+4. src/lib/supabase-parsers.ts
+5. src/lib/hash-utils.ts
+6. src/lib/exit-detection.ts
+7. src/lib/json.ts
+8. src/lib/vercel-cache.ts
+9. src/lib/ai-client.ts
+10. src/lib/text-utils.ts
+11. src/lib/code-quality.ts
+12. utils/browser-compat.ts
+13. utils/audioUtils.ts
+14. utils/visuals/store.ts
+15. utils/pdfUtils.ts
+
+REQUIREMENTS:
+1. Read PROJECT_STATUS.md to understand current state
+2. Read docs/IMPORT_ORDER.md for file locations
+3. Access source files from original project:
+   - Check .source-config.json for source location
+   - If local path: Read files directly from that path
+   - If repository: Request file contents or use API
+   - Use: node scripts/import-file.js <file-path> --validate
+4. Import files in dependency order listed above
+5. Update import paths to absolute from root (no @/ aliases)
+6. Remove any @/ aliases
+7. Run validation after each file:
+   - pnpm type-check (MUST pass)
+   - pnpm lint (MUST pass)
+8. Fix all errors before proceeding
+9. Update PROJECT_STATUS.md with:
+   - Files imported
+   - Any issues found
+   - Validation results
+
+VALIDATION CHECKLIST:
+- [ ] All 15 files imported
+- [ ] pnpm type-check passes
+- [ ] pnpm lint passes
+- [ ] No type errors
+- [ ] No lint errors
+- [ ] PROJECT_STATUS.md updated
+
+See docs/PARALLEL_AGENT_STRATEGY.md for full workflow.
+See docs/AGENT_COORDINATION.md for coordination guide.

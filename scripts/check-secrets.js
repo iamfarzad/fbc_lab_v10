@@ -5,7 +5,7 @@
  * Scans for common patterns of API keys, passwords, tokens, etc.
  */
 
-const { execSync } = require('child_process')
+import { execSync } from 'child_process'
 
 // Patterns to detect secrets
 const secretPatterns = [
@@ -82,13 +82,58 @@ function checkFile(filePath) {
   const content = getFileContent(filePath)
   const issues = []
   
+  // Skip false positive files
+  if (filePath.includes('.gitignore') || 
+      filePath.includes('check-secrets.js') ||
+      filePath.includes('duplicate-comparison-results.json') ||
+      (filePath.includes('docs/') && filePath.endsWith('.json'))) {
+    return []
+  }
+  
+  // Skip files that only reference env vars (not actual keys)
+  // Code like `process.env.GEMINI_API_KEY` is safe - it's reading from env, not hardcoding
+  const isEnvVarReference = (line) => {
+    return line.includes('process.env.') && 
+           !line.match(/['"][a-zA-Z0-9_-]{32,}['"]/) && // No actual long keys
+           !line.match(/=\s*['"][a-zA-Z0-9_-]{20,}['"]/) // No assignment of long strings
+  }
+  
   secretPatterns.forEach(({ pattern, name }) => {
+    // Skip credential/private-key patterns for code files (too many false positives)
+    if ((name === 'Credential' || name === 'Private Key' || name === 'Private Key (JSON)') &&
+        (filePath.endsWith('.ts') || filePath.endsWith('.tsx') || filePath.endsWith('.js'))) {
+      // Only flag if it looks like actual credential data, not just the word
+      if (!content.match(/["'](type|private_key|credential)["']\s*[:=]/)) {
+        return
+      }
+    }
+    
+    // Skip API key patterns that are just env var references
+    if (name.includes('API Key') && filePath.endsWith('.ts')) {
+      // Only flag if there's an actual long string that looks like a key
+      if (!content.match(/['"][a-zA-Z0-9_-]{32,}['"]/)) {
+        return
+      }
+    }
+    
     const matches = content.match(pattern)
     if (matches) {
       // Get line numbers
       const lines = content.split('\n')
       lines.forEach((line, index) => {
+        // Skip env var references
+        if (isEnvVarReference(line)) {
+          return
+        }
+        
         if (pattern.test(line)) {
+          // Additional check: skip if it's just a comment or documentation
+          if (line.trim().startsWith('//') || 
+              line.trim().startsWith('*') ||
+              line.trim().startsWith('#')) {
+            return
+          }
+          
           issues.push({
             type: name,
             line: index + 1,

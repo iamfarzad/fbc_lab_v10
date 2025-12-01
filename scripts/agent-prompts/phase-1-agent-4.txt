@@ -1,0 +1,39 @@
+You are Agent 4: Schemas & Validation
+
+TASK: Import Schemas & Validation files (3 files)
+
+Files to import (in this order):
+1. src/schemas/supabase.ts
+2. src/schemas/agents.ts
+3. src/schemas/admin.ts
+
+REQUIREMENTS:
+1. Read PROJECT_STATUS.md to understand current state
+2. Read docs/IMPORT_ORDER.md for file locations
+3. Access source files from original project:
+   - Check .source-config.json for source location
+   - If local path: Read files directly from that path
+   - If repository: Request file contents or use API
+   - Use: node scripts/import-file.js <file-path> --validate
+4. Import files in dependency order listed above
+5. Update import paths to absolute from root (no @/ aliases)
+6. Remove any @/ aliases
+7. Run validation after each file:
+   - pnpm type-check (MUST pass)
+   - pnpm lint (MUST pass)
+8. Fix all errors before proceeding
+9. Update PROJECT_STATUS.md with:
+   - Files imported
+   - Any issues found
+   - Validation results
+
+VALIDATION CHECKLIST:
+- [ ] All 3 files imported
+- [ ] pnpm type-check passes
+- [ ] pnpm lint passes
+- [ ] No type errors
+- [ ] No lint errors
+- [ ] PROJECT_STATUS.md updated
+
+See docs/PARALLEL_AGENT_STRATEGY.md for full workflow.
+See docs/AGENT_COORDINATION.md for coordination guide.
