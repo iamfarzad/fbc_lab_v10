@@ -15,7 +15,7 @@ import { AIBrainService } from './services/aiBrainService';
 import { ChromeAiService, ChromeAiCapabilities } from './services/chromeAiService';
 import { unifiedContext } from './services/unifiedContext';
 import { LiveConnectionState, TranscriptItem, VisualState, VisualShape, GroundingMetadata, ResearchResult } from './types';
-import { GEMINI_MODELS } from "./src/config/constants.ts";
+import { GEMINI_MODELS } from "src/config/constants";
 import { generatePDF } from './utils/pdfUtils';
 import { Tool, Type } from '@google/genai';
 

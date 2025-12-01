@@ -84,7 +84,7 @@ const isLocalhostRuntime = () => {
 
 // Check if we're in production at runtime (client-side aware)
 export const isProductionRuntime = () => {
-  // Always use localhost when running locally, even if NEXT_PUBLIC_LIVE_SERVER_URL is set
+  // Always use localhost when running locally, even if LIVE_SERVER_URL is set
   if (isLocalhostRuntime()) {
     return false
   }
@@ -105,6 +105,7 @@ export const isProductionRuntime = () => {
 
 export const WEBSOCKET_CONFIG = {
   // Distinct envs for prod vs dev to avoid accidental overrides
+  // Note: process.env.* is replaced by Vite's define at build time (matches v9 approach)
   PRODUCTION_URL: normalizeWebsocketUrl(process.env.NEXT_PUBLIC_LIVE_SERVER_URL, {
     fallback: 'wss://fb-consulting-websocket.fly.dev',
     enforceSecure: true,
@@ -126,7 +127,7 @@ export const WEBSOCKET_CONFIG = {
         const host = window.location.hostname
         const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
         const protocol = isSecure ? 'wss' : 'ws'
-        // WebSocket server runs on 3001, NOT the same port as Next.js (3000)
+        // WebSocket server runs on 3001, NOT the same port as Vite (3000)
         const port = process.env.NEXT_PUBLIC_LIVE_SERVER_DEV_PORT ?? '3001'
         const portSuffix = port ? `:${port}` : ''
         const devUrl = `${protocol}://${host}${portSuffix}`
