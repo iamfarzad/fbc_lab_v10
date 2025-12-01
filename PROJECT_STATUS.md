@@ -1,8 +1,8 @@
 # Project Status
 
 **Last Updated:** 2025-12-01
-**Current Phase:** Phase 10 - Test Files Import ✅
-**Session:** Environment Variable Fix - Matched v9 Approach
+**Current Phase:** V8 to V10 Import and Integration (Optional Intelligence Files) ✅
+**Session:** V8 Import - Optional Intelligence Files
 
 ## 🎯 Current Objective
 
@@ -78,9 +78,62 @@ Clean import of codebase from import map, removing duplicates and organizing str
 - `docs/MCP_TOOLS_GUIDE.md` - MCP tools guide
 - And more...
 
+## ✅ V8 to V10 Import Complete
+
+**Date:** 2025-12-01
+
+### Phase 1: Context Schema and Validation ✅
+- ✅ Imported `context-schema.ts` with Zod schemas (CompanySchema, PersonSchema, ContextSnapshotSchema)
+- ✅ Updated `context-manager.ts` to use `ContextSnapshotSchema` for validation
+- ✅ Added `getContextSnapshot()` function with full validation
+
+### Phase 2: Capabilities Tracking ✅
+- ✅ Imported `capabilities.ts` with `recordCapabilityUsed()` and `getCapabilitiesUsed()`
+- ✅ Created Supabase migration for `capability_usage_log` table
+- ✅ Created RPC function `append_capability_if_missing`
+- ✅ Integrated capability tracking in `tool-processor.ts`
+
+### Phase 3: Intelligence Utilities ✅
+- ✅ Imported `role-detector.ts` (role detection from text/research)
+- ✅ Imported `scoring.ts` (score combination utilities)
+- ✅ Imported `capability-map.ts` (role/industry → capabilities mapping)
+- ✅ Imported `capability-registry.ts` (complete capability definitions)
+- ✅ Imported `tool-suggestion-engine.ts` (context-aware tool suggestions)
+- ✅ Created `src/core/intelligence/types.ts` for shared types
+
+### Phase 4: PDF System ✅
+- ✅ Imported full PDF system from v8 (generator, renderers, templates, utils)
+- ✅ Fixed all import paths to use absolute paths (`src/...`)
+- ✅ Imported `pdf-design-tokens.ts` from v8
+- ✅ Replaced `pdf-generator-puppeteer.ts` stub with re-exports from new system
+- ✅ Updated PDF generation worker in `queue/workers.ts`
+
+### Phase 5: Supabase Migrations ✅
+- ✅ Imported critical migrations:
+  - `20250131_add_agent_fields.sql` (agent tracking fields)
+  - `20250201_create_token_usage_log.sql` (token usage tracking)
+  - `20250117_add_wal_table.sql` (write-ahead log)
+  - `20250117_add_audit_table.sql` (audit logging)
+  - `20250117_add_pdf_storage.sql` (PDF URL storage)
+  - `20250201_create_capability_usage_log.sql` (capability tracking + RPC)
+
+### Phase 6: Optional Intelligence Files ✅
+- ✅ Imported Data Normalizers: `company-normalizer.ts`, `person-normalizer.ts`
+- ✅ Imported `intent-detector.ts` (keyword-based intent detection)
+- ✅ Imported `admin-integration.ts` (admin intelligence handler)
+- ✅ Imported `advanced-intent-classifier.ts` (advanced NLP intent classification)
+- ✅ Created `src/core/intelligence/index.ts` to export all intelligence utilities
+
+### Files Imported/Updated:
+- Context: 2 files (context-schema.ts, capabilities.ts)
+- Intelligence: 12 files (+6 optional files: normalizers, intent-detector, admin-integration, advanced-classifier, index)
+- PDF: 14 files (generator, 3 renderers, 3 templates, 7 utils, design-tokens)
+- Migrations: 6 SQL files
+- Updated: context-manager.ts, tool-processor.ts, workers.ts, pdf-generator-puppeteer.ts
+
 ## 🚧 In Progress
 
-**Current Task:** Phase 1 - Foundation Files Import
+**Current Task:** Ready for testing and deployment
 
 **Phase 1 Complete:**
 - ✅ 28 files imported (types, config, utilities, schemas)
@@ -334,6 +387,34 @@ Clean import of codebase from import map, removing duplicates and organizing str
   - Build: ✅ Passes
   - Environment variables: ✅ Now work in browser (Vite replaces them at build time)
 - **Status:** Environment variable handling now matches v9, page should render correctly
+
+### Session: V8 to V10 Import and Integration (2025-12-01)
+- ✅ **Phase 1: Context Schema** - Imported context-schema.ts with Zod validation schemas
+- ✅ **Phase 2: Capabilities** - Imported capabilities.ts with tracking functions, created migration + RPC
+- ✅ **Phase 3: Intelligence** - Imported 5 intelligence utilities (role-detector, scoring, capability-map, capability-registry, tool-suggestion-engine)
+- ✅ **Phase 4: PDF System** - Imported full PDF system (14 files: generator, renderers, templates, utils, design-tokens)
+- ✅ **Phase 5: Migrations** - Imported 6 critical Supabase migrations (agent fields, token usage, WAL, audit, PDF storage, capability tracking)
+- ✅ **Integration:**
+  - Updated context-manager.ts with validation
+  - Integrated capability tracking in tool-processor.ts
+  - Updated PDF generation worker
+  - Replaced PDF stub with re-exports
+- ✅ **Files:** 28 files imported/updated, 6 migrations created
+- ✅ **Status:** All imports complete, ready for testing
+
+### Session: V8 Import - Optional Intelligence Files (2025-12-01)
+- ✅ **Imported Optional Files:**
+  - `company-normalizer.ts`, `person-normalizer.ts` (Data Normalizers)
+  - `intent-detector.ts` (Keyword-based intent detection)
+  - `admin-integration.ts` (Admin intelligence handler)
+  - `advanced-intent-classifier.ts` (Advanced NLP intent classification)
+- ✅ **Created Index:** `src/core/intelligence/index.ts`
+- ✅ **Dependencies Resolved:**
+  - Fixed imports to absolute paths (`src/...`)
+  - Verified `CACHE_CONFIGS` and `generateRequestId` existence
+  - Fixed `Promise.all` usage with synchronous methods in `advanced-intent-classifier.ts`
+  - Fixed type error for `primaryIntent` fallback
+- ✅ **Status:** All optional intelligence files imported and integrated. Type check and lint pass.
 
 ---
 
