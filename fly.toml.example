@@ -1,0 +1,32 @@
+# Fly.io Configuration Example
+# Copy to fly.toml and customize for your app
+# 
+# IMPORTANT: Deploy from ROOT directory, not from server/
+# Server imports from src/, so root deployment is required
+
+app = "fb-consulting-websocket"
+primary_region = "iad"
+
+[build]
+  dockerfile = "server/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+
+[http_service]
+  auto_start_machines = true
+  auto_stop_machines = "suspend"
+  force_https = true
+  internal_port = 8080
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "45s"
+    path = "/health"
+    timeout = "10s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "2gb"

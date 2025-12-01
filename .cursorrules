@@ -1,0 +1,88 @@
+# Cursor AI Rules for fbc_lab_v10 Project
+
+## CRITICAL: Context Preservation Rules
+
+### 1. ALWAYS Read Status File First
+**Before doing ANYTHING, read:**
+- `PROJECT_STATUS.md` - Current project status
+- `docs/README.md` - Documentation index
+- `docs/IMPORT_ORDER.md` - Current import progress
+
+### 2. ALWAYS Update Status After Changes
+**After ANY significant change:**
+- Update `PROJECT_STATUS.md` with:
+  - What was done
+  - Current phase
+  - Next steps
+  - Any blockers
+
+### 3. NEVER Skip Status Updates
+**Status must be updated when:**
+- Importing files
+- Fixing issues
+- Completing phases
+- Encountering blockers
+- Making decisions
+
+### 4. Context Preservation Checklist
+**At start of each session:**
+- [ ] Read `PROJECT_STATUS.md`
+- [ ] Read `docs/README.md`
+- [ ] Check last modified files
+- [ ] Review current phase in `IMPORT_ORDER.md`
+- [ ] Check for blockers/issues
+
+**At end of each session:**
+- [ ] Update `PROJECT_STATUS.md`
+- [ ] Document what was done
+- [ ] Document next steps
+- [ ] Note any blockers
+
+## Project-Specific Rules
+
+### Import Process
+- Follow `docs/IMPORT_ORDER.md` strictly
+- One file at a time
+- Compare duplicates before importing
+- Run `pnpm check:all` after each import
+- Update status after each file
+
+### Code Quality
+- Never commit broken code
+- Always run type-check and lint
+- Check for secrets before committing
+- Verify imports resolve
+- Test after each change
+
+### Documentation
+- Keep `PROJECT_STATUS.md` updated
+- Document decisions in relevant docs
+- Update checklists as you go
+- Note any deviations from plan
+
+## File Structure Rules
+
+- All docs in `docs/` directory
+- All scripts in `scripts/` directory
+- Status file at root: `PROJECT_STATUS.md`
+- Never clutter root directory
+
+## Import Rules
+
+1. Check if file has duplicate → compare first
+2. Verify dependencies are imported
+3. Import file
+4. Update import paths
+5. Run `pnpm type-check`
+6. Run `pnpm lint`
+7. Update `PROJECT_STATUS.md`
+8. Move to next file
+
+## Never Do
+
+- Skip status updates
+- Import without checking dependencies
+- Commit without running checks
+- Skip duplicate comparison
+- Work without reading status first
+
