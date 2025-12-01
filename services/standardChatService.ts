@@ -276,7 +276,7 @@ export class StandardChatService {
                 });
             }
 
-            if (message.trim()) {
+            if (typeof message === 'string' && message.trim()) {
                 currentParts.push({ text: message });
             } else if (attachment) {
                 currentParts.push({ text: "Please analyze this content deeply." });

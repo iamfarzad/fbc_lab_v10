@@ -1,7 +1,7 @@
 import { LiveClientWS } from 'src/core/live/client';
-import { createPcmBlob, base64ToBytes, decodeAudioData } from 'utils/audioUtils';
+import { createPcmBlob, base64ToBytes, decodeAudioData } from '../utils/audioUtils';
 import { LiveServiceConfig, TranscriptItem, ResearchResult } from 'types';
-import { AppConfig } from 'config';
+import { AppConfig } from '../config';
 import { unifiedContext } from './unifiedContext';
 
 // Audio Constants
@@ -372,11 +372,11 @@ export class GeminiLiveService {
       this.inputSource.disconnect();
       this.inputSource = null;
     }
-    if (this.outputNode) {
+    if (this.outputNode && typeof this.outputNode.disconnect === 'function') {
       this.outputNode.disconnect();
       this.outputNode = null;
     }
-    if (this.outputAnalyser) {
+    if (this.outputAnalyser && typeof this.outputAnalyser.disconnect === 'function') {
       this.outputAnalyser.disconnect();
       this.outputAnalyser = null;
     }
