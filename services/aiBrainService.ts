@@ -65,7 +65,7 @@ export class AIBrainService {
 
         // 2. In browser, use relative path (proxy) or absolute URL based on window
         if (typeof window !== 'undefined') {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            // const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'; // Not used
             // If local, assume API is on port 3002 (as per your setup)
             // But if we are using a proxy in vite.config, relative path is better
             // Let's stick to relative path '/api' which works if proxy is set up or if served from same origin
@@ -189,7 +189,7 @@ export class AIBrainService {
         }
     ): Promise<AgentResponse> {
         try {
-            const snapshot = unifiedContext.getSnapshot();
+            // const snapshot = unifiedContext.getSnapshot(); // Not used
             const url = `${this.baseUrl}/api/chat`;
 
             const payload = {
@@ -252,7 +252,7 @@ export class AIBrainService {
                     content: item.text,
                 };
 
-                if (item.attachment?.data) {
+                if (item.attachment?.data && item.attachment?.mimeType) {
                     msg.attachments = [{
                         mimeType: item.attachment.mimeType,
                         data: item.attachment.data

@@ -400,7 +400,7 @@ export class GeminiLiveService {
   }
 
   // Audio playback
-  private async playAudio(audioData: string, mimeType: string) {
+  private async playAudio(audioData: string, _mimeType: string) {
     if (!this.outputAudioContext || !this.outputNode) return;
 
     try {

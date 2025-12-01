@@ -1,4 +1,4 @@
-import type { TranscriptItem, ResearchResult } from 'src/types/core';
+import type { TranscriptItem, ResearchResult } from 'types';
 
 type Location = { latitude: number; longitude: number };
 
@@ -23,7 +23,7 @@ class UnifiedContext {
     private state: UnifiedState = { transcript: [] };
     private listeners = new Set<Listener>();
     private locationPromise: Promise<Location | undefined> | null = null;
-    private isInitialized = false;
+    // private isInitialized = false; // Not used externally
 
     constructor() {
         // Hydrate from storage immediately if on client
@@ -65,7 +65,7 @@ class UnifiedContext {
                     }));
                 }
                 this.state = { ...this.state, ...parsed };
-                this.isInitialized = true;
+                // this.isInitialized = true; // Removed - not in type definition
                 // Don't notify here to avoid render loops during init, 
                 // but listeners will get state on subscribe
             }

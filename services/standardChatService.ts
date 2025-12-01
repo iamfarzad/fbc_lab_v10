@@ -106,13 +106,12 @@ export class StandardChatService {
         modelOverride?: string
     ): Promise<{ text: string, reasoning?: string, groundingMetadata?: any, toolCalls?: any[] }> {
         // Define variables at function scope so error handler can access them
-        let activeModel: string;
+        const activeModel: string = modelOverride || this.defaultModel;
         let historyContent: Content[] = [];
         let chatConfig: any;
         let supportsTools = false;
 
         try {
-            activeModel = modelOverride || this.defaultModel;
             const validRoles = ['user', 'model'];
 
             // 1. Process History:
@@ -392,9 +391,8 @@ export class StandardChatService {
 
                 return {
                     text: fullText,
-                    reasoning: reasoningText,
-                    groundingMetadata: candidate?.groundingMetadata,
-                    toolCalls: undefined
+                    ...(reasoningText && { reasoning: reasoningText }),
+                    ...(candidate?.groundingMetadata && { groundingMetadata: candidate.groundingMetadata })
                 };
             }
 
