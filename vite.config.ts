@@ -1,12 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    // Absolute imports from root work by default
-    // No alias needed for: components/X, services/Y, src/Z
+    alias: {
+      'types': path.resolve(__dirname, './types.ts'),
+      'config': path.resolve(__dirname, './config.ts'),
+      'utils': path.resolve(__dirname, './utils'),
+      'components': path.resolve(__dirname, './components'),
+      'services': path.resolve(__dirname, './services'),
+      'src': path.resolve(__dirname, './src'),
+    },
   },
   server: {
     port: 3000,

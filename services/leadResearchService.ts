@@ -1,4 +1,4 @@
-import { GoogleGenAI, Schema, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { ResearchResult } from 'types';
 import { GEMINI_MODELS } from 'src/config/constants';
 
@@ -16,25 +16,17 @@ export class LeadResearchService {
             company: {
                 name: companyName,
                 domain,
-                industry: null,
-                size: null,
                 summary: '',
-                website: `https://${domain}`,
-                linkedin: null,
-                country: null
+                website: `https://${domain}`
             },
             person: {
-                fullName: name || email.split('@')[0],
-                role: null,
-                seniority: null,
-                profileUrl: null,
+                fullName: name || email.split('@')[0] || 'Unknown',
                 company: companyName
             },
             role: 'Unknown',
             confidence: 0.0,
-            strategic: null,
             citations: []
-        } as ResearchResult;
+        };
     }
 
     /**
@@ -64,7 +56,6 @@ export class LeadResearchService {
                 },
                 role: 'Founder',
                 confidence: 1.0,
-                strategic: null,
                 citations: []
             };
         }
@@ -86,50 +77,8 @@ export class LeadResearchService {
 
         console.log('🔍 Starting Lead Research for:', email);
 
-        // 1. Construct Schema for Strict JSON Output
-        const responseSchema: Schema = {
-            type: Type.OBJECT,
-            properties: {
-                company: {
-                    type: Type.OBJECT,
-                    properties: {
-                        name: { type: Type.STRING },
-                        domain: { type: Type.STRING },
-                        industry: { type: Type.STRING, nullable: true },
-                        size: { type: Type.STRING, nullable: true },
-                        summary: { type: Type.STRING, nullable: true },
-                        website: { type: Type.STRING, nullable: true },
-                        linkedin: { type: Type.STRING, nullable: true },
-                        country: { type: Type.STRING, nullable: true, description: "Headquarters country e.g. Norway, USA" }
-                    },
-                    required: ["name", "domain"]
-                },
-                person: {
-                    type: Type.OBJECT,
-                    properties: {
-                        fullName: { type: Type.STRING },
-                        role: { type: Type.STRING, nullable: true },
-                        seniority: { type: Type.STRING, nullable: true },
-                        profileUrl: { type: Type.STRING, nullable: true },
-                        company: { type: Type.STRING, nullable: true }
-                    },
-                    required: ["fullName"]
-                },
-                strategic: {
-                    type: Type.OBJECT,
-                    properties: {
-                        latest_news: { type: Type.ARRAY, items: { type: Type.STRING }, description: "3 recent news headlines about the company or industry" },
-                        competitors: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Top 3 direct competitors" },
-                        pain_points: { type: Type.ARRAY, items: { type: Type.STRING }, description: "3 likely business challenges for this specific role/industry" },
-                        market_trends: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Current trends affecting this sector" }
-                    },
-                    nullable: true
-                },
-                role: { type: Type.STRING },
-                confidence: { type: Type.NUMBER }
-            },
-            required: ["company", "person", "role", "confidence"]
-        };
+        // Note: Schema definition removed as it's not currently used in the API call
+        // Future enhancement: Use structured output with responseMimeType when supported
 
         const domain = email.split('@')[1];
 
