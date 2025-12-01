@@ -12,8 +12,17 @@ export default defineConfig({
       '**/*.test.{ts,tsx}',
       '**/*.spec.{ts,tsx}',
       '**/__tests__/**/*.{ts,tsx}',
-      'test/**/*.{ts,tsx}',
-      'e2e/**/*.{ts,tsx}'
+      'test/**/*.test.{ts,tsx}',
+      'e2e/**/*.spec.{ts,tsx}'
+    ],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/test/helpers/**',
+      '**/stubs/**',
+      '**/*.stub.ts',
+      '**/e2e/**',
+      '**/*.spec.ts'
     ],
     testTimeout: 10000,
     hookTimeout: 10000,
@@ -25,7 +34,9 @@ export default defineConfig({
   resolve: {
     alias: {
       // Support both absolute and relative imports
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, './src'),
+      // Mock Next.js for tests
+      'next/server': path.resolve(__dirname, './src/core/session/__tests__/stubs/next-server.ts')
     }
   }
 })

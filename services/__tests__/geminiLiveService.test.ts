@@ -4,10 +4,10 @@ import type { LiveServiceConfig } from '../../types'
 import { createMockLiveClientWS } from '../../test/helpers/mock-websocket'
 import { setupAudioMocks } from '../../test/helpers/mock-audio'
 import { mockResearchResult, mockTranscript } from '../../test/helpers/test-data'
-import { LiveClientWS } from '../../src/core/live/client'
+import { LiveClientWS } from '@/core/live/client'
 
 // Mock LiveClientWS
-vi.mock('../../src/core/live/client', () => ({
+vi.mock('@/core/live/client', () => ({
   LiveClientWS: vi.fn()
 }))
 

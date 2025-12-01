@@ -44,9 +44,16 @@
     "build",
     "**/*.test.ts",
     "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
     "**/__tests__/**",
+    "test/**",
+    "e2e/**",
     "vite.config.ts",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "**/*.config.ts",
+    "**/*.config.js"
   ],
   "references": [
     { "path": "./tsconfig.node.json" }
