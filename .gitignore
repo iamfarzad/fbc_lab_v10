@@ -74,3 +74,4 @@ lerna-debug.log*
 .husky/_/*
 !.husky/_/husky.sh
 
+.vercel
