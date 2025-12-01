@@ -268,7 +268,7 @@ export class MultimodalContextManager {
       metadata: {
         duration,
         transcription,
-        confidence: metadata?.confidence,
+        ...(typeof metadata?.confidence === 'number' ? { confidence: metadata.confidence } : {}),
         ...(typeof metadata?.sampleRate === 'number' ? { sampleRate: metadata.sampleRate } : {}),
         ...(metadata?.format ? { format: metadata.format } : {}),
       }
@@ -379,16 +379,16 @@ export class MultimodalContextManager {
     const context = await this.getOrCreateContext(sessionId)
 
     const entryTimestamp = new Date().toISOString()
-    const uploadEntry = {
+    const uploadEntry: UploadEntry = {
       id: payload.id,
       timestamp: entryTimestamp,
       filename: payload.filename,
       mimeType: payload.mimeType,
       size: payload.size,
       analysis: payload.analysis,
-      summary: payload.summary,
-      dataUrl: payload.dataUrl,
-      pages: payload.pages
+      ...(payload.summary ? { summary: payload.summary } : {}),
+      ...(payload.dataUrl ? { dataUrl: payload.dataUrl } : {}),
+      ...(typeof payload.pages === 'number' ? { pages: payload.pages } : {})
     }
 
     if (WAL_ENABLED) {
@@ -523,7 +523,7 @@ export class MultimodalContextManager {
         metadata: {
           confidence: metadata?.confidence ?? 1.0,
           format: role === 'user' ? 'pcm16@16000' : 'pcm16@24000',
-          size: metadata?.size,
+          ...(typeof metadata?.size === 'number' ? { size: metadata.size } : {}),
           storedRaw: metadata?.storedRaw ?? false,
         }
       }
@@ -537,7 +537,7 @@ export class MultimodalContextManager {
               console.log(`🪵 WAL logged voice entry for session ${sessionId}`)
             }
           })
-          .catch((err) => {
+          .catch((err: unknown) => {
             console.warn('⚠️ WAL logging failed (non-critical):', err)
           })
       }
@@ -549,9 +549,9 @@ export class MultimodalContextManager {
       if (isFinal && transcript.trim().length > 0) {
         const conversationEntryMetadata: ConversationEntry['metadata'] = {
           transcription: transcript,
-          confidence: metadata?.confidence ?? 1,
+          ...(typeof metadata?.confidence === 'number' ? { confidence: metadata.confidence } : {}),
           speaker: role === 'assistant' ? 'model' : 'user',
-          languageCode: audioEntry.data.languageCode,
+          ...(audioEntry.data.languageCode ? { languageCode: audioEntry.data.languageCode } : {}),
         }
         if (typeof metadata?.size === 'number') {
           conversationEntryMetadata.duration = metadata.size;
@@ -718,11 +718,11 @@ export class MultimodalContextManager {
           modality: 'text',
           content: contentText,
           metadata: {
-            similarity,
+            ...(typeof similarity === 'number' ? { similarity } : {}),
             kind,
             semantic: true // Flag to indicate this came from semantic search
           },
-          similarity
+          ...(typeof similarity === 'number' ? { similarity } : {})
         }
       })
 

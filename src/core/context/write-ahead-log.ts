@@ -7,5 +7,8 @@ export const walLog = {
   },
   async flush() {
     return;
+  },
+  async logOperation(_sessionId: string, _operation: string, _data: unknown) {
+    return;
   }
 };
