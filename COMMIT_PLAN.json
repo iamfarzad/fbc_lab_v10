@@ -1,0 +1,188 @@
+[
+  {
+    "category": "chore: add duplicate detection script",
+    "files": [
+      "scripts/check-duplicate-code.js"
+    ],
+    "message": "chore: add duplicate detection script\n\n1 file:\n- scripts/check-duplicate-code.js"
+  },
+  {
+    "category": "feat: add admin API routes",
+    "files": [
+      "api/admin/analytics/",
+      "api/admin/conversations/",
+      "api/admin/email-campaigns/",
+      "api/admin/failed-conversations/",
+      "api/admin/flyio/",
+      "api/admin/interaction-analytics/",
+      "api/admin/meetings/",
+      "api/admin/real-time-activity/",
+      "api/admin/security-audit/",
+      "api/admin/stats/",
+      "api/admin/system-health/"
+    ],
+    "message": "feat: add admin API routes\n\n11 files:\n- api/admin/analytics/\n- api/admin/conversations/\n- api/admin/email-campaigns/\n- api/admin/failed-conversations/\n- api/admin/flyio/\n- api/admin/interaction-analytics/\n- api/admin/meetings/\n- api/admin/real-time-activity/\n- api/admin/security-audit/\n- api/admin/stats/\n- ... and 1 more files"
+  },
+  {
+    "category": "feat: add admin UI components",
+    "files": [
+      "components/admin/"
+    ],
+    "message": "feat: add admin UI components\n\n1 file:\n- components/admin/"
+  },
+  {
+    "category": "feat: add shadcn/ui component library",
+    "files": [
+      "components/ui/alert.tsx",
+      "components/ui/avatar.tsx",
+      "components/ui/badge.tsx",
+      "components/ui/button.tsx",
+      "components/ui/card.tsx",
+      "components/ui/dialog.tsx",
+      "components/ui/input.tsx",
+      "components/ui/label.tsx",
+      "components/ui/progress.tsx",
+      "components/ui/select.tsx",
+      "components/ui/switch.tsx",
+      "components/ui/table.tsx",
+      "components/ui/tabs.tsx",
+      "components/ui/textarea.tsx"
+    ],
+    "message": "feat: add shadcn/ui component library\n\n14 files:\n- components/ui/alert.tsx\n- components/ui/avatar.tsx\n- components/ui/badge.tsx\n- components/ui/button.tsx\n- components/ui/card.tsx\n- components/ui/dialog.tsx\n- components/ui/input.tsx\n- components/ui/label.tsx\n- components/ui/progress.tsx\n- components/ui/select.tsx\n- ... and 4 more files"
+  },
+  {
+    "category": "feat: add context and intelligence system",
+    "files": [
+      "src/core/intelligence/lead-research.ts",
+      "src/core/context/capabilities.ts",
+      "src/core/context/context-manager.ts",
+      "src/core/context/context-schema.ts",
+      "src/core/context/flow-sync.ts",
+      "src/core/intelligence/capability-map.ts",
+      "src/core/intelligence/capability-registry.ts",
+      "src/core/intelligence/role-detector.ts",
+      "src/core/intelligence/scoring.ts",
+      "src/core/intelligence/tool-suggestion-engine.ts",
+      "src/core/intelligence/types.ts"
+    ],
+    "message": "feat: add context and intelligence system\n\n11 files:\n- src/core/intelligence/lead-research.ts\n- src/core/context/capabilities.ts\n- src/core/context/context-manager.ts\n- src/core/context/context-schema.ts\n- src/core/context/flow-sync.ts\n- src/core/intelligence/capability-map.ts\n- src/core/intelligence/capability-registry.ts\n- src/core/intelligence/role-detector.ts\n- src/core/intelligence/scoring.ts\n- src/core/intelligence/tool-suggestion-engine.ts\n- ... and 1 more files"
+  },
+  {
+    "category": "feat: add PDF system",
+    "files": [
+      "src/core/pdf-generator-puppeteer.ts",
+      "src/core/pdf-roi-charts.ts",
+      "src/core/pdf-design-tokens.ts",
+      "src/core/pdf/"
+    ],
+    "message": "feat: add PDF system\n\n4 files:\n- src/core/pdf-generator-puppeteer.ts\n- src/core/pdf-roi-charts.ts\n- src/core/pdf-design-tokens.ts\n- src/core/pdf/"
+  },
+  {
+    "category": "feat: add database migrations",
+    "files": [
+      "supabase/migrations/"
+    ],
+    "message": "feat: add database migrations\n\n1 file:\n- supabase/migrations/"
+  },
+  {
+    "category": "feat: add hooks system",
+    "files": [
+      "src/hooks/"
+    ],
+    "message": "feat: add hooks system\n\n1 file:\n- src/hooks/"
+  },
+  {
+    "category": "feat: add core services and utilities",
+    "files": [
+      "src/core/admin/admin-chat-service.ts",
+      "src/core/token-usage-logger.ts",
+      "src/core/db/"
+    ],
+    "message": "feat: add core services and utilities\n\n3 files:\n- src/core/admin/admin-chat-service.ts\n- src/core/token-usage-logger.ts\n- src/core/db/"
+  },
+  {
+    "category": "feat: add types and schemas",
+    "files": [
+      "src/schemas/admin.ts",
+      "src/lib/date-utils.ts",
+      "src/lib/id.ts",
+      "src/lib/services/",
+      "src/lib/utils.ts",
+      "src/types/api-responses.ts",
+      "src/types/conversations.ts",
+      "src/types/media-analysis.ts",
+      "src/types/voice.ts"
+    ],
+    "message": "feat: add types and schemas\n\n9 files:\n- src/schemas/admin.ts\n- src/lib/date-utils.ts\n- src/lib/id.ts\n- src/lib/services/\n- src/lib/utils.ts\n- src/types/api-responses.ts\n- src/types/conversations.ts\n- src/types/media-analysis.ts\n- src/types/voice.ts"
+  },
+  {
+    "category": "refactor: update core services",
+    "files": [
+      "App.tsx",
+      "api/chat.ts",
+      "components/AdminDashboard.tsx",
+      "context/ToastContext.tsx",
+      "services/aiBrainService.ts",
+      "src/core/embeddings/query.ts",
+      "src/core/queue/workers.ts",
+      "src/core/tools/generate-summary-preview.ts"
+    ],
+    "message": "refactor: update core services\n\n8 files:\n- App.tsx\n- api/chat.ts\n- components/AdminDashboard.tsx\n- context/ToastContext.tsx\n- services/aiBrainService.ts\n- src/core/embeddings/query.ts\n- src/core/queue/workers.ts\n- src/core/tools/generate-summary-preview.ts"
+  },
+  {
+    "category": "refactor: update test files",
+    "files": [
+      "services/__tests__/geminiLiveService.test.ts",
+      "services/__tests__/integration.test.ts",
+      "services/__tests__/leadResearchService.test.ts"
+    ],
+    "message": "refactor: update test files\n\n3 files:\n- services/__tests__/geminiLiveService.test.ts\n- services/__tests__/integration.test.ts\n- services/__tests__/leadResearchService.test.ts"
+  },
+  {
+    "category": "chore: update dependencies and config",
+    "files": [
+      "gitignore",
+      "PROJECT_STATUS.md",
+      "api-local-server.ts",
+      "index.html",
+      "index.tsx",
+      "package.json",
+      "pnpm-lock.yaml",
+      "vitest.config.ts",
+      "COMPLETE_CLIENT_FLOW_DOCUMENTATION.md",
+      "analyze_gaps.sh",
+      "gap_analysis_report.md",
+      "index.css",
+      "postcss.config.js",
+      "scripts/categorize-commits.js",
+      "src/components/",
+      "tailwind.config.js"
+    ],
+    "message": "chore: update dependencies and config\n\n16 files:\n- gitignore\n- PROJECT_STATUS.md\n- api-local-server.ts\n- index.html\n- index.tsx\n- package.json\n- pnpm-lock.yaml\n- vitest.config.ts\n- COMPLETE_CLIENT_FLOW_DOCUMENTATION.md\n- analyze_gaps.sh\n- ... and 6 more files"
+  },
+  {
+    "category": "docs: add comprehensive documentation",
+    "files": [
+      "docs/PHASE_4_COMPLETE.md",
+      "docs/README.md",
+      "docs/ADMIN_MIGRATION_MATRIX.md",
+      "docs/DEPLOY_FLY_WEBSOCKET.md",
+      "docs/PHASE_2_LEAD_RESEARCH_CONSOLIDATION.md",
+      "docs/PHASE_4_ARCHITECTURE_DECISION.md",
+      "docs/V8_IMPORT_STATUS.md",
+      "docs/V8_V10_COMPARISON.md"
+    ],
+    "message": "docs: add comprehensive documentation\n\n8 files:\n- docs/PHASE_4_COMPLETE.md\n- docs/README.md\n- docs/ADMIN_MIGRATION_MATRIX.md\n- docs/DEPLOY_FLY_WEBSOCKET.md\n- docs/PHASE_2_LEAD_RESEARCH_CONSOLIDATION.md\n- docs/PHASE_4_ARCHITECTURE_DECISION.md\n- docs/V8_IMPORT_STATUS.md\n- docs/V8_V10_COMPARISON.md"
+  },
+  {
+    "category": "chore: add analysis and gap reports",
+    "files": [
+      "ANALYSIS_REPORT_2025_12_01.md",
+      "COMMIT_MESSAGES.md",
+      "COMMIT_SUMMARY.md",
+      "COMPREHENSIVE_CODEBASE_ANALYSIS_REPORT.md",
+      "VALIDATION_REPORT.md"
+    ],
+    "message": "chore: add analysis and gap reports\n\n5 files:\n- ANALYSIS_REPORT_2025_12_01.md\n- COMMIT_MESSAGES.md\n- COMMIT_SUMMARY.md\n- COMPREHENSIVE_CODEBASE_ANALYSIS_REPORT.md\n- VALIDATION_REPORT.md"
+  }
+]
