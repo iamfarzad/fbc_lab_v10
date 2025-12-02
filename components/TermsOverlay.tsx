@@ -69,11 +69,6 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
     setIsSubmitting(false);
   };
 
-  const handleDevBypass = () => {
-      console.log('[TermsOverlay] DEV BYPASS TRIGGERED');
-      onComplete("Dev User", "dev@local.test", "http://localhost", { voice: true, webcam: true, location: true });
-  };
-
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 overflow-y-auto">
       {/* Backdrop */}
@@ -266,15 +261,6 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </>
                 )}
-            </button>
-
-            {/* DEV BYPASS BUTTON - ALWAYS VISIBLE FOR TESTING */}
-            <button
-                type="button"
-                onClick={handleDevBypass}
-                className="mt-2 w-full py-1.5 rounded-lg font-mono text-[10px] tracking-wider uppercase border border-dashed border-red-500/30 text-red-500/50 hover:text-red-500 hover:border-red-500 hover:bg-red-500/5 transition-all"
-            >
-                [DEV MODE] BYPASS FORM
             </button>
         </form>
       </div>
