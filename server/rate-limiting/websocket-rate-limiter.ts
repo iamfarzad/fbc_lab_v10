@@ -48,7 +48,26 @@ export function checkRateLimit(
   messageType?: string
 ): { allowed: boolean; remaining?: number } {
   const st = connectionStates.get(connectionId)
-  if (!st) return { allowed: false }
+  if (!st) {
+    // Log missing connectionState for debugging
+    console.warn('[Rate Limiter] ConnectionState missing for connectionId:', connectionId, {
+      availableConnections: Array.from(connectionStates.keys()),
+      connectionCount: connectionStates.size
+    })
+    // Initialize connectionState defensively if missing (shouldn't happen, but prevents crashes)
+    const now = Date.now()
+    const defaultState: ConnectionState = {
+      isReady: false,
+      lastPing: now,
+      messageCount: 0,
+      lastMessageAt: now,
+      audioCount: 0,
+      audioLastAt: now
+    }
+    connectionStates.set(connectionId, defaultState)
+    // Allow first message to pass through, but log the issue
+    return { allowed: true }
+  }
 
   const now = Date.now()
   // Apply per-type limits: audio has higher allowance

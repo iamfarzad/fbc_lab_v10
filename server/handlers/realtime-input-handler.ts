@@ -31,10 +31,20 @@ export async function handleRealtimeInput(
   payload: RealtimeInputPayload,
   activeSessions: ActiveSessionsMap
 ): Promise<void> {
-  // Check rate limit
-  const rateLimit = checkRateLimit(connectionId, client.sessionId, MESSAGE_TYPES.REALTIME_INPUT)
+  // Determine if this is an audio chunk to use appropriate rate limiting
+  const chunks = Array.isArray(payload?.chunks) ? payload.chunks : []
+  const chunk = chunks[0]
+  const mimeType = chunk?.mimeType || ''
+  const isAudioChunk = mimeType.startsWith('audio/') || mimeType.includes('pcm') || mimeType.includes('rate=')
+  
+  // Check rate limit - use audio rate limit for audio chunks, regular limit for others
+  const rateLimit = checkRateLimit(
+    connectionId, 
+    client.sessionId, 
+    isAudioChunk ? MESSAGE_TYPES.USER_AUDIO : MESSAGE_TYPES.REALTIME_INPUT
+  )
   if (!rateLimit.allowed) {
-    serverLogger.warn('Rate limit exceeded for REALTIME_INPUT', { connectionId })
+    serverLogger.warn('Rate limit exceeded for REALTIME_INPUT', { connectionId, isAudioChunk, mimeType })
     safeSend(client.ws, JSON.stringify({
       type: MESSAGE_TYPES.ERROR,
       payload: { message: `Rate limit exceeded. Try again in ${rateLimit.remaining}s`, code: 'RATE_LIMIT_EXCEEDED' }
@@ -52,8 +62,6 @@ export async function handleRealtimeInput(
     }))
     return
   }
-
-  const chunks = Array.isArray(payload?.chunks) ? payload.chunks : []
 
   if (chunks.length === 0) {
     serverLogger.warn('REALTIME_INPUT received but no chunks', { connectionId })

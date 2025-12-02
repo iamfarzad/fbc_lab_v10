@@ -80,7 +80,19 @@ async function startServer(): Promise<void> {
     clearInterval(pingInterval)
   })
 
-  serverLogger.info('Server setup complete')
+  // Log server ready state
+  server.on('listening', () => {
+    const address = server.address()
+    const port = typeof address === 'string' ? address : address?.port || PORT
+    serverLogger.info('WebSocket server is ready and listening', {
+      port: Number(port),
+      url: `ws://localhost:${port}`,
+      readyState: 'listening',
+      hasSSL: !!sslOptions
+    })
+  })
+
+  serverLogger.info('Server setup complete - waiting for connections')
 }
 
 // Start server

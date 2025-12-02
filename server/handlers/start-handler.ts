@@ -235,30 +235,40 @@ export async function handleStart(
                   safeSend(ws, JSON.stringify({ type: MESSAGE_TYPES.SETUP_COMPLETE, payload: { setupComplete: true } }))
                   activeSessions.get(connectionId)?.logger?.log('setup_complete')
 
-                  // Only flip readiness once the Live API confirms setup completion
+                  // Setup completion confirms readiness - ensure isReady is set
+                  // (It should already be true from session_started, but confirm here)
                   const state = connectionStates.get(connectionId)
-                  if (!state?.isReady) {
-                    const now = Date.now()
+                  const now = Date.now()
+                  
+                  if (!state) {
+                    // Defensive: initialize if missing
                     connectionStates.set(connectionId, {
                       isReady: true,
-                      lastPing: state?.lastPing ?? now,
-                      messageCount: state?.messageCount ?? 0,
-                      lastMessageAt: state?.lastMessageAt ?? now,
-                      audioCount: state?.audioCount ?? 0,
-                      audioLastAt: state?.audioLastAt ?? now
+                      lastPing: now,
+                      messageCount: 0,
+                      lastMessageAt: now,
+                      audioCount: 0,
+                      audioLastAt: now
                     })
-
-                    const sessionReadyPayload = JSON.stringify({
-                      type: 'session_ready',
-                      data: { sessionId, timestamp: now }
-                    })
-                    serverLogger.info('Sending session_ready event after setup completion', {
-                      connectionId,
-                      sessionId: sessionId || 'anonymous'
-                    })
-                    safeSend(ws, sessionReadyPayload)
-                    activeSessions.get(connectionId)?.logger?.log('session_ready')
+                    serverLogger.warn('ConnectionState missing during setup_complete, initialized', { connectionId })
+                  } else if (!state.isReady) {
+                    // Should already be true, but ensure it's set
+                    state.isReady = true
+                    serverLogger.info('Marked session as ready during setup_complete', { connectionId })
                   }
+
+                  // Send session_ready event (already marked ready, but confirm with client)
+                  const sessionReadyPayload = JSON.stringify({
+                    type: 'session_ready',
+                    data: { sessionId, timestamp: now }
+                  })
+                  serverLogger.info('Sending session_ready event after setup completion', {
+                    connectionId,
+                    sessionId: sessionId || 'anonymous',
+                    isReady: connectionStates.get(connectionId)?.isReady
+                  })
+                  safeSend(ws, sessionReadyPayload)
+                  activeSessions.get(connectionId)?.logger?.log('session_ready')
                 }
 
                 // Tool calls
@@ -654,6 +664,26 @@ export async function handleStart(
     }
     serverLogger.info('Live API session established for sessionId', { connectionId, sessionId: sessionId || 'anonymous' })
 
+    // Set isReady to true BEFORE sending session_started to avoid race condition
+    // The session is effectively ready once the Live API connection is established
+    const state = connectionStates.get(connectionId)
+    if (state) {
+      state.isReady = true
+      serverLogger.info('Session marked as ready before session_started event', { connectionId })
+    } else {
+      // Defensive: initialize connectionState if missing
+      const now = Date.now()
+      connectionStates.set(connectionId, {
+        isReady: true,
+        lastPing: now,
+        messageCount: 0,
+        lastMessageAt: now,
+        audioCount: 0,
+        audioLastAt: now
+      })
+      serverLogger.warn('ConnectionState was missing during session start, initialized', { connectionId })
+    }
+
     // Send session started message to client
     const sessionStartedPayload = JSON.stringify({ type: MESSAGE_TYPES.SESSION_STARTED, payload: { connectionId, languageCode: lang, voiceName } })
     console.log('[SERVER] Sending session_started event', {
@@ -662,12 +692,13 @@ export async function handleStart(
       voiceName,
       wsReadyState: ws.readyState,
       isOpen: ws.readyState === WebSocket.OPEN,
+      isReady: state?.isReady ?? true,
       payload: sessionStartedPayload
     })
     safeSend(ws, sessionStartedPayload)
     activeSessions.get(connectionId)?.logger?.log('session_started', { languageCode: lang, voiceName })
 
-    // Readiness is now set when setup_complete arrives to avoid timing issues
+    // Note: setup_complete will still arrive later, but we mark ready now to prevent race conditions
   } catch (error) {
     let message = error instanceof Error ? error.message : 'Failed to start session'
     let errorCode = 'SESSION_START_FAILED'

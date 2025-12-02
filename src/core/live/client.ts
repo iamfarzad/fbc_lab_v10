@@ -29,7 +29,7 @@ export class LiveClientWS {
   private reconnectTimerId: ReturnType<typeof setTimeout> | null = null;
 
   // Configuration
-  private readonly CONNECT_TIMEOUT_MS = 5000; // 5 seconds
+  private readonly CONNECT_TIMEOUT_MS = 10000; // 10 seconds (increased to improve initial connection reliability)
   private readonly MAX_RECONNECT_ATTEMPTS = WEBSOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS;
   private readonly RECONNECT_DELAY_MS = WEBSOCKET_CONFIG.RECONNECT_DELAY;
   private readonly HEARTBEAT_INTERVAL_MS = WEBSOCKET_CONFIG.HEARTBEAT_INTERVAL;

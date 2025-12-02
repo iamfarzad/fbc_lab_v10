@@ -43,10 +43,31 @@ export async function handleUserMessage(
   
   const client = activeSessions.get(connectionId)
   
+  // Verify connectionState exists before checking rate limit
+  let st = connectionStates.get(connectionId)
+  if (!st) {
+    serverLogger.warn('ConnectionState missing in handleUserMessage, initializing', { connectionId })
+    const now = Date.now()
+    st = {
+      isReady: false,
+      lastPing: now,
+      messageCount: 0,
+      lastMessageAt: now,
+      audioCount: 0,
+      audioLastAt: now
+    }
+    connectionStates.set(connectionId, st)
+  }
+
   // Check rate limit
   const rateLimit = checkRateLimit(connectionId, client?.sessionId, MESSAGE_TYPES.USER_AUDIO)
   if (!rateLimit.allowed) {
-    serverLogger.warn('Rate limit exceeded for USER_AUDIO', { connectionId })
+    serverLogger.warn('Rate limit exceeded for USER_AUDIO', { 
+      connectionId,
+      remaining: rateLimit.remaining,
+      audioCount: st.audioCount,
+      audioLastAt: st.audioLastAt
+    })
     safeSend(ws, JSON.stringify({ 
       type: MESSAGE_TYPES.ERROR, 
       payload: { message: `Rate limit exceeded. Try again in ${rateLimit.remaining}s`, code: 'RATE_LIMIT_EXCEEDED' } 
@@ -55,9 +76,13 @@ export async function handleUserMessage(
   }
   
   // Enforce readiness gate
-  const st = connectionStates.get(connectionId)
-  if (!st?.isReady) {
-    serverLogger.warn('USER_AUDIO received before session ready', { connectionId })
+  if (!st.isReady) {
+    serverLogger.warn('USER_AUDIO received before session ready', { 
+      connectionId,
+      isReady: st.isReady,
+      hasClient: !!client,
+      hasSession: !!client?.session
+    })
     safeSend(ws, JSON.stringify({ 
       type: MESSAGE_TYPES.ERROR, 
       payload: { message: 'Session not ready', code: 'LIVE_NOT_READY' } 
