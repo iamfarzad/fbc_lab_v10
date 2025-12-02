@@ -1,11 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { AppConfig } from 'src/config';
+import { GoogleGenAI } from '@google/genai';
 import formidable from 'formidable';
 import fs from 'fs';
 
 // Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_KEY || '');
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_KEY || '' });
 
 export const config = {
   api: {
@@ -38,7 +37,7 @@ export default async function handler(
   try {
     const form = formidable({});
     
-    const [fields, files] = await form.parse(req);
+    const [, files] = await form.parse(req);
     const webcamCapture = files.webcamCapture?.[0];
 
     if (!webcamCapture) {
@@ -50,21 +49,25 @@ export default async function handler(
     const base64Data = fileData.toString('base64');
 
     // Analyze with Gemini Flash (fastest for vision)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    
     const prompt = "Analyze this webcam frame. Describe what you see briefly, focusing on the user's expression, environment, and any visible objects or actions. Keep it under 50 words.";
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: 'image/jpeg'
-        }
-      }
-    ]);
+    const result = await genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: prompt },
+          {
+            inlineData: {
+              data: base64Data,
+              mimeType: 'image/jpeg'
+            }
+          }
+        ]
+      }]
+    });
 
-    const analysis = result.response.text();
+    const analysis = result.text || '';
 
     return res.status(200).json({
       success: true,
