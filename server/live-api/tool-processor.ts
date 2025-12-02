@@ -11,6 +11,7 @@ import {
   executeCaptureScreenSnapshot,
   executeCaptureWebcamSnapshot
 } from '../utils/tool-implementations.js'
+import { recordCapabilityUsed } from 'src/core/context/capabilities'
 
 export interface ToolProcessorClient {
   sessionId?: string
@@ -170,6 +171,34 @@ export async function processToolCall(
         success: result.success,
         hasData: !!result.data
       })
+
+      // Record capability usage if tool executed successfully
+      if (result.success && client.sessionId && client.sessionId !== 'anonymous') {
+        try {
+          // Map tool names to capability names
+          const capabilityMap: Record<string, string> = {
+            'search_web': 'search',
+            'calculate_roi': 'roi',
+            'extract_action_items': 'doc',
+            'generate_summary_preview': 'exportPdf',
+            'draft_follow_up_email': 'doc',
+            'generate_proposal_draft': 'exportPdf',
+            'capture_screen_snapshot': 'screenShare',
+            'capture_webcam_snapshot': 'webcam',
+            'get_dashboard_stats': 'doc' // Admin tool
+          }
+          
+          const capabilityName = capabilityMap[call.name]
+          if (capabilityName) {
+            await recordCapabilityUsed(client.sessionId, capabilityName, { tool: call.name, args: call.args })
+          }
+        } catch (capError) {
+          serverLogger.warn(`Failed to record capability usage for ${call.name}`, { 
+            connectionId, 
+            error: capError instanceof Error ? capError.message : String(capError) 
+          })
+        }
+      }
 
     } catch (error) {
       serverLogger.error(`Tool execution failed: ${call.name}`, error instanceof Error ? error : undefined, { connectionId })
