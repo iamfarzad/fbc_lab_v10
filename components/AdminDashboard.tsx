@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LeadResearchService } from 'services/leadResearchService';
+import { LeadResearchService } from 'src/core/intelligence/lead-research';
 import { ResearchResult } from 'types';
 import { WebPreviewCard } from './chat/Attachments';
 

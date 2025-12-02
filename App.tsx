@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import AntigravityCanvas from './components/AntigravityCanvas';
 import ControlPanel from './components/ControlPanel';
 import MultimodalChat from './components/MultimodalChat';
@@ -10,7 +11,7 @@ import TermsOverlay from './components/TermsOverlay';
 import AdminDashboard from './components/AdminDashboard';
 import { GeminiLiveService } from './services/geminiLiveService';
 import { StandardChatService } from './services/standardChatService';
-import { LeadResearchService } from './services/leadResearchService';
+import { LeadResearchService } from 'src/core/intelligence/lead-research';
 import { AIBrainService } from './services/aiBrainService';
 import { ChromeAiService, ChromeAiCapabilities } from './services/chromeAiService';
 import { unifiedContext } from './services/unifiedContext';
@@ -79,8 +80,37 @@ function resolveAgentShape(agent?: string | null, stage?: string | null): Visual
 // import { runServiceVerification } from './scripts/verify-services'; // TODO: Create if needed
 
 export const App: React.FC = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    
     // View State: 'landing' | 'chat' | 'admin'
-    const [view, setView] = useState<'landing' | 'chat' | 'admin'>('landing');
+    // Sync with URL pathname
+    const getViewFromPath = (pathname: string): 'landing' | 'chat' | 'admin' => {
+        if (pathname === '/admin') return 'admin';
+        if (pathname === '/chat') return 'chat';
+        return 'landing';
+    };
+    
+    const [view, setView] = useState<'landing' | 'chat' | 'admin'>(() => getViewFromPath(location.pathname));
+    
+    // Sync view state with URL changes
+    useEffect(() => {
+        const newView = getViewFromPath(location.pathname);
+        setView(newView);
+    }, [location.pathname]);
+    
+    // Update URL when view changes (but not from URL change)
+    const setViewAndNavigate = useCallback((newView: 'landing' | 'chat' | 'admin') => {
+        setView(newView);
+        if (newView === 'admin') {
+            navigate('/admin', { replace: true });
+        } else if (newView === 'chat') {
+            navigate('/chat', { replace: true });
+        } else {
+            navigate('/', { replace: true });
+        }
+    }, [navigate]);
+    
     // Modal State
     const [showTerms, setShowTerms] = useState(false);
 
@@ -183,7 +213,7 @@ export const App: React.FC = () => {
         } else {
             // Initialize with a default, but logic will override
             standardChatRef.current = new StandardChatService(apiKey);
-            researchServiceRef.current = new LeadResearchService(apiKey);
+            researchServiceRef.current = new LeadResearchService();
             aiBrainRef.current = new AIBrainService();
 
             // Restore session context if available
@@ -1551,7 +1581,7 @@ export const App: React.FC = () => {
             {/* ADMIN DASHBOARD */}
             {view === 'admin' && (
                 <AdminDashboard
-                    onClose={() => setView('landing')}
+                    onClose={() => setViewAndNavigate('landing')}
                     researchService={researchServiceRef.current}
                     isDarkMode={isDarkMode}
                 />
@@ -1569,7 +1599,7 @@ export const App: React.FC = () => {
                     }}
                     isDarkMode={isDarkMode}
                     onToggleTheme={() => setIsDarkMode(!isDarkMode)}
-                    onAdminAccess={() => setView('admin')}
+                    onAdminAccess={() => setViewAndNavigate('admin')}
                 />
             )}
 
@@ -1598,7 +1628,7 @@ export const App: React.FC = () => {
                                 {/* Back to Home Button */}
                                 <button
                                     type="button"
-                                    onClick={() => setView('landing')}
+                                    onClick={() => setViewAndNavigate('landing')}
                                     className="mr-2 p-2 rounded-full hover:bg-white/20 transition-colors group/home"
                                     title="Back to Home"
                                 >

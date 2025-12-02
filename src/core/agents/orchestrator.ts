@@ -311,100 +311,73 @@ export async function routeToAgent({
       multimodalUsed: multimodalContext?.hasRecentImages || multimodalContext?.hasRecentAudio || false
     }
 
-    // PERSIST AGENT RESULTS (NEW)
+    // Update context with enhanced flow for next turn (sync, before return)
+    const enhancedFlow = result.metadata?.enhancedConversationFlow
+    if (enhancedFlow && typeof enhancedFlow === 'object' && enhancedFlow !== null) {
+      context.conversationFlow = enhancedFlow as ConversationFlowState
+      enhancedContext.conversationFlow = enhancedFlow as ConversationFlowState
+    }
+
+    // Log performance metrics (sync, before return)
+    const endTime = Date.now()
+    const duration = endTime - startTime
+    console.log(`[Orchestrator] ${result.agent} executed in ${duration}ms`)
+
+    // PERSIST AGENT RESULTS (NON-BLOCKING - fire and forget)
     if (context.sessionId && context.sessionId !== 'anonymous') {
-      try {
-        const { agentPersistence } = await import('./agent-persistence')
-        console.log(`[Orchestrator] Persisting result for session ${context.sessionId}`)
-        await agentPersistence.persistAgentResult(
-          context.sessionId,
-          result,
-          enhancedContext
-        )
-        console.log(`Agent result persisted: ${result.agent}`)
-
-        // NEW: Update context with enhanced flow for next turn
-        const enhancedFlow = result.metadata?.enhancedConversationFlow
-        if (enhancedFlow && typeof enhancedFlow === 'object' && enhancedFlow !== null) {
-          context.conversationFlow = enhancedFlow as ConversationFlowState
-          enhancedContext.conversationFlow = enhancedFlow as ConversationFlowState
-        }
-
-        // NEW: Log performance metrics
-        const endTime = Date.now()
-        const duration = endTime - startTime
-        console.log(`[Orchestrator] ${result.agent} executed in ${duration}ms`)
-
-        if (process.env.NODE_ENV === 'production' || process.env.ENABLE_AGENT_AUDIT === 'true') {
-          const { auditLog } = await import('src/core/security/audit-logger')
-          await auditLog.logAgentExecution(
-            context.sessionId,
-            result.agent,
-            result.metadata?.stage || stage,
-            {
-              startTime,
-              endTime,
-              duration,
-              success: true
-            },
-            {
-              multimodalUsed: result.metadata?.multimodalUsed,
-              toolsUsed: result.metadata?.tools?.length || 0,
-              outputLength: result.output.length
-            }
+      // Fire persistence and analytics asynchronously without blocking response
+      ;(async () => {
+        try {
+          const { agentPersistence } = await import('./agent-persistence')
+          await agentPersistence.persistAgentResult(
+            context.sessionId!,
+            result,
+            enhancedContext
           )
-
-          // Log analytics directly to Supabase (no queue)
-          try {
-            const { agentAnalytics } = await import('src/core/analytics/agent-analytics')
-            await agentAnalytics.logExecution({
-              sessionId: context.sessionId,
-              agent: result.agent,
-              stage: result.metadata?.stage || stage,
-              duration,
-              success: true,
-              ...(result.metadata?.multimodalUsed !== undefined && { multimodalUsed: result.metadata.multimodalUsed })
-            })
-          } catch (analyticsErr) {
-            console.warn('Analytics logging failed (non-fatal):', analyticsErr)
-          }
+        } catch (persistErr) {
+          console.error('Agent persistence error (non-fatal):', persistErr)
         }
-      } catch (error) {
-        console.error('Agent persistence error (non-fatal):', error)
 
-        // NEW: Log execution failure
-        const endTime = Date.now()
+        // Log analytics (non-blocking)
         if (process.env.NODE_ENV === 'production' || process.env.ENABLE_AGENT_AUDIT === 'true') {
           try {
             const { auditLog } = await import('src/core/security/audit-logger')
             await auditLog.logAgentExecution(
-              context.sessionId || 'anonymous',
-              result?.agent || 'unknown',
-              stage,
+              context.sessionId!,
+              result.agent,
+              result.metadata?.stage || stage,
               {
                 startTime,
                 endTime,
-                duration: endTime - startTime,
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                duration,
+                success: true
+              },
+              {
+                multimodalUsed: result.metadata?.multimodalUsed,
+                toolsUsed: result.metadata?.tools?.length || 0,
+                outputLength: result.output.length
               }
             )
 
-            // Log analytics for failed execution
-            const { agentAnalytics } = await import('src/core/analytics/agent-analytics')
-            await agentAnalytics.logExecution({
-              sessionId: context.sessionId || 'anonymous',
-              agent: result?.agent || 'unknown',
-              stage,
-              duration: endTime - startTime,
-              success: false,
-              error: error instanceof Error ? error.message : 'Unknown error'
-            })
+            // Log analytics directly to Supabase (no queue)
+            try {
+              const { agentAnalytics } = await import('src/core/analytics/agent-analytics')
+              await agentAnalytics.logExecution({
+                sessionId: context.sessionId!,
+                agent: result.agent,
+                stage: result.metadata?.stage || stage,
+                duration,
+                success: true,
+                ...(result.metadata?.multimodalUsed !== undefined && { multimodalUsed: result.metadata.multimodalUsed })
+              })
+            } catch (analyticsErr) {
+              console.warn('Analytics logging failed (non-fatal):', analyticsErr)
+            }
           } catch (auditErr) {
             console.warn('Agent execution audit log failed:', auditErr)
           }
         }
-      }
+      })().catch(err => console.error('Background persistence failed:', err))
     }
 
     return result

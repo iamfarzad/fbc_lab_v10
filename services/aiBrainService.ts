@@ -210,12 +210,15 @@ export class AIBrainService {
             if (!response.ok) {
                 const errorText = await response.text();
                 let errorMsg = `Server error: ${response.status}`;
+                let errorDetails;
                 try {
                     const errorJson = JSON.parse(errorText);
                     errorMsg = errorJson.error || errorJson.message || errorMsg;
+                    errorDetails = errorJson.details;
                 } catch {
                     // ignore parse error
                 }
+                console.error('[AIBrainService] Server returned error:', { status: response.status, message: errorMsg, details: errorDetails });
                 return {
                     success: false,
                     error: errorMsg
@@ -244,12 +247,12 @@ export class AIBrainService {
      */
     static transcriptToMessages(transcript: TranscriptItem[]): Array<{ role: string; content: string; attachments?: Array<{ mimeType: string; data: string }> }> {
         return transcript
-            .filter(item => item.text?.trim())
+            .filter(item => item.text?.trim() || item.attachment)
             .map(item => {
                 const msg: { role: string; content: string; attachments?: Array<{ mimeType: string; data: string }> } = {
                     // Preserve 'model' role as expected by downstream tests/orchestrator
                     role: item.role === 'user' ? 'user' : 'model',
-                    content: item.text,
+                    content: item.text || '', // Ensure content is never undefined
                 };
 
                 if (item.attachment?.data && item.attachment?.mimeType) {

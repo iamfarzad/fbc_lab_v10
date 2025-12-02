@@ -106,9 +106,13 @@ export default async function handler(
 
     } catch (error) {
         console.error('[API /chat] Error:', error);
+        if (error instanceof Error && error.stack) {
+            console.error('[API /chat] Stack:', error.stack);
+        }
         return res.status(500).json({
             success: false,
-            error: error instanceof Error ? error.message : 'Internal server error'
+            error: error instanceof Error ? error.message : 'Internal server error',
+            details: error instanceof Error ? error.stack : undefined // Optional: expose stack to client in dev
         });
     }
 }

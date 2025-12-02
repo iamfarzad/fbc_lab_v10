@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { AIBrainService } from '../aiBrainService'
 import { StandardChatService } from '../standardChatService'
-import { LeadResearchService } from '../leadResearchService'
+import { LeadResearchService } from 'src/core/intelligence/lead-research'
 import { GeminiLiveService } from '../geminiLiveService'
 import { unifiedContext } from '../unifiedContext'
 import { createMockFetch } from '../../test/helpers/mock-fetch'
@@ -26,6 +26,11 @@ vi.mock('@google/genai', () => ({
 
 vi.mock('@/core/live/client', () => ({
   LiveClientWS: vi.fn()
+}))
+
+// Mock src/config/env
+vi.mock('src/config/env', () => ({
+  createGoogleGenAI: () => new (require('@google/genai').GoogleGenAI)({ apiKey: 'test-key' })
 }))
 
 describe('Integration Tests - All Services Together', () => {
@@ -93,7 +98,7 @@ describe('Integration Tests - All Services Together', () => {
 
   describe('Context Sharing Flow', () => {
     it('sets research context in UnifiedContext and services receive it', async () => {
-      const researchService = new LeadResearchService('test-api-key')
+      const researchService = new LeadResearchService()
       const chatService = new StandardChatService('test-api-key')
       const liveService = new GeminiLiveService({
         apiKey: 'test-api-key',
@@ -270,7 +275,7 @@ describe('Integration Tests - All Services Together', () => {
 
   describe('Research → Chat Flow', () => {
     it('LeadResearchService researches lead, UnifiedContext stores it, StandardChatService uses it', async () => {
-      const researchService = new LeadResearchService('test-api-key')
+      const researchService = new LeadResearchService()
       const chatService = new StandardChatService('test-api-key')
 
       // Research
@@ -289,7 +294,7 @@ describe('Integration Tests - All Services Together', () => {
     })
 
     it('AIBrainService includes research in intelligenceContext', async () => {
-      const researchService = new LeadResearchService('test-api-key')
+      const researchService = new LeadResearchService()
       const aiBrainService = new AIBrainService()
       const mockFetch = createMockFetch({
         success: true,

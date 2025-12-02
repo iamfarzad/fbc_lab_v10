@@ -1,21 +1,8 @@
 import { GoogleGenAI } from '@google/genai'
 import { GEMINI_MODELS } from 'src/config/constants'
 import { createGoogleGenAI } from 'src/config/env'
-import { GoogleGroundingProvider } from './providers/search/google-grounding'
 import { createCachedFunction, CACHE_TTL } from 'src/lib/ai-cache'
 import { z } from 'zod'
-
-export interface ResearchResult {
-  company: CompanyContext
-  person: PersonContext
-  role: string
-  confidence: number
-  citations?: Array<{
-    uri: string
-    title?: string
-    description?: string
-  }>
-}
 
 export interface CompanyContext {
   name: string
@@ -25,6 +12,7 @@ export interface CompanyContext {
   summary?: string
   website?: string
   linkedin?: string
+  country?: string
 }
 
 export interface PersonContext {
@@ -35,18 +23,37 @@ export interface PersonContext {
   company?: string
 }
 
+export interface StrategicContext {
+  latest_news: string[]
+  competitors: string[]
+  pain_points: string[]
+  market_trends?: string[]
+}
+
+export interface ResearchResult {
+  company: CompanyContext
+  person: PersonContext
+  strategic?: StrategicContext
+  role: string
+  confidence: number
+  citations?: Array<{
+    uri: string
+    title?: string
+    description?: string
+  }>
+}
+
 export class LeadResearchService {
   private genAI: GoogleGenAI
-  private groundingProvider: GoogleGroundingProvider
 
   // Cached research function
   private cachedResearch: (email: string, name?: string, companyUrl?: string, sessionId?: string) => Promise<ResearchResult>
 
   constructor() {
     this.genAI = createGoogleGenAI()
-    this.groundingProvider = new GoogleGroundingProvider()
 
     // Wrap the internal method with caching (24 hour TTL)
+    // This handles server-side/memory caching via the stub or future implementation
     this.cachedResearch = createCachedFunction(
       this.researchLeadInternal.bind(this),
       {
@@ -58,8 +65,36 @@ export class LeadResearchService {
   }
 
   async researchLead(email: string, name?: string, companyUrl?: string, sessionId?: string): Promise<ResearchResult> {
-    // Use cached version - cache key based on email, name, companyUrl
-    return await this.cachedResearch(email, name, companyUrl, sessionId)
+    // Client-side Caching (localStorage)
+    // This preserves the behavior from the old service for browser environments
+    const cacheKey = `lead_research_${email}_${name || ''}`
+    
+    if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+            console.log('Using cached research for:', email)
+            try {
+                return JSON.parse(cached) as ResearchResult
+            } catch (e) {
+                console.warn('Failed to parse cached research, re-fetching', e)
+                localStorage.removeItem(cacheKey)
+            }
+        }
+    }
+
+    // Execute research (using server-side cache wrapper)
+    const result = await this.cachedResearch(email, name, companyUrl, sessionId)
+
+    // Update client-side cache
+    if (typeof window !== 'undefined' && result) {
+      try {
+          localStorage.setItem(cacheKey, JSON.stringify(result))
+      } catch (err) {
+          console.warn('Failed to cache research result locally:', err)
+      }
+    }
+
+    return result
   }
 
   private async researchLeadInternal(email: string, name?: string, companyUrl?: string, sessionId?: string): Promise<ResearchResult> {
@@ -68,13 +103,11 @@ export class LeadResearchService {
     try {
       console.log('🔍 [Lead Research] Starting for:', email)
 
-      const domain = email.split('@')[1]
+      const domain = email.split('@')[1] || 'unknown.com'
 
       // Known profile fallback for Farzad Bayat
       if (email === 'farzad@talktoeve.com' && (name?.toLowerCase().includes('farzad') || !name)) {
         console.log('🎯 Using known profile for Farzad Bayat')
-
-
         return {
           company: {
             name: 'Talk to EVE',
@@ -83,7 +116,8 @@ export class LeadResearchService {
             size: '2-10 employees',
             summary: 'Talk to EVE is an AI-powered platform focused on mental health and well-being, providing virtual companionship and support.',
             website: 'https://talktoeve.com',
-            linkedin: 'https://www.linkedin.com/company/talktoeve/'
+            linkedin: 'https://www.linkedin.com/company/talktoeve/',
+            country: 'USA'
           },
           person: {
             fullName: 'Farzad Bayat',
@@ -104,15 +138,210 @@ export class LeadResearchService {
         }
       }
 
-      // Use Google Grounding for comprehensive research
-      const researchResult = await this.researchWithGrounding(email, name, domain ?? undefined, companyUrl)
+      // Prompt structure designed for synthesis
+    const prompt = `
+    Research the following individual and company using Google Search.
 
-      console.log('✅ [Lead Research] Completed:', {
-        company: researchResult.company.name,
-        person: researchResult.person.fullName,
-        confidence: researchResult.confidence
-      })
-      return researchResult
+    Target:
+Email: ${email}
+Name: ${name || 'Unknown'}
+Domain: ${domain}
+    Company Context: ${companyUrl || 'Use email domain'}
+    
+    Task:
+    1. Identify the company details (Industry, Size, Summary, Country).
+    2. Identify the person's role and seniority.
+    3. STRATEGIC ANALYSIS:
+       - Find recent news/events about the company.
+       - Identify key competitors.
+       - Infer likely pain points based on the role and industry trends.
+    
+    Return ONLY valid JSON, no markdown code blocks or extra text. Return a structured profile matching the schema:
+{
+  "company": {
+    "name": "Company Name",
+    "domain": "${domain}",
+    "industry": "Industry",
+    "size": "Company size",
+    "summary": "Company description",
+    "website": "Website URL",
+        "linkedin": "LinkedIn company URL",
+        "country": "Country"
+  },
+  "person": {
+    "fullName": "Full Name",
+    "role": "Professional role",
+    "seniority": "Seniority level",
+    "profileUrl": "LinkedIn profile URL",
+    "company": "Company name"
+  },
+      "strategic": {
+        "latest_news": ["news item 1", "news item 2"],
+        "competitors": ["competitor 1", "competitor 2"],
+        "pain_points": ["pain point 1", "pain point 2"],
+        "market_trends": ["trend 1", "trend 2"]
+      },
+  "role": "Detected role",
+  "confidence": 0.85
+}
+`
+
+      // Generate Content with Google Grounding Search
+    const result = await this.genAI.models.generateContent({
+        model: GEMINI_MODELS.DEFAULT_CHAT, // Use DEFAULT_CHAT which is likely Pro or Flash supporting tools
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+            tools: [{ googleSearch: {} }]  // Enables Google Grounding Search
+        }
+    })
+
+    interface GenerateContentResult {
+      text?: string | (() => string)
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{ text?: string }>
+          },
+          groundingMetadata?: {
+            groundingChunks?: Array<{
+              web?: {
+                uri?: string
+                title?: string
+              }
+            }>
+        }
+      }>
+    }
+
+    const resultRecord = result as unknown as GenerateContentResult
+    const text = typeof resultRecord.text === 'function'
+      ? resultRecord.text()
+      : typeof resultRecord.text === 'string'
+        ? resultRecord.text
+        : (resultRecord.candidates?.[0]?.content?.parts || [])
+          .map((p: { text?: string }) => p.text || '')
+          .filter(Boolean)
+          .join('\n')
+
+    // Extract JSON from response and validate with schema
+    try {
+        let jsonText = text.trim()
+        // Remove markdown code blocks if present
+        if (jsonText.startsWith('```json')) {
+            jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+        } else if (jsonText.startsWith('```')) {
+            jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '')
+        }
+
+        const raw = JSON.parse(jsonText) as unknown
+
+        // Schema for research result structure
+        const ResearchResultSchema = z.object({
+          company: z.object({
+            name: z.string(),
+            domain: z.string(),
+            industry: z.string().optional(),
+            size: z.string().optional(),
+            summary: z.string().optional(),
+            website: z.string().optional(),
+            linkedin: z.string().optional(),
+            country: z.string().optional(),
+          }),
+          person: z.object({
+            fullName: z.string(),
+            role: z.string().optional(),
+            seniority: z.string().optional(),
+            profileUrl: z.string().optional(),
+            company: z.string().optional(),
+          }),
+          strategic: z.object({
+            latest_news: z.array(z.string()).optional(),
+            competitors: z.array(z.string()).optional(),
+            pain_points: z.array(z.string()).optional(),
+            market_trends: z.array(z.string()).optional(),
+          }).optional(),
+          role: z.string(),
+          confidence: z.number().min(0).max(1),
+        })
+
+        const parsed = ResearchResultSchema.parse(raw)
+
+        // Extract citations from grounding metadata
+        const allCitations = resultRecord.candidates?.[0]?.groundingMetadata?.groundingChunks
+            ?.map(c => {
+                const uri = c.web?.uri || ''
+                if (!uri) return null
+        return {
+                    uri,
+                    ...(c.web?.title && { title: c.web.title }),
+                    description: `Source for ${c.web?.title || 'unknown'}`
+                }
+            })
+            .filter((c): c is NonNullable<typeof c> => c !== null) || []
+
+        const researchResult: ResearchResult = {
+          company: {
+            name: parsed.company.name,
+            domain: parsed.company.domain,
+            ...(parsed.company.industry && { industry: parsed.company.industry }),
+            ...(parsed.company.size && { size: parsed.company.size }),
+            ...(parsed.company.summary && { summary: parsed.company.summary }),
+            ...(parsed.company.website && { website: parsed.company.website }),
+            ...(parsed.company.linkedin && { linkedin: parsed.company.linkedin }),
+            ...(parsed.company.country && { country: parsed.company.country })
+          },
+          person: {
+            fullName: parsed.person.fullName,
+            ...(parsed.person.role && { role: parsed.person.role }),
+            ...(parsed.person.seniority && { seniority: parsed.person.seniority }),
+            ...(parsed.person.profileUrl && { profileUrl: parsed.person.profileUrl }),
+            ...(parsed.person.company && { company: parsed.person.company })
+          },
+          ...(parsed.strategic && { 
+             strategic: {
+               latest_news: parsed.strategic.latest_news || [],
+               competitors: parsed.strategic.competitors || [],
+               pain_points: parsed.strategic.pain_points || [],
+               market_trends: parsed.strategic.market_trends || []
+             }
+          }),
+          role: parsed.role,
+          confidence: parsed.confidence,
+          citations: allCitations
+        }
+        
+        console.log('✅ [Lead Research] Completed:', {
+            company: researchResult.company.name,
+            person: researchResult.person.fullName,
+            confidence: researchResult.confidence
+        })
+        
+        return researchResult
+
+    } catch (parseError) {
+      console.error('JSON parsing or validation failed:', parseError, 'Raw text:', text)
+    }
+
+      // Fallback if no JSON found or parsing failed
+      const domainParts = domain.split('.')
+      const companyName = domainParts[0] || 'Unknown'
+      const emailParts = email.split('@')
+      const personName = name || emailParts[0] || 'Unknown'
+    
+    return {
+      company: {
+        name: companyName,
+        domain,
+        website: companyUrl || `https://${domain}`,
+        summary: 'Company information unavailable'
+      },
+      person: {
+        fullName: personName,
+        company: companyName
+      },
+      role: 'Business Professional',
+      confidence: 0.2,
+        citations: []
+      }
 
     } catch (error) {
       console.error('❌ [Lead Research] Failed:', error)
@@ -136,169 +365,4 @@ export class LeadResearchService {
       }
     }
   }
-
-  private async researchWithGrounding(email: string, name: string | undefined, domain: string | undefined, companyUrl: string | undefined): Promise<ResearchResult> {
-    const allCitations: Array<{ uri: string; title?: string; description?: string }> = []
-
-    // Use comprehensive research for deeper analysis
-    const query = `Analyze the professional profile of ${name || email.split('@')[0]} and the company at ${domain}.
-    Provide detailed information about:
-    1. The company: Industry, approximate size (employees), key products/services, and a summary.
-    2. The person: Current role, seniority level, and professional background.
-    3. Key context: Any recent news or relevant details.`
-
-    const research = await this.groundingProvider.comprehensiveResearch(query, {
-      ...(email && { email }),
-      ...(domain && { company: domain })
-    })
-
-    if (research.allCitations && Array.isArray(research.allCitations)) {
-      allCitations.push(...research.allCitations)
-    }
-
-    // Use Gemini to synthesize the research results
-    const prompt = `
-You are a professional research assistant. Analyze the following search results and extract structured information.
-
-Email: ${email}
-Name: ${name || 'Unknown'}
-Domain: ${domain}
-Company URL: ${companyUrl || 'Not provided'}
-
-Research Results:
-${research.combinedAnswer}
-
-URL Context:
-${research.urlContext.map((ctx: { text: string }) => ctx.text).join('\n\n')}
-
-Extract and return ONLY a valid JSON object. Do not include any text before or after the JSON. Use this exact structure:
-{
-  "company": {
-    "name": "Company Name",
-    "domain": "${domain}",
-    "industry": "Industry",
-    "size": "Company size",
-    "summary": "Company description",
-    "website": "Website URL",
-    "linkedin": "LinkedIn company URL"
-  },
-  "person": {
-    "fullName": "Full Name",
-    "role": "Professional role",
-    "seniority": "Seniority level",
-    "profileUrl": "LinkedIn profile URL",
-    "company": "Company name"
-  },
-  "role": "Detected role",
-  "confidence": 0.85
-}
-
-Be thorough and accurate. If information is not available, use null for that field. Ensure the output is valid JSON without any invalid characters.
-`
-
-    const result = await this.genAI.models.generateContent({
-      model: GEMINI_MODELS.DEFAULT_CHAT,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    })
-
-    interface GenerateContentResult {
-      text?: string | (() => string)
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>
-        }
-      }>
-    }
-
-    const resultRecord = result as unknown as GenerateContentResult
-    const text = typeof resultRecord.text === 'function'
-      ? resultRecord.text()
-      : typeof resultRecord.text === 'string'
-        ? resultRecord.text
-        : (resultRecord.candidates?.[0]?.content?.parts || [])
-          .map((p: { text?: string }) => p.text || '')
-          .filter(Boolean)
-          .join('\n')
-
-    // Extract JSON from response and validate with schema
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const raw = JSON.parse(jsonMatch[0]) as unknown
-
-        // Schema for research result structure
-        const ResearchResultSchema = z.object({
-          company: z.object({
-            name: z.string(),
-            domain: z.string(),
-            industry: z.string().optional(),
-            size: z.string().optional(),
-            summary: z.string().optional(),
-            website: z.string().optional(),
-            linkedin: z.string().optional(),
-          }),
-          person: z.object({
-            fullName: z.string(),
-            role: z.string().optional(),
-            seniority: z.string().optional(),
-            profileUrl: z.string().optional(),
-            company: z.string().optional(),
-          }),
-          role: z.string(),
-          confidence: z.number().min(0).max(1),
-        })
-
-        const parsed = ResearchResultSchema.parse(raw)
-        return {
-          company: {
-            name: parsed.company.name,
-            domain: parsed.company.domain,
-            ...(parsed.company.industry && { industry: parsed.company.industry }),
-            ...(parsed.company.size && { size: parsed.company.size }),
-            ...(parsed.company.summary && { summary: parsed.company.summary }),
-            ...(parsed.company.website && { website: parsed.company.website }),
-            ...(parsed.company.linkedin && { linkedin: parsed.company.linkedin })
-          },
-          person: {
-            fullName: parsed.person.fullName,
-            ...(parsed.person.role && { role: parsed.person.role }),
-            ...(parsed.person.seniority && { seniority: parsed.person.seniority }),
-            ...(parsed.person.profileUrl && { profileUrl: parsed.person.profileUrl }),
-            ...(parsed.person.company && { company: parsed.person.company })
-          },
-          role: parsed.role,
-          confidence: parsed.confidence,
-          citations: allCitations
-        }
-      }
-    } catch (parseError) {
-      console.error('JSON parsing or validation failed:', parseError, 'Raw text:', text)
-    }
-
-    // Fallback if no JSON found
-    if (!domain) {
-      throw new Error('Domain is required for lead research')
-    }
-    const domainParts = domain.split('.');
-    const companyName = domainParts[0] || 'Unknown';
-    const emailParts = email.split('@');
-    const personName = name || emailParts[0] || 'Unknown';
-    
-    return {
-      company: {
-        name: companyName,
-        domain,
-        website: companyUrl || `https://${domain}`,
-        summary: 'Company information unavailable'
-      },
-      person: {
-        fullName: personName,
-        company: companyName
-      },
-      role: 'Business Professional',
-      confidence: 0.2,
-      citations: allCitations
-    }
-  }
-
 }

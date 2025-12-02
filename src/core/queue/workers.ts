@@ -99,11 +99,25 @@ export function registerWorkers(): void {
     console.log(`✅ WAL synced to Supabase via queue: ${entryId}`)
   })
 
-  // PDF Generation Worker (placeholder for future)
+  // PDF Generation Worker
   redisQueue.registerHandler(JobType.GENERATE_PDF, async (payload: unknown) => {
-    // TODO: Implement PDF generation
-    console.log('PDF generation job received:', payload)
-    throw new Error('PDF generation not yet implemented')
+    const pdfPayload = payload as { sessionId: string; summaryData: unknown; outputPath?: string; mode?: 'client' | 'internal'; language?: string }
+    const { sessionId, summaryData, outputPath, mode = 'client', language = 'en' } = pdfPayload
+
+    if (!sessionId || !summaryData) {
+      throw new Error('Missing required PDF generation fields: sessionId, summaryData')
+    }
+
+    try {
+      const { generatePdfWithPuppeteer } = await import('src/core/pdf-generator-puppeteer')
+      const pdfPath = outputPath || `/tmp/pdf-${sessionId}-${Date.now()}.pdf`
+      await generatePdfWithPuppeteer(summaryData as any, pdfPath, mode, language)
+      
+      console.log(`✅ PDF generated for session ${sessionId}: ${pdfPath}`)
+    } catch (error) {
+      console.error('PDF generation failed:', error)
+      throw error
+    }
   })
 
   // Email Sending Worker

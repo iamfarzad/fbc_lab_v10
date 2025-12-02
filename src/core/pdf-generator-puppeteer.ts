@@ -1,18 +1,17 @@
 /**
- * PDF Generator Puppeteer - Stub
- * TODO: Implement PDF generation with Puppeteer
+ * PDF Generator Puppeteer - Re-export from new PDF system
+ * This file maintains backward compatibility while using the full PDF system from v8
  */
 
+// Re-export from new PDF system
+export { generatePdfWithPuppeteer, buildConversationPairs, extractConversationInsights, generateApproveMailtoLink } from './pdf/generator'
+export type { SummaryData, Mode, ConversationPair } from './pdf/utils/types'
+
+// Legacy type exports for backward compatibility
 export interface ConversationInsight {
   category: string
   content: string
   confidence?: number
-}
-
-export interface ConversationPair {
-  user: string
-  assistant: string
-  timestamp?: string
 }
 
 export interface ConversationInsights {
@@ -20,22 +19,5 @@ export interface ConversationInsights {
   nextSteps: string[]
   keyDecisions: string[]
   importantPoints: string[]
-}
-
-export function extractConversationInsights(_conversation: unknown): ConversationInsights {
-  // Stub: Return empty insights
-  console.warn('extractConversationInsights() called but not implemented')
-  return {
-    recommendations: [],
-    nextSteps: [],
-    keyDecisions: [],
-    importantPoints: []
-  }
-}
-
-export function buildConversationPairs(_conversation: unknown): ConversationPair[] {
-  // Stub: Return empty pairs
-  console.warn('buildConversationPairs() called but not implemented')
-  return []
 }
 

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 
+
 interface TermsOverlayProps {
   onComplete: (name: string, email: string, companyUrl?: string, permissions?: {
     voice: boolean;
@@ -51,19 +52,30 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreed || !name || !isValidEmail(email)) return;
+    console.log('[TermsOverlay] Submit attempt:', { agreed, name, email, isValid: isValidEmail(email) });
+    
+    if (!agreed || !name || !isValidEmail(email)) {
+        console.warn('[TermsOverlay] Validation failed');
+        return;
+    }
 
     setIsSubmitting(true);
     
     // Simulate brief initialization delay for effect
     await new Promise(resolve => setTimeout(resolve, 800));
     
+    console.log('[TermsOverlay] Completing with:', { name, email, companyUrl, permissions });
     onComplete(name, email, companyUrl, permissions);
     setIsSubmitting(false);
   };
 
+  const handleDevBypass = () => {
+      console.log('[TermsOverlay] DEV BYPASS TRIGGERED');
+      onComplete("Dev User", "dev@local.test", "http://localhost", { voice: true, webcam: true, location: true });
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 overflow-y-auto">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in-up"
@@ -231,6 +243,7 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
             <button
                 type="submit"
                 disabled={!agreed || !name || !email || isSubmitting}
+                title={!agreed || !name || !email ? "Please fill all fields and agree to terms" : "Start Session"}
                 className={`
                     w-full py-2 rounded-lg font-bold tracking-wide transition-all shadow-lg text-xs
                     flex items-center justify-center gap-1.5
@@ -253,6 +266,15 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
                         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     </>
                 )}
+            </button>
+
+            {/* DEV BYPASS BUTTON - ALWAYS VISIBLE FOR TESTING */}
+            <button
+                type="button"
+                onClick={handleDevBypass}
+                className="mt-2 w-full py-1.5 rounded-lg font-mono text-[10px] tracking-wider uppercase border border-dashed border-red-500/30 text-red-500/50 hover:text-red-500 hover:border-red-500 hover:bg-red-500/5 transition-all"
+            >
+                [DEV MODE] BYPASS FORM
             </button>
         </form>
       </div>

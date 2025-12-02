@@ -31,7 +31,7 @@ import express, { type Request, type Response } from 'express'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const app = express()
-const PORT = process.env.PORT || 3002
+const PORT = process.env.API_PORT || process.env.PORT || 3002
 
 // Middleware
 app.use(express.json())
@@ -231,6 +231,362 @@ app.get('/api/admin/token-costs', async (req, res) => {
   }
 })
 
+// Admin authentication routes
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { POST: handler } = await import('./api/admin/login/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/login error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.post('/api/admin/logout', async (req, res) => {
+  try {
+    const { POST: handler } = await import('./api/admin/logout/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/logout error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin analytics routes
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/stats/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/stats error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.get('/api/admin/analytics', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/analytics/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/analytics error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.get('/api/admin/interaction-analytics', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/interaction-analytics/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/interaction-analytics error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.get('/api/admin/ai-performance', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/ai-performance/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/ai-performance error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin monitoring routes
+app.get('/api/admin/system-health', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/system-health/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/system-health error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.get('/api/admin/real-time-activity', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/real-time-activity/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/real-time-activity error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin data routes
+app.get('/api/admin/conversations', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/conversations/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/conversations error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin meetings routes (GET, POST, PATCH, DELETE)
+app.get('/api/admin/meetings', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/meetings/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/meetings GET error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.post('/api/admin/meetings', async (req, res) => {
+  try {
+    const { POST: handler } = await import('./api/admin/meetings/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/meetings POST error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.patch('/api/admin/meetings', async (req, res) => {
+  try {
+    const { PATCH: handler } = await import('./api/admin/meetings/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/meetings PATCH error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.delete('/api/admin/meetings', async (req, res) => {
+  try {
+    const { DELETE: handler } = await import('./api/admin/meetings/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/meetings DELETE error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin email campaigns routes (GET, POST, PATCH, DELETE)
+app.get('/api/admin/email-campaigns', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/email-campaigns/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/email-campaigns GET error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.post('/api/admin/email-campaigns', async (req, res) => {
+  try {
+    const { POST: handler } = await import('./api/admin/email-campaigns/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/email-campaigns POST error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.patch('/api/admin/email-campaigns', async (req, res) => {
+  try {
+    const { PATCH: handler } = await import('./api/admin/email-campaigns/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/email-campaigns PATCH error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.delete('/api/admin/email-campaigns', async (req, res) => {
+  try {
+    const { DELETE: handler } = await import('./api/admin/email-campaigns/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/email-campaigns DELETE error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin failed conversations routes (GET only)
+app.get('/api/admin/failed-conversations', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/failed-conversations/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/failed-conversations error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin security routes (GET, POST)
+app.get('/api/admin/security-audit', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/security-audit/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/security-audit GET error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.post('/api/admin/security-audit', async (req, res) => {
+  try {
+    const { POST: handler } = await import('./api/admin/security-audit/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/security-audit POST error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin logs route
+app.get('/api/admin/logs', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/logs/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/logs error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Admin Fly.io routes
+app.get('/api/admin/flyio/usage', async (req, res) => {
+  try {
+    const { GET: handler } = await import('./api/admin/flyio/usage/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/flyio/usage error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.post('/api/admin/flyio/settings', async (req, res) => {
+  try {
+    const { POST: handler } = await import('./api/admin/flyio/settings/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/admin/flyio/settings error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+// Other API routes
+app.post('/api/live', async (req, res) => {
+  try {
+    const { default: handler } = await import('./api/live')
+    await runVercelHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/live error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.post('/api/send-pdf-summary', async (req, res) => {
+  try {
+    const { POST: handler } = await import('./api/send-pdf-summary/route')
+    await runNextHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/send-pdf-summary error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
+app.post('/api/tools/webcam', async (req, res) => {
+  try {
+    const { default: handler } = await import('./api/tools/webcam')
+    // Handle body parsing config if needed, but for now just run handler
+    // Note: formidable in the handler might conflict with express body parser if not handled carefully.
+    // However, since we are using runVercelHandler or similar, let's see.
+    // Actually, express.json() and urlencoded() are already applied globally in this file.
+    // Formidable might fail if body is already consumed.
+    // For local dev, we might need a workaround or disable express body parser for this route.
+    // But let's try standard registration first.
+    await runVercelHandler(handler, req, res)
+  } catch (error) {
+    console.error('[Local API] /api/tools/webcam error:', error)
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load handler'
+    })
+  }
+})
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'local-api-server', port: PORT })
@@ -239,14 +595,41 @@ app.get('/health', (_req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Local API server running on http://localhost:${PORT}`)
-  console.log(`   Endpoints:`)
+  console.log(`   Endpoints registered:`)
+  console.log(`   Chat:`)
   console.log(`   - POST /api/chat`)
   console.log(`   - POST /api/chat/persist-message`)
   console.log(`   - POST /api/chat/persist-batch`)
+  console.log(`   - POST /api/live`)
+  console.log(`   - POST /api/send-pdf-summary`)
+  console.log(`   Admin Auth:`)
+  console.log(`   - POST /api/admin/login`)
+  console.log(`   - POST /api/admin/logout`)
+  console.log(`   Admin Sessions:`)
   console.log(`   - GET /api/admin/sessions`)
   console.log(`   - POST /api/admin/sessions`)
   console.log(`   - DELETE /api/admin/sessions`)
+  console.log(`   Admin Analytics:`)
+  console.log(`   - GET /api/admin/stats`)
+  console.log(`   - GET /api/admin/analytics`)
+  console.log(`   - GET /api/admin/interaction-analytics`)
+  console.log(`   - GET /api/admin/ai-performance`)
   console.log(`   - GET /api/admin/token-costs`)
+  console.log(`   Admin Monitoring:`)
+  console.log(`   - GET /api/admin/system-health`)
+  console.log(`   - GET /api/admin/real-time-activity`)
+  console.log(`   - GET /api/admin/logs`)
+  console.log(`   Admin Data:`)
+  console.log(`   - GET /api/admin/conversations`)
+  console.log(`   - GET /api/admin/meetings (GET, POST, PATCH, DELETE)`)
+  console.log(`   - GET /api/admin/email-campaigns (GET, POST, PATCH, DELETE)`)
+  console.log(`   - GET /api/admin/failed-conversations`)
+  console.log(`   Admin Security:`)
+  console.log(`   - GET /api/admin/security-audit (GET, POST)`)
+  console.log(`   Admin Infrastructure:`)
+  console.log(`   - GET /api/admin/flyio/usage`)
+  console.log(`   - POST /api/admin/flyio/settings`)
+  console.log(`   System:`)
   console.log(`   - GET /health`)
 })
 

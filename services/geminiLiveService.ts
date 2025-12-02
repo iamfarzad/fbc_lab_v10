@@ -9,6 +9,35 @@ const INPUT_SAMPLE_RATE = AppConfig.api.audio.inputSampleRate;
 const OUTPUT_SAMPLE_RATE = AppConfig.api.audio.outputSampleRate;
 const BUFFER_SIZE = AppConfig.api.audio.bufferSize;
 
+// Rate Limiter Implementation
+class RateLimiter {
+  private lastRequestTime = 0;
+  private requestCount = 0;
+  private readonly WINDOW_MS = 60000;
+  private readonly MAX_REQUESTS = 10;
+
+  checkLimit(): { allowed: boolean; reason?: string } {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+
+    if (timeSinceLastRequest > this.WINDOW_MS) {
+      this.requestCount = 0;
+      this.lastRequestTime = now;
+    }
+
+    this.requestCount++;
+
+    if (this.requestCount > this.MAX_REQUESTS) {
+      return {
+        allowed: false,
+        reason: `Rate limit exceeded (${this.MAX_REQUESTS} requests per ${this.WINDOW_MS / 1000}s)`
+      };
+    }
+
+    return { allowed: true };
+  }
+}
+
 export class GeminiLiveService {
   private liveClient: LiveClientWS | null = null;
   private inputAudioContext: AudioContext | null = null;
@@ -29,8 +58,10 @@ export class GeminiLiveService {
   private nextStartTime = 0;
   private config: LiveServiceConfig & { wsUrl?: string };
   private isConnected = false;
+  private isSessionReady = false; // Track session ready state
   private sessionId: string = '';
   private sessionStartTimeout: NodeJS.Timeout | null = null;
+  private rateLimiter = new RateLimiter(); // Initialize rate limiter
 
   constructor(config: LiveServiceConfig & { wsUrl?: string }) {
     this.config = config;
@@ -149,6 +180,7 @@ export class GeminiLiveService {
           this.sessionStartTimeout = null;
         }
         this.isConnected = true;
+        this.isSessionReady = true; // Mark session as ready
         this.config.onStateChange('CONNECTED');
       });
 
@@ -273,9 +305,21 @@ export class GeminiLiveService {
       intelligenceContext?: any;
     }
   ): Promise<void> {
-    if (!this.liveClient) {
+    if (!this.liveClient || !this.isConnected) {
       console.warn('[GeminiLiveService] Cannot send context: not connected');
       return;
+    }
+
+    if (!this.isSessionReady) {
+        console.warn('[GeminiLiveService] Context update blocked: Session not ready');
+        return;
+    }
+
+    // Rate Limit Check
+    const limit = this.rateLimiter.checkLimit();
+    if (!limit.allowed) {
+        console.warn('[GeminiLiveService] Context update blocked:', limit.reason);
+        return;
     }
 
     // Filter and format transcript for server
@@ -308,6 +352,10 @@ export class GeminiLiveService {
 
   public sendText(text: string) {
     if (!this.liveClient || !this.isConnected) return;
+    if (!this.isSessionReady) {
+        console.warn('[GeminiLiveService] Text blocked: Session not ready');
+        return;
+    }
     this.liveClient.sendText(text);
     // Add to unified context immediately
     unifiedContext.addTranscriptItem({
@@ -321,6 +369,12 @@ export class GeminiLiveService {
 
   public sendRealtimeMedia(media: { mimeType: string; data: string }) {
     if (!this.liveClient || !this.isConnected) return;
+    if (!this.isSessionReady) {
+        // console.warn('[GeminiLiveService] Media blocked: Session not ready'); // Too noisy for realtime
+        return;
+    }
+    // LOGGING: Verify media streaming
+    // console.log(`[GeminiLiveService] Sending real-time media: ${media.mimeType}, size: ${media.data.length}`);
     this.liveClient.sendRealtimeInput([{
       mimeType: media.mimeType,
       data: media.data
@@ -349,6 +403,7 @@ export class GeminiLiveService {
             ...(base64data ? { imageData: base64data } : {}),
             capturedAt: Date.now()
           });
+          console.log('[GeminiLiveService] Sent video frame to Live API');
         }
       }
     };

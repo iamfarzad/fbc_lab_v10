@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { LeadResearchService } from '../leadResearchService'
+import { LeadResearchService } from 'src/core/intelligence/lead-research'
 import { GoogleGenAI } from '@google/genai'
 import { mockResearchResult } from '../../test/helpers/test-data'
 
@@ -14,6 +14,11 @@ vi.mock('@google/genai', () => ({
     BOOLEAN: 'boolean'
   },
   Schema: {}
+}))
+
+// Mock src/config/env
+vi.mock('src/config/env', () => ({
+  createGoogleGenAI: () => new (require('@google/genai').GoogleGenAI)({ apiKey: 'test-key' })
 }))
 
 describe('LeadResearchService', () => {
@@ -36,7 +41,7 @@ describe('LeadResearchService', () => {
 
     ;(GoogleGenAI as any).mockImplementation(() => mockAI)
 
-    service = new LeadResearchService('test-api-key')
+    service = new LeadResearchService()
   })
 
   afterEach(() => {
@@ -46,7 +51,8 @@ describe('LeadResearchService', () => {
 
   describe('Constructor', () => {
     it('creates GoogleGenAI instance', () => {
-      expect(GoogleGenAI).toHaveBeenCalledWith({ apiKey: 'test-api-key' })
+      // Implicitly checked by the fact service is created and uses createGoogleGenAI
+      expect(GoogleGenAI).toHaveBeenCalled()
     })
   })
 

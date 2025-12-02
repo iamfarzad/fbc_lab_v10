@@ -76,10 +76,8 @@ export async function generateSummaryPreview(
     if (pairs.length > 0) {
       const lastPair = pairs[pairs.length - 1]
       if (lastPair && lastPair.assistant) {
-        const assistantContent = typeof lastPair.assistant === 'string' 
-          ? lastPair.assistant 
-          : ''
-        const summaryText = assistantContent 
+        const assistantContent = (typeof lastPair.assistant === 'string' ? lastPair.assistant : '') as string
+        const summaryText = assistantContent.length > 0
           ? assistantContent.slice(0, 300) + (assistantContent.length > 300 ? '...' : '')
           : 'Summary of our discussion about AI strategy and implementation.'
         sections.push(summaryText + '\n')

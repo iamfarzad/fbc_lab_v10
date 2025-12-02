@@ -69,3 +69,46 @@ Phase 4 completed importing all Services Layer files:
 
 **Phase 4: SUCCESS ✅**
 
+---
+
+## Architecture Decision: Services Location
+
+**Date:** 2025-12-02  
+**Decision:** Services remain at root level (`services/`) - no folder structure realignment needed
+
+### Validation Results
+- ✅ Current structure matches original plan
+- ✅ `services/` at root is architecturally correct (frontend-only code)
+- ✅ Consistent with `components/`, `utils/`, `context/` at root
+- ✅ `src/` reserved for shared code (used by both frontend and server)
+- ✅ All import paths verified correct (8 imports from `services/`)
+- ✅ Vite/Vitest configs correctly configured
+- ✅ Fixed @/ aliases in test files (2 files, 4 occurrences → `src/`)
+
+### Current Architecture Pattern
+
+```
+Root Level (Frontend-Only):
+├── components/     ← React components
+├── services/       ← Frontend services (API clients, React hooks)
+├── utils/         ← Frontend utilities
+└── context/       ← React context
+
+src/ (Shared Code - Used by BOTH Frontend AND Backend):
+├── core/          ← Business logic (server imports from here)
+├── config/        ← Configuration (shared)
+└── lib/           ← Libraries (shared)
+```
+
+### Alternative Considered
+- **Proposed:** Move `services/` to `src/services/` for "architecture standards"
+- **Rejected:** Would break established pattern (frontend-only vs shared code separation)
+- **Impact if moved:**
+  - Would require 5 file updates
+  - Would add unused code to server Docker image
+  - Would create confusion about what's shared vs frontend-only
+  - Would be inconsistent with `components/`, `utils/` at root
+
+### Conclusion
+The original plan was correct. Services should remain at root level as frontend-only code. The separation between root (frontend) and `src/` (shared) is intentional and architecturally sound. No changes needed.
+

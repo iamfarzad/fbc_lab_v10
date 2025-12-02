@@ -1,8 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { ToastProvider } from './context/ToastContext';
 import { polyfillResizeObserver } from './utils/browser-compat';
+import './index.css';
 
 // Initialize polyfills before app loads
 polyfillResizeObserver().catch(console.error);
@@ -15,8 +17,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <ToastProvider>
-      <App />
-    </ToastProvider>
+    <BrowserRouter>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

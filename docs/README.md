@@ -1,130 +1,91 @@
 # Documentation Index
 
-This directory contains all project documentation organized by purpose.
+This directory contains all project documentation, organized by purpose, phase, and function.
 
-## 🚀 Getting Started
+**Last Updated:** 2025-12-01
+**Current Focus:** V8 to V10 Migration & Intelligence System Integration
 
-**Start here if you're new:**
-1. [Import Process Summary](./README_IMPORT_PROCESS.md) - Overview of the import process
-2. [Project Configuration](./PROJECT_CONFIG.md) - Build tool, import paths, project structure
+## 🚀 Quick Start
 
-## 📋 Import Strategy & Process
+**New to the project? Start here:**
+1. **[Project Status](../PROJECT_STATUS.md)** - The single source of truth for current progress (Root directory).
+2. **[Import Process Summary](./README_IMPORT_PROCESS.md)** - Overview of how we are migrating from V8 to V10.
+3. **[Strict Import Rules](./STRICT_IMPORT_RULES.md)** - **CRITICAL:** Rules for importing files to maintain code quality.
+4. **[Project Configuration](./PROJECT_CONFIG.md)** - Build tools, directory structure, and path conventions.
 
-### Core Documents
-- **[Parallel Agent Strategy](./PARALLEL_AGENT_STRATEGY.md)** - **NEW:** How to use parallel agents for incremental, validated imports
-- **[Import Strategy](./IMPORT_STRATEGY.md)** - Overall strategy, file structure, decisions
-- **[Import Order](./IMPORT_ORDER.md)** - Prioritized import list (128 files in order)
-- **[Duplicate Comparison Checklist](./DUPLICATE_COMPARISON_CHECKLIST.md)** - Step-by-step process for comparing duplicates
-- **[Cleanup Checklist](./CLEANUP_CHECKLIST.md)** - Comprehensive checklist to prevent duplicates and gaps
+## 📊 Project Status & Reports
 
-### Quick Reference
-- **[Import Process Summary](./README_IMPORT_PROCESS.md)** - Quick overview and workflow
-- **[Agent Coordination](./AGENT_COORDINATION.md)** - How to run and coordinate parallel agents
-- **[Source Access](./SOURCE_ACCESS.md)** - How to access original project files incrementally
+Tracking the migration progress through defined phases.
 
-## ⚙️ Configuration
+### Phase Status
+- **[Phase 1: Foundation](./PHASE_1_COMPLETE.md)** - ✅ Types, Config, Utilities, Schemas.
+- **[Phase 2: Context & Security](./PHASE_2_FINAL_STATUS.md)** - ✅ Context Schema, Capabilities, Security, Embeddings.
+- **[Phase 3: Agent Deployment](./PHASE_3_AGENT_DEPLOYMENT.md)** - 🚧 **Current:** Migrating agents and intelligence systems.
 
-- **[Development Scripts](./DEV_SCRIPTS.md)** - Running multiple services (frontend, websocket, API)
-- **[Project Configuration](./PROJECT_CONFIG.md)** - Build tool (Vite), import paths, project structure
-- **[Type Check & Lint Setup](./TYPE_CHECK_AND_LINT.md)** - TypeScript, ESLint, Prettier configuration
-- **[Deployment](./DEPLOYMENT.md)** - Vercel, Fly.io, Supabase deployment setup
-- **[Fly.io Deployment](./FLY_DEPLOYMENT.md)** - Detailed Fly.io server deployment guide
-- **[WebSocket Configuration](./WEBSOCKET_CONFIG.md)** - WebSocket setup (local vs production)
-- **[Environment Files](./ENVIRONMENT_FILES.md)** - .env files guide (local vs production)
-- **[Deployment Summary](./DEPLOYMENT_SUMMARY.md)** - Quick deployment reference
-- **[Git Workflow](./GIT_WORKFLOW.md)** - Complete commit guidelines, hooks, and workflow
-- **[Git Setup](./GIT_SETUP.md)** - How to set up Git hooks
-- **[Git Setup Guide](./GIT_SETUP_GUIDE.md)** - How to set up local and remote repository
-- **[Commit Guidelines](./COMMIT_GUIDELINES.md)** - Quick commit reference
-- **[Secrets Management](./SECRETS_MANAGEMENT.md)** - **CRITICAL:** How to handle API keys and secrets
-- **[Setup Complete](./SETUP_COMPLETE.md)** - Summary of completed setup tasks
+### Gap Analysis & Comparisons
+- **[Comprehensive Gap Analysis](./COMPREHENSIVE_GAP_ANALYSIS.md)** - Detailed breakdown of missing vs. migrated features.
+- **[Gap Analysis vs Plan](./GAP_ANALYSIS_VS_PLAN.md)** - Tracking progress against the initial gap analysis.
+- **[V8 to V10 Comparison](./V8_V10_COMPARISON.md)** - Architecture and feature comparison between versions.
+- **[V8 Import Status](./V8_IMPORT_STATUS.md)** - Detailed status of V8 file imports.
 
-## 📊 Analysis & Data
+## 🛠️ Operational Guides
 
-- **[Import Map](../what_to_import.md)** - Complete file import and rendering map (3316 lines)
-  - Generated analysis of all file imports
-  - Dependency relationships
-  - Component rendering map
+Guides for developing, deploying, and maintaining the system.
 
-## 🛠️ Tools & Scripts
+### Development & Workflow
+- **[Git Workflow](./GIT_WORKFLOW.md)** - Branching, committing, and version control rules.
+- **[Secrets Management](./SECRETS_MANAGEMENT.md)** - Handling API keys and environment variables.
+- **[Type Check & Lint](./TYPE_CHECK_AND_LINT.md)** - TypeScript, ESLint, and Prettier standards.
+- **[Agent Deployment Instructions](./AGENT_DEPLOYMENT_INSTRUCTIONS.md)** - Guide for deploying new agents.
+- **[Parallel Agent Strategy](./PARALLEL_AGENT_STRATEGY.md)** - Managing multiple AI agents working on the codebase.
 
-### Custom Scripts (in `scripts/` directory)
-- `analyze-dependencies.js` - Analyzes import map, identifies dependency levels
-- `analyze-import-patterns.js` - Analyzes import patterns (absolute vs relative vs @ alias)
-- `compare-duplicates.js` - Compares duplicate files
-- `check-secrets.js` - **Detects API keys and secrets** (runs automatically before commit)
-- `check-circular-deps.js` - Detects circular dependencies
-- `check-unused-exports.js` - Finds potentially unused exports
-- `check-naming-consistency.js` - Checks naming consistency
-- `test-browser-e2e.js` - Guide for browser E2E testing
-- `verify-deployment.js` - Guide for deployment verification
+### Deployment & Infrastructure
+- **[Deployment Overview](./DEPLOYMENT.md)** - General deployment strategy (Vercel, Fly.io, Supabase).
+- **[Fly.io Deployment](./FLY_DEPLOYMENT.md)** - Specific guide for backend deployment.
+- **[WebSocket Configuration](./WEBSOCKET_CONFIG.md)** - Setting up real-time communication.
+- **[Environment Files](./ENVIRONMENT_FILES.md)** - Configuration for local vs. production environments.
+- **[Logging & Monitoring](./LOGGING_AND_MONITORING.md)** - System observability guide.
 
-**Run with:** `pnpm check:secrets`, `pnpm check:circular`, `pnpm check:unused`, `pnpm check:naming`, or `pnpm check:all`
+## 📋 Import Process Resources
 
-### MCP Tools Available
-- **Browser Extension MCP** - E2E testing, visual verification, accessibility
-- **Vercel MCP** - Deployment verification, build logs, environment checks
-- **shadcn MCP** - UI component reference (for component development)
+Tools and references for the migration process.
 
-See [Testing & Cleanup Strategy](./TESTING_AND_CLEANUP_STRATEGY.md), [MCP Tools Guide](./MCP_TOOLS_GUIDE.md), and [Logging & Monitoring](./LOGGING_AND_MONITORING.md) for how to use these tools.
+- **[Import Strategy](./IMPORT_STRATEGY.md)** - The overarching plan for the migration.
+- **[Import Order](./IMPORT_ORDER.md)** - Master list of files to import in priority order.
+- **[Duplicate Comparison](./DUPLICATE_COMPARISON_CHECKLIST.md)** - Process for resolving file duplicates.
+- **[Cleanup Checklist](./CLEANUP_CHECKLIST.md)** - Ensuring a clean codebase after imports.
 
-## 📊 Project Status & Gaps
+## 🔍 Technical Documentation
 
-- **[Gap Analysis](./GAP_ANALYSIS.md)** - What's missing and what we need
-- **[Readiness Checklist](./READINESS_CHECKLIST.md)** - Verify we're ready to import
-- **[Context Preservation](./CONTEXT_PRESERVATION.md)** - How context is maintained
-- **[CI/CD Options](./CI_CD_OPTIONS.md)** - CI/CD options (FREE alternatives)
+Deep dives into specific system components.
 
-## Document Purpose Guide
+- **[Agent Coordination](./AGENT_COORDINATION.md)** - How agents interact and collaborate.
+- **[MCP Tools Guide](./MCP_TOOLS_GUIDE.md)** - Using Model Context Protocol tools.
+- **[Test Strategy](./TESTING_AND_CLEANUP_STRATEGY.md)** - Testing frameworks and procedures.
+- **[CI/CD Options](./CI_CD_OPTIONS.md)** - Continuous Integration/Deployment pipeline options.
 
-### When to read what:
-
-**Before starting imports:**
-1. Read [Import Strategy](./IMPORT_STRATEGY.md) - Understand the plan
-2. Read [Project Configuration](./PROJECT_CONFIG.md) - Understand import paths
-3. Read [Type Check & Lint Setup](./TYPE_CHECK_AND_LINT.md) - Understand code quality setup
-
-**During imports:**
-1. Follow [Import Order](./IMPORT_ORDER.md) - Import files in order
-2. Use [Duplicate Comparison Checklist](./DUPLICATE_COMPARISON_CHECKLIST.md) - For duplicate files
-3. Reference [Import Process Summary](./README_IMPORT_PROCESS.md) - Quick workflow
-
-**For reference:**
-- [Import Map](../what_to_import.md) - Complete dependency analysis
-- [Setup Complete](./SETUP_COMPLETE.md) - What's been set up
-
-## File Organization
+## 📂 File Organization
 
 ```
 docs/
-├── README.md                          # This file - documentation index
-├── ORGANIZATION.md                    # Documentation organization guide
-├── README_IMPORT_PROCESS.md          # Import process overview
-├── IMPORT_STRATEGY.md                 # Main strategy document
-├── IMPORT_ORDER.md                    # Prioritized import list
-├── DUPLICATE_COMPARISON_CHECKLIST.md  # Duplicate comparison process
-├── PROJECT_CONFIG.md                  # Project configuration
-├── TYPE_CHECK_AND_LINT.md             # TypeScript/ESLint setup
-└── SETUP_COMPLETE.md                  # Setup summary
-
-Root:
-├── README.md                          # Project overview
-├── what_to_import.md                  # Import map (large data file)
-├── analyze-dependencies.js            # Analysis tool
-├── analyze-import-patterns.js         # Pattern analysis tool
-└── compare-duplicates.js               # Duplicate comparison tool
+├── README.md                          # This index file
+├── PROJECT_CONFIG.md                  # Core configuration
+├── STRICT_IMPORT_RULES.md             # Mandatory import rules
+│
+├── status/                            # Progress tracking
+│   ├── PHASE_1_COMPLETE.md
+│   ├── PHASE_2_FINAL_STATUS.md
+│   └── ...
+│
+├── analysis/                          # System analysis
+│   ├── COMPREHENSIVE_GAP_ANALYSIS.md
+│   ├── V8_V10_COMPARISON.md
+│   └── ...
+│
+└── guides/                            # Operational guides
+    ├── DEPLOYMENT.md
+    ├── GIT_WORKFLOW.md
+    └── ...
 ```
 
-See [ORGANIZATION.md](./ORGANIZATION.md) for detailed organization structure.
-
-## Quick Links
-
-- **Start importing?** → [Import Order](./IMPORT_ORDER.md)
-- **Found a duplicate?** → [Duplicate Comparison Checklist](./DUPLICATE_COMPARISON_CHECKLIST.md)
-- **Want to prevent issues?** → [Cleanup Checklist](./CLEANUP_CHECKLIST.md)
-- **Testing & cleanup?** → [Testing & Cleanup Strategy](./TESTING_AND_CLEANUP_STRATEGY.md) | [MCP Tools Guide](./MCP_TOOLS_GUIDE.md)
-- **Monitoring logs?** → [Logging & Monitoring](./LOGGING_AND_MONITORING.md) | [Quick Reference](./LOG_MONITORING_QUICK_REF.md)
-- **Need import path?** → [Project Configuration](./PROJECT_CONFIG.md)
-- **Deploying?** → [Deployment](./DEPLOYMENT.md) | [Deployment Summary](./DEPLOYMENT_SUMMARY.md)
-- **Type errors?** → [Type Check & Lint Setup](./TYPE_CHECK_AND_LINT.md)
-
+*Note: Some files listed in "File Organization" are conceptually grouped but reside in the root `docs/` folder for accessibility.*

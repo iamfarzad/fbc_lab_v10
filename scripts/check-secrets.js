@@ -134,6 +134,32 @@ function checkFile(filePath) {
             return
           }
           
+          // Skip function names that contain password-related words (false positives)
+          if (name === 'Password' && (
+              line.match(/^(const|let|var|function)\s+\w*[Pp]assword/i) ||
+              line.match(/handle\w*[Pp]ass/i) ||
+              line.match(/on\w*[Pp]ass/i) ||
+              line.match(/^\s*[a-zA-Z_]\w*\s*[:=]\s*\(/))) {
+            return
+          }
+          
+          // Skip documentation files that mention API keys/env vars in examples
+          if ((name.includes('API Key') || name.includes('Secret')) && (
+              filePath.endsWith('.md') ||
+              filePath.includes('DEPLOY') ||
+              filePath.includes('docs/'))) {
+            // Skip if it's just mentioning an env var name (backticks, brackets, etc.)
+            if (line.match(/[`\[\]]\s*[A-Z_]+[A-Z_0-9]*\s*[`\[\]]/) ||
+                line.match(/process\.env\./) ||
+                line.match(/^\s*[-*]\s*\[/)) { // Checklist items
+              return
+            }
+            // Only flag if it looks like an actual key (long string)
+            if (!line.match(/['"][a-zA-Z0-9_-]{32,}['"]/)) {
+              return
+            }
+          }
+          
           issues.push({
             type: name,
             line: index + 1,
