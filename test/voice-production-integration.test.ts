@@ -11,9 +11,14 @@ const API_URL = USE_PROD
   ? process.env.PROD_API_URL || 'https://fbc-ai-agent.vercel.app/api/chat'
   : process.env.LOCAL_API_URL || 'http://localhost:3002/api/chat'
 const API_AUTH_HEADER = process.env.PROD_API_AUTH || ''
-const describeTarget = describe // Always run; defaults to local targets
+// Skip integration tests by default - they require a real WebSocket server running
+// Only run if explicitly enabled via USE_PROD_VOICE_TESTS=1
+const shouldRunIntegrationTests = process.env.USE_PROD_VOICE_TESTS === '1'
 
-describeTarget('Real-World Production Voice Testing', () => {
+// Use describe.skip to skip these tests by default (they require real server)
+const describeIntegration = shouldRunIntegrationTests ? describe : describe.skip
+
+describeIntegration('Real-World Production Voice Testing', () => {
   let client: LiveClientWS
   let realWebSocket: WebSocket | null = null
 

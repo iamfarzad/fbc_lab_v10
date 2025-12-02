@@ -1,6 +1,7 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { App } from './App'
 import { ToastProvider } from './context/ToastContext'
 
@@ -21,9 +22,11 @@ vi.mock('./components/chat/WebcamPreview', () => ({
 describe('App Component', () => {
   it('renders without crashing', () => {
     render(
-      <ToastProvider>
-        <App />
-      </ToastProvider>
+      <MemoryRouter>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </MemoryRouter>
     )
     // App renders - check for any visible element
     expect(document.body).toBeTruthy()
