@@ -14,6 +14,7 @@ build
 # Environment & Secrets
 .env
 .env.local
+.env.local.bak
 .source-config.json
 .env.*.local
 .env.development.local
@@ -21,6 +22,7 @@ build
 .env.production.local
 !.env.example
 *.env
+*.bak
 *.pem
 *.key
 *.p12
@@ -75,3 +77,8 @@ lerna-debug.log*
 !.husky/_/husky.sh
 
 .vercel
+
+# Logs
+logs/
+*.log
+*.jsonl
