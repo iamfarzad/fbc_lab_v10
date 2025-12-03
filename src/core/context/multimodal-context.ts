@@ -24,6 +24,7 @@ import {
 } from 'src/core/context/context-intelligence'
 import { embedTexts } from 'src/core/embeddings/gemini'
 import { queryTopK, upsertEmbeddings } from 'src/core/embeddings/query'
+import { logger } from 'src/lib/logger-client'
 
 const WAL_ENABLED = false;
 
@@ -158,7 +159,7 @@ export class MultimodalContextManager {
     this.contextStorage = new ContextStorage()
   }
 
-  async initializeSession(sessionId: string, leadContext?: LeadContext): Promise<MultimodalContext> {
+  initializeSession(sessionId: string, leadContext?: LeadContext): MultimodalContext {
     const context: MultimodalContext = {
       sessionId,
       conversationHistory: [],
@@ -208,7 +209,7 @@ export class MultimodalContextManager {
         // Redact if enabled (production only)
         if (SECURITY_CONFIG.ENABLE_PII_REDACTION && shouldRedact(content)) {
           processedContent = redactPII(content)
-          console.log(`🔒 PII redacted from message`)
+          logger.debug(`🔒 PII redacted from message`)
         }
       }
     }
@@ -223,7 +224,7 @@ export class MultimodalContextManager {
 
     if (WAL_ENABLED) {
       // Log to WAL first (critical path for data reliability)
-      await walLog.logOperation(sessionId, 'add_text', entry)
+      walLog.logOperation(sessionId, 'add_text', entry)
     }
 
     context.conversationHistory.push(entry)
@@ -241,7 +242,7 @@ export class MultimodalContextManager {
           if (vectors && vectors.length > 0 && vectors[0]) {
             try {
               await upsertEmbeddings(sessionId, 'conversation', [processedContent], [vectors[0]])
-              console.log(`✅ Embedding stored for conversation entry: ${entry.id.substring(0, 8)}...`)
+              logger.debug(`✅ Embedding stored for conversation entry: ${entry.id.substring(0, 8)}...`)
             } catch (embedError: unknown) {
               console.warn('Failed to store embedding (non-fatal):', embedError)
             }
@@ -308,7 +309,7 @@ export class MultimodalContextManager {
           if (vectors && vectors.length > 0 && vectors[0]) {
             try {
               await upsertEmbeddings(sessionId, 'conversation', [transcription], [vectors[0]])
-              console.log(`✅ Embedding stored for voice transcript: ${convEntry.id.substring(0, 8)}...`)
+              logger.debug(`✅ Embedding stored for voice transcript: ${convEntry.id.substring(0, 8)}...`)
             } catch (embedError: unknown) {
               console.warn('Failed to store embedding (non-fatal):', embedError)
             }
@@ -353,7 +354,7 @@ export class MultimodalContextManager {
 
     if (WAL_ENABLED) {
       // Log to WAL (critical for visual analyses)
-      await walLog.logOperation(sessionId, 'add_visual', visualEntry)
+      walLog.logOperation(sessionId, 'add_visual', visualEntry)
     }
 
     context.visualContext.push(visualEntry)
@@ -393,7 +394,7 @@ export class MultimodalContextManager {
 
     if (WAL_ENABLED) {
       // Log to WAL (critical for file uploads)
-      await walLog.logOperation(sessionId, 'add_upload', uploadEntry)
+      walLog.logOperation(sessionId, 'add_upload', uploadEntry)
     }
 
     context.uploadContext = context.uploadContext || []
@@ -534,7 +535,7 @@ export class MultimodalContextManager {
         walLog.logOperation(sessionId, 'add_voice', audioEntry)
           .then(() => {
             if (process.env.NODE_ENV === 'development') {
-              console.log(`🪵 WAL logged voice entry for session ${sessionId}`)
+              logger.debug(`🪵 WAL logged voice entry for session ${sessionId}`)
             }
           })
           .catch((err: unknown) => {
@@ -611,7 +612,7 @@ export class MultimodalContextManager {
       const cached = await vercelCache.get<MultimodalContext>('multimodal', sessionId)
       if (cached) {
         this.activeContexts.set(sessionId, cached)
-        console.log(`✅ Context loaded from Redis: ${sessionId}`)
+        logger.debug(`✅ Context loaded from Redis: ${sessionId}`)
         return cached
       }
     } catch (err) {
@@ -624,7 +625,7 @@ export class MultimodalContextManager {
     if (stored?.multimodal_context) {
       const context = ensureContext(stored.multimodal_context)
       this.activeContexts.set(sessionId, context)
-      console.log(`✅ Context loaded from Supabase: ${sessionId}`)
+      logger.debug(`✅ Context loaded from Supabase: ${sessionId}`)
       return context
     }
 
@@ -759,7 +760,7 @@ export class MultimodalContextManager {
   private async getOrCreateContext(sessionId: string): Promise<MultimodalContext> {
     let context = await this.getContext(sessionId)
     if (!context) {
-      context = await this.initializeSession(sessionId)
+      context = this.initializeSession(sessionId)
     }
     return context
   }
@@ -925,7 +926,7 @@ export class MultimodalContextManager {
             metadata: { speaker: 'assistant', type: 'summary' }
           })
 
-          console.log(`✅ Summarized conversation at ${context.conversationHistory.length} messages for ${sessionId}`)
+          logger.debug(`✅ Summarized conversation at ${context.conversationHistory.length} messages for ${sessionId}`)
         }
       } catch (err) {
         console.error('Context summarization failed (non-fatal):', err)
@@ -941,7 +942,7 @@ export class MultimodalContextManager {
       })
       // Only log if Redis is actually configured (no false positives)
       if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-        console.log(`✅ Context saved to Redis: ${sessionId}`)
+        logger.debug(`✅ Context saved to Redis: ${sessionId}`)
       }
     } catch (err) {
       console.error('Redis save failed (non-fatal):', err)
@@ -986,7 +987,7 @@ export class MultimodalContextManager {
 
     // Don't archive trivial conversations
     if (context.conversationHistory.length < CONTEXT_CONFIG.MIN_MESSAGES_FOR_ARCHIVE) {
-      console.log(`⏭️ Skipping archive: only ${context.conversationHistory.length} messages`)
+      logger.debug(`⏭️ Skipping archive: only ${context.conversationHistory.length} messages`)
       return
     }
 
@@ -1002,7 +1003,7 @@ export class MultimodalContextManager {
         updated_at: new Date().toISOString()
       })
 
-      console.log(`✅ Archived conversation ${sessionId} to Supabase (${context.conversationHistory.length} messages, ${context.metadata.modalitiesUsed.join(', ')})`)
+      logger.debug(`✅ Archived conversation ${sessionId} to Supabase (${context.conversationHistory.length} messages, ${context.metadata.modalitiesUsed.join(', ')})`)
 
       // Audit log the archival
       if (SECURITY_CONFIG.ENABLE_AUDIT_LOGGING) {
@@ -1025,7 +1026,7 @@ export class MultimodalContextManager {
     // Clear from Redis cache
     try {
       await vercelCache.delete('multimodal', sessionId)
-      console.log(`✅ Cleared context from Redis: ${sessionId}`)
+      logger.debug(`✅ Cleared context from Redis: ${sessionId}`)
     } catch (err) {
       console.error('Failed to clear Redis cache:', err)
       // Non-fatal

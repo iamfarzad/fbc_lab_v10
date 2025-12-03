@@ -7,6 +7,7 @@
 import { routeToAgent } from '../orchestrator'
 import type { AgentContext, ChatMessage } from '../types'
 import { describe, it, expect, vi } from 'vitest'
+import { logger } from 'src/lib/logger'
 
 // Mock API key before any imports that need it
 process.env.GEMINI_API_KEY = 'test-api-key'
@@ -27,9 +28,9 @@ describe('Agent Flow - End to End', () => {
   describe('Workshop Lead Flow', () => {
     it('should complete full workshop funnel', async () => {
       // STEP 1: Discovery
-      let messages: ChatMessage[] = [{ role: 'user', content: 'What services do you offer?' }]
+      const messages: ChatMessage[] = [{ role: 'user', content: 'What services do you offer?' }]
 
-      let context: AgentContext = {
+      const context: AgentContext = {
         sessionId,
         intelligenceContext: {
           email: 'manager@midsize.com',
@@ -90,7 +91,7 @@ describe('Agent Flow - End to End', () => {
       // Should trigger scoring after 4 categories
       expect(['SCORING', 'WORKSHOP_PITCH']).toContain(result.metadata?.stage)
 
-      console.log('✅ Workshop flow test passed')
+      logger.debug('✅ Workshop flow test passed')
     })
   })
 
@@ -146,7 +147,7 @@ describe('Agent Flow - End to End', () => {
       expect(result.agent).toBe('Consulting Sales Agent')
       expect(result.metadata?.stage).toBe('CONSULTING_PITCH')
 
-      console.log('✅ Consulting flow test passed')
+      logger.debug('✅ Consulting flow test passed')
     })
   })
 
@@ -194,7 +195,7 @@ describe('Agent Flow - End to End', () => {
       expect(result.metadata?.multimodalUsed).toBe(true)
       expect(result.output).toBeTruthy()
 
-      console.log('✅ Multimodal context test passed')
+      logger.debug('✅ Multimodal context test passed')
     })
   })
 })

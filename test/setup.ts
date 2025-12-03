@@ -34,7 +34,7 @@ if (typeof globalThis !== 'undefined') {
 
 // Mock window object for browser APIs
 if (typeof window === 'undefined') {
-  ;(globalThis as any).window = globalThis
+  (globalThis as any).window = globalThis
 }
 
 // Mock sessionStorage

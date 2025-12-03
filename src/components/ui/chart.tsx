@@ -20,14 +20,13 @@ const ChartContainer = React.forwardRef<
     children: React.ReactNode
     data?: unknown[]
   }
->(({ id, className, children, config, data, ...props }, ref) => {
+>(({ id, className, children, config: _config, data: _data, ...props }, _ref) => {
   const uniqueId = React.useId()
   const chartId = `chart-${id || uniqueId.replace(/:/g, '')}`
 
   return (
     <div
       data-chart={chartId}
-      ref={ref}
       className={cn(
         'flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke="#ccc"]]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke="#fff"]]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke="#ccc"]]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line-line]:stroke-border [&_.recharts-sector[stroke="#fff"]]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none',
         className
@@ -167,7 +166,7 @@ const ChartTooltipContent = React.forwardRef<
             }
           }, index: number) => {
             if (!item) return null
-            const key = `${nameKey || item.name || item.dataKey || 'value'}`
+            const key = String(nameKey || item.name || item.dataKey || 'value')
             const itemConfig = item.payload?.config?.[key] ?? {}
             const indicatorColor = color || item.fill || item.color
 

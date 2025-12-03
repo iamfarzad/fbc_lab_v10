@@ -4,7 +4,7 @@ import type { VoiceContextUpdate } from 'src/types/voice'
 import type { LiveClientWS } from 'src/core/live/client'
 import type { AttachmentUploadResponse } from 'src/types/api-responses'
 import type { ScreenAnalysisResponse, WebcamAnalysisResponse } from 'src/types/api-responses'
-import type { MediaAnalysisResult } from 'src/types/media-analysis'
+
 import { useVoiceContext } from './voice-context'
 import { parseJsonResponse } from 'src/lib/json'
 
@@ -48,13 +48,13 @@ function useVoiceInstance(options: UseVoiceOptions = {}): UseVoiceReturn {
           ? imageBase64
           : `data:image/jpeg;base64,${imageBase64}`
 
-        const { response } = await routeImageAnalysis(normalizedImage, {
+        const { response } = routeImageAnalysis(normalizedImage, {
           modality: opts?.type === 'document' ? 'image' : (opts?.type ?? 'screen'),
           userIntent: prompt,
           ...(opts?.sessionId ? { sessionId: opts.sessionId } : {}),
         })
 
-        const data = response as MediaAnalysisResult
+        const data = response
         const analysis = data?.analysis || data?.summary
         
         if (analysis) {
@@ -118,14 +118,14 @@ function useVoiceInstance(options: UseVoiceOptions = {}): UseVoiceReturn {
         })
 
         const { routeImageAnalysis } = await import('src/lib/services/router-helpers')
-        const { response } = await routeImageAnalysis(imageBase64, {
+        const { response } = routeImageAnalysis(imageBase64, {
           modality: 'webcam',
           ...(opts?.userIntent ? { userIntent: opts.userIntent } : {}),
           previousRoute: 'webcam',
           ...(opts?.sessionId ? { sessionId: opts.sessionId } : {}),
         })
 
-        const data = response as MediaAnalysisResult
+        const data = response
         const analysis = data?.analysis || data?.summary
         
         if (analysis) {
@@ -134,15 +134,25 @@ function useVoiceInstance(options: UseVoiceOptions = {}): UseVoiceReturn {
         return { ok: true }
       } catch (error) {
         console.error('Router-based webcam analysis failed, falling back to direct call', error)
-        const formData = new FormData()
-        formData.append('webcamCapture', blob, `webcam-${Date.now()}.jpg`)
+        
+        const fallbackBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+
         const response = await fetch('/api/tools/webcam', {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             ...(opts?.sessionId ? { 'x-intelligence-session-id': opts.sessionId } : {}),
             ...(opts?.voiceConnectionId ? { 'x-voice-connection-id': opts.voiceConnectionId } : {}),
           },
-          body: formData,
+          body: JSON.stringify({
+            image: fallbackBase64,
+            prompt: 'Analyze this webcam frame for sales context during a voice conversation.'
+          }),
         })
         if (!response.ok) return { ok: false }
         const data = await parseJsonResponse<WebcamAnalysisResponse>(

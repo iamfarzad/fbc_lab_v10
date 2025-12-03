@@ -651,13 +651,13 @@ export class AdvancedIntentClassifier {
   }
 
   // Public method to get intent suggestions for UI
-  async getIntentSuggestions(partialInput: string, limit: number = 3): Promise<IntentCategory[]> {
-    return this.intentCategories
+  getIntentSuggestions(partialInput: string, limit: number = 3): Promise<IntentCategory[]> {
+    return Promise.resolve(this.intentCategories
       .filter(category =>
         category.name.toLowerCase().includes(partialInput.toLowerCase()) ||
         category.keywords.some(keyword => keyword.toLowerCase().includes(partialInput.toLowerCase()))
       )
-      .slice(0, limit);
+      .slice(0, limit));
   }
 
   // Method to update intent patterns based on feedback

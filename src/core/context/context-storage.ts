@@ -22,7 +22,9 @@ type ConversationContextInsert = Database['public']['Tables']['conversation_cont
 type ConversationContextUpdate = Database['public']['Tables']['conversation_contexts']['Update'] & ConversationContextExtendedFields
 
 const resolveJsonField = (
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   incoming: unknown | null | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   existing: unknown | null | undefined
 ): Json | null | undefined => {
   if (incoming !== undefined) {

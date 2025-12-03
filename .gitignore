@@ -82,3 +82,20 @@ lerna-debug.log*
 logs/
 *.log
 *.jsonl
+
+# Lint reports (temporary)
+lint_report*.txt
+
+# Temporary analysis/report files (root directory only)
+/*_REPORT.md
+/*_SUMMARY.md
+/*_RESULTS.md
+/*_ANALYSIS.md
+/*_CHECKLIST.md
+/*_COMMANDS.md
+/*_APPLIED.md
+/*_COMPLETE.md
+/*_READY.md
+/*_DOCUMENTATION.md
+/*_MESSAGES.md
+/*_PLAN.json

@@ -1,31 +1,31 @@
 /**
  * Multi-Agent System for F.B/c Sales Funnel
  * 
- * Architecture:
- * - Lead Intelligence Agent: Background research on terms accept
- * - Discovery Agent: Systematically qualifies leads (6 categories)
- * - Scoring Agent: Calculates lead score + fit scores
- * - Sales Agents: Workshop or Consulting pitch based on fit
- * - Closer Agent: Handles objections
- * - Summary Agent: Post-conversation analysis
- * - Proposal Agent: Formal consulting quotes
- * - Admin Agent: Farzad's business intelligence assistant
- * - Retargeting Agent: Automated follow-up emails
+ * Architecture (2026):
+ * - 6 Core Agents: Discovery, Pitch, Objection, Closer, Summary, Lead Research
+ * - 7 Funnel Stages: DISCOVERY → QUALIFIED → PITCHING → OBJECTION → CLOSING → BOOKED → SUMMARY
+ * - Fast-track qualified leads (skip discovery)
+ * - Objection override (highest priority)
+ * - 100% structured output (zero regex parsing)
+ * 
+ * Special Agents (not in main flow):
+ * - Admin Agent: Business intelligence assistant (handled via trigger)
+ * - Retargeting Agent: Automated follow-up emails (scheduled jobs)
+ * - Lead Intelligence Agent: Background research worker
  * 
  * All agents are multimodal-aware and share context via orchestrator
  */
 
 export { routeToAgent, getCurrentStage } from './orchestrator'
-export { leadIntelligenceAgent } from './lead-intelligence-agent'
 export { discoveryAgent } from './discovery-agent'
-export { scoringAgent } from './scoring-agent'
-export { workshopSalesAgent } from './workshop-sales-agent'
-export { consultingSalesAgent } from './consulting-sales-agent'
+export { pitchAgent } from './pitch-agent'
+export { objectionAgent } from './objection-agent'
 export { closerAgent } from './closer-agent'
 export { summaryAgent } from './summary-agent'
-export { proposalAgent } from './proposal-agent'
+// Special agents (not in main flow)
 export { adminAgent, searchConversations, draftFollowUpEmail } from './admin-agent'
 export { retargetingAgent } from './retargeting-agent'
+export { leadIntelligenceAgent } from './lead-intelligence-agent'
 
 export type { 
   AgentContext, 

@@ -32,7 +32,7 @@ export function LogsSection() {
         params.set('level', level)
       }
 
-      const response = await fetch(`/api/admin/logs?${params}`)
+      const response = await fetch(`/api/admin/logs?${params.toString()}`)
       if (response.ok) {
         const data: unknown = await response.json()
         const logs = (data && typeof data === 'object' && 'logs' in data && Array.isArray(data.logs)) ? data.logs : []

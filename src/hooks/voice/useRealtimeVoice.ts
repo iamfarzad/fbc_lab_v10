@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { LiveClientWS } from 'src/core/live/client'
+import { logger } from 'src/lib/logger'
 
 export type VoiceContextUpdate = {
   sessionId?: string | null
@@ -56,7 +57,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
     try {
       // Call the Live Client's sendRealtimeInput method
       client.sendRealtimeInput(chunks)
-      console.log('[useRealtimeVoice] Sent realtime input', { chunks: chunks.length })
+      logger.debug('[useRealtimeVoice] Sent realtime input', { chunks: chunks.length })
     } catch (err) {
       console.error('[useRealtimeVoice] Failed to send realtime input:', err)
     }
@@ -72,7 +73,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
     if (update.analysis) {
       try {
         // Send context update to Live Client
-        console.log('[useRealtimeVoice] Sending context update', { modality: update.modality })
+        logger.debug('[useRealtimeVoice] Sending context update', { modality: update.modality })
         // The Live Client will handle this via its context update mechanism
       } catch (err) {
         console.error('[useRealtimeVoice] Failed to send context update:', err)
@@ -80,7 +81,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
     }
   }, [])
 
-  const startSession = useCallback(async () => {
+  const startSession = useCallback(() => {
     setIsSessionActive(true)
     options.onSessionStateChange?.({ active: true })
   }, [options])

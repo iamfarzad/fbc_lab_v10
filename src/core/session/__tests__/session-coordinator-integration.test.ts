@@ -8,18 +8,17 @@
 import {
   normalizeSessionId,
   getSessionIdFromRequest,
-  getOrCreateClientSessionId,
   withSessionHeaders,
   SESSION_HEADER,
   LEGACY_SESSION_HEADER
 } from '../session-coordinator'
-import { NextRequest } from 'next/server'
+// import { NextRequest } from 'next/server'
 import { describe, it, expect } from 'vitest'
 
 describe('Session Coordinator Integration', () => {
   describe('HTTP Chat Integration', () => {
     it('should extract session ID from request for /api/chat/unified', () => {
-      const req = new NextRequest('http://localhost:3000/api/chat/unified', {
+      const req = new Request('http://localhost:3000/api/chat/unified', {
         headers: {
           [SESSION_HEADER]: 'chat-session-123'
         }
@@ -34,7 +33,7 @@ describe('Session Coordinator Integration', () => {
       const mockLocalStorage = new Map<string, string>()
       mockLocalStorage.set('fbc_session_id', 'client-session-123')
 
-      // @ts-ignore
+      // @ts-expect-error
       global.window = {
         localStorage: {
           getItem: (key: string) => mockLocalStorage.get(key) || null,
@@ -46,7 +45,7 @@ describe('Session Coordinator Integration', () => {
           length: 0,
           key: () => null
         },
-        location: { href: 'http://localhost:3000/live' }
+        location: { href: 'http://localhost:3000/live' } as unknown as Location
       }
 
       const init = withSessionHeaders({
@@ -60,14 +59,14 @@ describe('Session Coordinator Integration', () => {
       expect(headers.get(SESSION_HEADER)).toBe('client-session-123')
       expect(headers.get(LEGACY_SESSION_HEADER)).toBe('client-session-123')
 
-      // @ts-ignore
+      // @ts-expect-error
       delete global.window
     })
   })
 
   describe('Tool Routes Integration', () => {
     it('should extract session ID for /api/tools/webcam', () => {
-      const req = new NextRequest('http://localhost:3000/api/tools/webcam', {
+      const req = new Request('http://localhost:3000/api/tools/webcam', {
         headers: {
           [SESSION_HEADER]: 'tool-session-123'
         }
@@ -78,7 +77,7 @@ describe('Session Coordinator Integration', () => {
     })
 
     it('should extract session ID for /api/tools/screen', () => {
-      const req = new NextRequest('http://localhost:3000/api/tools/screen', {
+      const req = new Request('http://localhost:3000/api/tools/screen', {
         headers: {
           [SESSION_HEADER]: 'screen-session-123'
         }
@@ -89,7 +88,7 @@ describe('Session Coordinator Integration', () => {
     })
 
     it('should normalize session ID for tool routes', () => {
-      const req = new NextRequest('http://localhost:3000/api/tools/document', {
+      const req = new Request('http://localhost:3000/api/tools/document', {
         headers: {
           [SESSION_HEADER]: '  document-session-123  '
         }
@@ -104,7 +103,7 @@ describe('Session Coordinator Integration', () => {
 
   describe('Backward Compatibility', () => {
     it('should support legacy x-session-id header', () => {
-      const req = new NextRequest('http://localhost:3000/api/chat/unified', {
+      const req = new Request('http://localhost:3000/api/chat/unified', {
         headers: {
           [LEGACY_SESSION_HEADER]: 'legacy-session-123'
         }
@@ -115,7 +114,7 @@ describe('Session Coordinator Integration', () => {
     })
 
     it('should prefer new header over legacy header', () => {
-      const req = new NextRequest('http://localhost:3000/api/chat/unified', {
+      const req = new Request('http://localhost:3000/api/chat/unified', {
         headers: {
           [SESSION_HEADER]: 'new-session-123',
           [LEGACY_SESSION_HEADER]: 'legacy-session-123'
@@ -128,7 +127,7 @@ describe('Session Coordinator Integration', () => {
 
     it('should support body sessionId in request parser (backward compat)', () => {
       // This tests the pattern: bodySessionId || coordinatorSessionId
-      const req = new NextRequest('http://localhost:3000/api/chat/unified', {
+      const req = new Request('http://localhost:3000/api/chat/unified', {
         headers: {
           [SESSION_HEADER]: 'header-session-123'
         }
@@ -204,11 +203,11 @@ describe('Session Coordinator Integration', () => {
     it('should use same session ID across HTTP chat and tools', () => {
       const sessionId = 'shared-session-123'
 
-      const chatReq = new NextRequest('http://localhost:3000/api/chat/unified', {
+      const chatReq = new Request('http://localhost:3000/api/chat/unified', {
         headers: { [SESSION_HEADER]: sessionId }
       })
 
-      const toolReq = new NextRequest('http://localhost:3000/api/tools/webcam', {
+      const toolReq = new Request('http://localhost:3000/api/tools/webcam', {
         headers: { [SESSION_HEADER]: sessionId }
       })
 
@@ -222,8 +221,8 @@ describe('Session Coordinator Integration', () => {
     it('should handle session ID from query param consistently', () => {
       const sessionId = 'query-session-123'
 
-      const req1 = new NextRequest(`http://localhost:3000/api/chat/unified?sessionId=${sessionId}`)
-      const req2 = new NextRequest(`http://localhost:3000/api/tools/webcam?sessionId=${sessionId}`)
+      const req1 = new Request(`http://localhost:3000/api/chat/unified?sessionId=${sessionId}`)
+      const req2 = new Request(`http://localhost:3000/api/tools/webcam?sessionId=${sessionId}`)
 
       const id1 = normalizeSessionId(getSessionIdFromRequest(req1))
       const id2 = normalizeSessionId(getSessionIdFromRequest(req2))

@@ -1,5 +1,6 @@
 import { MESSAGE_TYPES } from '../message-types.js'
 import { ensureWsAdmin } from '../utils/admin-check.js'
+import { serverLogger } from '../utils/env-setup'
 
 // Connection state for rate limiting
 export type ConnectionState = {
@@ -47,14 +48,21 @@ export function checkRateLimit(
   sessionId?: string,
   messageType?: string
 ): { allowed: boolean; remaining?: number } {
-  const st = connectionStates.get(connectionId)
+  let st = connectionStates.get(connectionId)
   if (!st) {
-    // Log missing connectionState for debugging
-    console.warn('[Rate Limiter] ConnectionState missing for connectionId:', connectionId, {
+    // This should never happen - connectionState should be initialized in connection-manager
+    // Log as ERROR with full context for investigation
+    const stackTrace = new Error().stack
+    serverLogger.error('CRITICAL: ConnectionState missing in checkRateLimit', new Error('ConnectionState missing in rate limiter'), {
+      connectionId,
+      sessionId,
+      messageType,
       availableConnections: Array.from(connectionStates.keys()),
-      connectionCount: connectionStates.size
+      connectionCount: connectionStates.size,
+      stackTrace: stackTrace?.split('\n').slice(0, 10).join('\n')
     })
-    // Initialize connectionState defensively if missing (shouldn't happen, but prevents crashes)
+    
+    // Initialize defensively to prevent crash, but this indicates a bug
     const now = Date.now()
     const defaultState: ConnectionState = {
       isReady: false,
@@ -65,8 +73,8 @@ export function checkRateLimit(
       audioLastAt: now
     }
     connectionStates.set(connectionId, defaultState)
-    // Allow first message to pass through, but log the issue
-    return { allowed: true }
+    st = defaultState
+    // Allow first message to pass through, but this is a bug that needs investigation
   }
 
   const now = Date.now()

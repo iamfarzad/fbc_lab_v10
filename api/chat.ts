@@ -1,7 +1,38 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { routeToAgent } from 'src/core/agents/orchestrator';
-import type { AgentContext, ChatMessage } from 'src/core/agents/types';
+import type { ChatMessage } from 'src/core/agents/types';
+import type { FunnelStage } from 'src/core/types/funnel-stage';
+import { logger } from 'src/lib/logger'
+import { multimodalContextManager } from 'src/core/context/multimodal-context';
+import { rateLimit } from 'src/lib/rate-limiter';
+import { supabaseService } from 'src/core/supabase/client';
 // import { ensureWorkersInitialized } from 'src/core/queue/redis-queue';
+
+/**
+ * Determine current funnel stage based on intelligence context and triggers
+ * 
+ * Single source of truth for stage determination in the API layer.
+ * This keeps the orchestrator pure and testable.
+ */
+function determineCurrentStage(
+  intelligenceContext: any,
+  trigger?: string
+): FunnelStage {
+  if (trigger === 'conversation_end') return 'SUMMARY'
+  if (trigger === 'booking') return 'CLOSING'
+  if (trigger === 'admin') return 'PITCHING' // Will be handled by orchestrator
+
+  const isQualified =
+    intelligenceContext?.company?.size &&
+    intelligenceContext.company.size !== 'unknown' &&
+    intelligenceContext?.budget?.hasExplicit &&
+    ['C-Level', 'VP', 'Director'].includes((intelligenceContext?.person?.seniority || '') as string)
+
+  // Bonus: if we have URL context or multimodal proof, fast-track even harder
+  const hasStrongSignal = isQualified || intelligenceContext?.company?.website
+
+  return hasStrongSignal ? 'QUALIFIED' : 'DISCOVERY'
+}
 
 /**
  * Main chat endpoint for AI Brain agent orchestration
@@ -13,7 +44,7 @@ export default async function handler(
     req: VercelRequest,
     res: VercelResponse
 ) {
-    console.log('[API /chat] Request received', { method: req.method, body: req.body });
+    logger.debug('[API /chat] Request received', { method: req.method, body: req.body });
 
     // TODO: Re-enable when redis-queue is available
     // await ensureWorkersInitialized();
@@ -37,7 +68,18 @@ export default async function handler(
     }
 
     try {
-        const { messages, sessionId, conversationFlow, intelligenceContext, trigger } = req.body;
+        const { messages, sessionId, intelligenceContext, trigger, multimodalContext } = req.body;
+
+        // Rate limiting - check before processing
+        const effectiveSessionId = (sessionId || `session-${Date.now()}`) as string
+        if (!rateLimit(effectiveSessionId, 'message')) {
+            return res.status(429).json({
+                success: false,
+                output: "Whoa, slow down! I'm getting flooded — give me 15 seconds and try again.",
+                agent: 'RateLimiter',
+                error: 'Rate limit exceeded'
+            })
+        }
 
         if (!messages || !Array.isArray(messages)) {
             return res.status(400).json({ error: 'Messages array is required' });
@@ -81,17 +123,65 @@ export default async function handler(
             console.warn(`[API /chat] Filtered out ${messages.length - validMessages.length} invalid messages`)
         }
 
-        // Build agent context (already destructured above)
-        const context: AgentContext = {
-            sessionId: sessionId || `session-${Date.now()}`,
-            ...(conversationFlow && { conversationFlow }),
-            ...(intelligenceContext && { intelligenceContext })
-        };
+        // Determine current stage (single source of truth in API layer)
+        const currentStage = determineCurrentStage(
+            intelligenceContext,
+            trigger as string | undefined
+        )
+
+        // Persist stage so reloads don't reset (safe fallback if table/column missing)
+        if (sessionId) {
+          try {
+            const { error } = await supabaseService
+              .from('conversations')
+              .update({ stage: currentStage as string })
+              .eq('session_id', sessionId as string)
+            
+            if (error) throw error
+          } catch (err) {
+            // Non-blocking — survives if column/table missing (pre-deploy safety)
+            logger.debug('Stage persistence failed (safe):', { 
+              error: err instanceof Error ? err.message : String(err), 
+              sessionId 
+            })
+          }
+        }
+
+        // Load multimodal context if not provided and sessionId exists
+        let finalMultimodalContext = multimodalContext
+        if (!finalMultimodalContext && sessionId) {
+            try {
+                const contextData = await multimodalContextManager.prepareChatContext(
+                    sessionId as string,
+                    true, // include visual
+                    true  // include audio
+                )
+                finalMultimodalContext = contextData.multimodalContext
+            } catch (err) {
+                logger.debug('Failed to load multimodal context, using empty', { error: err })
+                finalMultimodalContext = {
+                    hasRecentImages: false,
+                    hasRecentAudio: false,
+                    hasRecentUploads: false,
+                    recentAnalyses: [],
+                    recentUploads: []
+                }
+            }
+        }
 
         // Route to appropriate agent with validated messages
         const result = await routeToAgent({
             messages: validMessages as ChatMessage[],
-            context,
+            sessionId: sessionId || `session-${Date.now()}`,
+            currentStage,
+            intelligenceContext: intelligenceContext || {},
+            multimodalContext: finalMultimodalContext || {
+                hasRecentImages: false,
+                hasRecentAudio: false,
+                hasRecentUploads: false,
+                recentAnalyses: [],
+                recentUploads: []
+            },
             trigger: trigger || 'chat'
         });
 
@@ -109,10 +199,17 @@ export default async function handler(
         if (error instanceof Error && error.stack) {
             console.error('[API /chat] Stack:', error.stack);
         }
+        
+        // In development, expose more error details
+        const isDev = process.env.NODE_ENV !== 'production';
         return res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Internal server error',
-            details: error instanceof Error ? error.stack : undefined // Optional: expose stack to client in dev
+            ...(isDev && error instanceof Error && {
+                details: error.stack,
+                name: error.name,
+                cause: (error as any).cause
+            })
         });
     }
 }

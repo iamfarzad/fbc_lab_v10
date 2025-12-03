@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { LiveClientWS } from '../client'
-import { WebSocket } from 'ws'
 
 // Mock WebSocket
 vi.mock('ws', () => {
@@ -16,7 +15,6 @@ vi.mock('ws', () => {
 
 describe('LiveClientWS', () => {
   let client: LiveClientWS
-  let mockWs: any
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -33,7 +31,7 @@ describe('LiveClientWS', () => {
     // Or we can simulate the 'message' event on the WebSocket if we can get a reference to it.
 
     // Let's try to spy on the emit method to verify it DOESN'T emit for malformed messages
-    const emitSpy = vi.spyOn(client, 'emit')
+    const emitSpy = vi.spyOn(client as any, 'emit')
 
     // Access private method for testing purposes
     const routeEvent = (client as any).routeEvent.bind(client)

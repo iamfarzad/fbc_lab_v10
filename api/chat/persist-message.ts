@@ -19,11 +19,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ success: true, skipped: true, reason: 'Empty content, no attachment' });
         }
 
-        await multimodalContextManager.addConversationTurn(sessionId, {
+        await multimodalContextManager.addConversationTurn(sessionId as string, {
             role: role === 'user' ? 'user' : 'assistant',
-            text: content,
+            text: content as string,
             isFinal: true,
-            timestamp: new Date(timestamp).toISOString(),
+            timestamp: new Date(timestamp as string | number | Date).toISOString(),
             ...(attachment && { fileUpload: { name: attachment.filename || 'attachment' } })
         });
 

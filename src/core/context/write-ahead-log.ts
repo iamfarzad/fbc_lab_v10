@@ -2,13 +2,13 @@
 // The live server expects walLog.append/flush; no-op implementations keep the server running
 // without requiring persistence.
 export const walLog = {
-  async append() {
+  append() {
     return;
   },
-  async flush() {
+  flush() {
     return;
   },
-  async logOperation(_sessionId: string, _operation: string, _data: unknown) {
+  logOperation(_sessionId: string, _operation: string, _data: unknown) {
     return;
   }
 };

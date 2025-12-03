@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { logger } from 'src/lib/logger-client'
 
 
 interface TermsOverlayProps {
@@ -52,7 +53,7 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[TermsOverlay] Submit attempt:', { agreed, name, email, isValid: isValidEmail(email) });
+    logger.debug('[TermsOverlay] Submit attempt:', { agreed, name, email, isValid: isValidEmail(email) });
     
     if (!agreed || !name || !isValidEmail(email)) {
         console.warn('[TermsOverlay] Validation failed');
@@ -64,7 +65,7 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
     // Simulate brief initialization delay for effect
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    console.log('[TermsOverlay] Completing with:', { name, email, companyUrl, permissions });
+    logger.debug('[TermsOverlay] Completing with:', { name, email, companyUrl, permissions });
     onComplete(name, email, companyUrl, permissions);
     setIsSubmitting(false);
   };
@@ -91,7 +92,7 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
             </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+        <form onSubmit={(e) => { e.preventDefault(); void handleSubmit(e); }} className="flex flex-col gap-2.5">
             <div className="space-y-2.5">
                 <div className="space-y-1">
                     <label className="text-[9px] font-mono uppercase tracking-wider opacity-70 ml-1">Full Name</label>

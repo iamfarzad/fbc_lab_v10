@@ -39,7 +39,7 @@ fbc_lab_v10/
 ├── src/                    # Core source code (to be imported)
 ├── server/                 # WebSocket server (to be imported)
 ├── api/                    # API routes (to be imported)
-└── what_to_import.md      # Import map analysis
+└── docs/what_to_import.md      # Import map analysis
 ```
 
 ## Build Tool

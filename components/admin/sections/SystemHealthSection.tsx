@@ -57,7 +57,9 @@ export function SystemHealthSection() {
 
   useEffect(() => {
     void load()
-    const id = setInterval(load, 30_000)
+    const id = setInterval(() => {
+      void load()
+    }, 30_000)
     return () => clearInterval(id)
   }, [load])
 

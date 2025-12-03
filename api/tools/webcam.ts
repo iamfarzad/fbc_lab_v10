@@ -1,10 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI } from '@google/genai';
-import formidable from 'formidable';
-import fs from 'fs';
-
-// Initialize Gemini
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_KEY || '' });
+import { generateText } from 'ai';
+import { google } from '@ai-sdk/google';
 
 export const config = {
   api: {
@@ -12,60 +8,65 @@ export const config = {
   },
 };
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+// Simple in-memory rate limiting for demo purposes
+let lastRequestTime = 0;
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-intelligence-session-id, x-voice-connection-id'
-  );
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  )
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    res.status(200).end()
+    return
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
-    const form = formidable({});
-    
-    const [, files] = await form.parse(req);
-    const webcamCapture = files.webcamCapture?.[0];
+    // Rate limiting (simple in-memory for demo)
+    const now = Date.now()
+    if (now - lastRequestTime < 2000) {
+      return res.status(429).json({ error: 'Rate limit exceeded. Please wait.' })
+    }
+    lastRequestTime = now
 
-    if (!webcamCapture) {
-      return res.status(400).json({ error: 'webcamCapture file is required' });
+    // Manually parse JSON body since bodyParser is disabled
+    let body;
+    try {
+      body = JSON.parse(req.body as string);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid JSON body' });
+    }
+    const { image, prompt } = body || {};
+
+    if (!image) {
+      return res.status(400).json({ error: 'No image data provided' })
     }
 
-    // Read file
-    const fileData = fs.readFileSync(webcamCapture.filepath);
-    const base64Data = fileData.toString('base64');
-
-    // Analyze with Gemini Flash (fastest for vision)
-    const prompt = "Analyze this webcam frame. Describe what you see briefly, focusing on the user's expression, environment, and any visible objects or actions. Keep it under 50 words.";
-
-    const result = await genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: prompt },
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: 'image/jpeg'
-            }
-          }
-        ]
-      }]
-    });
+    // Remove data URL prefix if present
+    const base64Image = image.replace(/^data:image\/\w+;base64,/, '')
+    
+    // Analyze with Gemini Vision
+    const result = await generateText({
+      model: google('gemini-1.5-flash'),
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt || 'Analyze this webcam image and describe what you see relevant to a sales context.' },
+            { type: 'image', image: base64Image }
+          ]
+        }
+      ]
+    })
 
     const analysis = result.text || '';
 
@@ -74,7 +75,7 @@ export default async function handler(
       analysis: analysis,
       metadata: {
         timestamp: new Date().toISOString(),
-        fileSize: webcamCapture.size,
+        fileSize: base64Image.length,
         processedAt: new Date().toISOString()
       }
     });

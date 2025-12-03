@@ -443,7 +443,9 @@ export function MeetingCalendarSection() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(meeting.id)}
+                              onClick={() => {
+                                void handleDelete(meeting.id)
+                              }}
                             >
                               <Trash2 className="size-4" />
                             </Button>

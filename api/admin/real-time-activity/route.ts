@@ -61,7 +61,7 @@ export async function GET(request: Request) {
   if (isSSE) {
     // Server-Sent Events stream
     const stream = new ReadableStream({
-      async start(controller) {
+      start(controller) {
         const encoder = new TextEncoder()
         let lastIndex = activityLog.length
 

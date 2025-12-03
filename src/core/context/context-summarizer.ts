@@ -1,6 +1,7 @@
 import { google, generateText } from 'src/lib/ai-client'
 import { GEMINI_MODELS, CONTEXT_CONFIG } from 'src/config/constants'
 import type { ConversationEntry } from 'src/core/context/context-types'
+import { logger } from 'src/lib/logger-client'
 
 /**
  * Summarize a window of conversation entries to reduce token usage
@@ -44,7 +45,7 @@ Keep summary under 500 words, be specific and actionable.`
       temperature: 0.3 // Lower temperature for factual summarization
     })
 
-    console.log(`✅ Summarized ${entriesToSummarize.length} messages into ${text.length} characters`)
+    logger.debug(`✅ Summarized ${entriesToSummarize.length} messages into ${text.length} characters`)
     return text
   } catch (err) {
     console.error('Failed to summarize conversation window:', err)

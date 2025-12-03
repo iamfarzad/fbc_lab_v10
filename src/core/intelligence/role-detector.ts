@@ -28,14 +28,14 @@ export interface ResearchResultLike {
 
 const ROLE_REGEX = /(cto|chief technology officer|ceo|founder|co[-\s]?founder|vp engineering|head of (?:engineering|ai|ml)|product manager|marketing|sales|operations|data scientist|ml engineer|software engineer|developer|architect)/i
 
-export async function detectRole(research: ResearchResultLike): Promise<{ role: string; confidence: number }> {
+export function detectRole(research: ResearchResultLike): Promise<{ role: string; confidence: number }> {
   // Guard
-  if (!research) return { role: 'Unknown', confidence: 0 }
+  if (!research) return Promise.resolve({ role: 'Unknown', confidence: 0 })
 
   // 1) If person.role is present, trust it with high confidence
   const direct = research.person?.role?.trim()
   if (direct) {
-    return { role: normalizeRole(direct), confidence: 0.9 }
+    return Promise.resolve({ role: normalizeRole(direct), confidence: 0.9 })
   }
 
   // 2) Try regex across known text surfaces
@@ -49,11 +49,11 @@ export async function detectRole(research: ResearchResultLike): Promise<{ role: 
 
   const match = surfaces.match(ROLE_REGEX)
   if (match) {
-    return { role: normalizeRole(match[1] ?? ''), confidence: 0.6 }
+    return Promise.resolve({ role: normalizeRole(match[1] ?? ''), confidence: 0.6 })
   }
 
   // 3) Fallback
-  return { role: 'Business Professional', confidence: 0.2 }
+  return Promise.resolve({ role: 'Business Professional', confidence: 0.2 })
 }
 
 function normalizeRole(input: string): string {

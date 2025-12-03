@@ -10,25 +10,26 @@ import { handleUserMessage } from './handlers/audio-handler'
 import { handleToolResult } from './handlers/tool-result-handler'
 import { handleRealtimeInput } from './handlers/realtime-input-handler'
 import { handleContextUpdate } from './handlers/context-update-handler'
+import { logger } from 'src/lib/logger'
 
 /**
  * Main server initialization
  * Orchestrates WebSocket server setup, connection management, and message routing
  */
-console.log('DEBUG: Starting live-server.ts script')
+logger.debug('DEBUG: Starting live-server.ts script')
 
-async function startServer(): Promise<void> {
-  console.log('DEBUG: Inside startServer()')
+function startServer(): Promise<void> {
+  logger.debug('DEBUG: Inside startServer()')
   // Load SSL options for local development
   const sslOptions = loadSslOptions()
 
   // Create WebSocket server with HTTP/HTTPS support
-  console.log('DEBUG: Calling createWebSocketServer...')
+  logger.debug('DEBUG: Calling createWebSocketServer...')
   const { server, wss, pingInterval } = createWebSocketServer({
     port: Number(PORT),
     ...(sslOptions ? { sslOptions } : {})
   })
-  console.log('DEBUG: createWebSocketServer returned')
+  logger.debug('DEBUG: createWebSocketServer returned')
 
   // Create connection manager for session state
   const connectionManager = createConnectionManager()
@@ -93,6 +94,7 @@ async function startServer(): Promise<void> {
   })
 
   serverLogger.info('Server setup complete - waiting for connections')
+  return Promise.resolve()
 }
 
 // Start server

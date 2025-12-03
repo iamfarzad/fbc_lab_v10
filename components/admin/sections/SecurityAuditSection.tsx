@@ -253,7 +253,7 @@ export function SecurityAuditSection() {
           ) : (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                No audit data available. Click "Refresh Audit" to run security checks.
+                No audit data available. Click &quot;Refresh Audit&quot; to run security checks.
               </CardContent>
             </Card>
           )}
@@ -316,7 +316,7 @@ export function SecurityAuditSection() {
           ) : (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                No access test results. Click "Test Public Access" to verify RLS policies.
+                No access test results. Click &quot;Test Public Access&quot; to verify RLS policies.
               </CardContent>
             </Card>
           )}

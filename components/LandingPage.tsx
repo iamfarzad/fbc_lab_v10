@@ -281,7 +281,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-blue-500">F.B/c AGENT</span>
                             </h2>
                             <p className={`text-lg font-light leading-relaxed max-w-lg ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                                Experience F.B/c's custom-built autonomous research agent. Capable of deep "System 2" reasoning, real-time multimodal interaction, and live web research.
+                                Experience F.B/c&apos;s custom-built autonomous research agent. Capable of deep &quot;System 2&quot; reasoning, real-time multimodal interaction, and live web research.
                             </p>
                             <p className={`text-xs font-medium italic ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
                                 * Hover over the cards below to visualize capabilities
@@ -638,9 +638,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                     <div className="mt-12 p-8 md:p-16 rounded-[32px] bg-slate-900 text-white text-center flex flex-col items-center gap-8 shadow-2xl relative overflow-hidden group">
                         <div className="absolute inset-0 bg-gradient-to-tr from-orange-900/40 to-blue-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
 
-                        <h3 className="text-3xl md:text-5xl font-bold tracking-tight relative z-10">Let's Build Your AI Future Together</h3>
+                        <h3 className="text-3xl md:text-5xl font-bold tracking-tight relative z-10">Let&apos;s Build Your AI Future Together</h3>
                         <p className="text-slate-300 max-w-2xl text-lg leading-relaxed relative z-10">
-                            Whether you're just starting your AI journey or looking to optimize existing systems, I provide the expertise and guidance you need.
+                            Whether you&apos;re just starting your AI journey or looking to optimize existing systems, I provide the expertise and guidance you need.
                         </p>
                         <div className="flex gap-4 relative z-10 pt-4">
                             <button onClick={onStartChat} className="px-8 py-3 bg-white text-slate-900 rounded-full font-medium text-sm hover:scale-105 transition-transform shadow-lg">Start Conversation</button>
@@ -660,7 +660,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                         <div className="flex flex-col gap-4">
                             <h2 className={`text-3xl md:text-4xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>CONTACT</h2>
                             <p className={`leading-relaxed font-light ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                                Ready to transform your organization with AI? Let's start a conversation about your specific needs and how we can work together.
+                                Ready to transform your organization with AI? Let&apos;s start a conversation about your specific needs and how we can work together.
                             </p>
                         </div>
 

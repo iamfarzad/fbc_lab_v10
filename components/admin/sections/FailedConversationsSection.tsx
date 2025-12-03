@@ -69,7 +69,7 @@ export function FailedConversationsSection() {
         params.set('minScore', minScoreFilter.toString())
       }
 
-      const response = await fetch(`/api/admin/failed-conversations?${params}`)
+      const response = await fetch(`/api/admin/failed-conversations?${params.toString()}`)
       if (response.ok) {
         const data: unknown = await response.json()
         if (Array.isArray(data)) {

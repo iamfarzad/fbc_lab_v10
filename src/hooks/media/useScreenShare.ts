@@ -3,7 +3,8 @@ import { toast } from 'sonner'
 import { blobToBase64 } from 'src/lib/utils'
 import { parseJsonResponse } from 'src/lib/json'
 import type { VoiceContextUpdate } from 'src/types/voice'
-import type { MediaAnalysisResult } from 'src/types/media-analysis'
+import { logger } from 'src/lib/logger'
+
 
 export interface UseScreenShareOptions {
   onCapture?: (blob: Blob, imageData?: string) => void
@@ -93,7 +94,7 @@ export function useScreenShare(options: UseScreenShareOptions = {}) {
 
   const startScreenShare = useCallback(async () => {
     if (isInitializing) {
-      console.log('Screen share initialization already in progress')
+      logger.debug('Screen share initialization already in progress')
       return
     }
 
@@ -138,13 +139,13 @@ export function useScreenShare(options: UseScreenShareOptions = {}) {
         audio: false,
       }
 
-      console.log('🖥️ [useScreenShare] Requesting screen capture with constraints:', constraints)
+      logger.debug('🖥️ [useScreenShare] Requesting screen capture with constraints:', constraints)
       const mediaStream = await navigator.mediaDevices.getDisplayMedia(constraints)
-      console.log('🖥️ [useScreenShare] Screen capture success, stream tracks:', mediaStream.getTracks().length)
+      logger.debug('🖥️ [useScreenShare] Screen capture success, stream tracks:', { count: mediaStream.getTracks().length })
 
       mediaStream.getTracks().forEach(track => {
         track.addEventListener('ended', () => {
-          console.log('Screen share track ended')
+          logger.debug('Screen share track ended')
           stopScreenShare()
         })
       })
@@ -153,7 +154,7 @@ export function useScreenShare(options: UseScreenShareOptions = {}) {
       setStream(mediaStream)
       setIsActive(true)
       setIsInitializing(false)
-      console.log('🖥️ [useScreenShare] Screen share started successfully')
+      logger.debug('🖥️ [useScreenShare] Screen share started successfully')
 
       return mediaStream
     } catch (err) {
@@ -186,16 +187,16 @@ export function useScreenShare(options: UseScreenShareOptions = {}) {
   }, [isInitializing, stopScreenShare])
 
   const toggleScreenShare = useCallback(async () => {
-    console.log('🖥️ [useScreenShare] toggleScreenShare called', { isActive, isInitializing })
+    logger.debug('🖥️ [useScreenShare] toggleScreenShare called', { isActive, isInitializing })
     if (isInitializing) {
-      console.log('🖥️ [useScreenShare] Initialization in progress, ignoring toggle request.')
+      logger.debug('🖥️ [useScreenShare] Initialization in progress, ignoring toggle request.')
       return
     }
     if (isActive) {
-      console.log('🖥️ [useScreenShare] Screen share is active, stopping...')
+      logger.debug('🖥️ [useScreenShare] Screen share is active, stopping...')
       stopScreenShare()
     } else {
-      console.log('🖥️ [useScreenShare] Screen share is inactive, starting...')
+      logger.debug('🖥️ [useScreenShare] Screen share is inactive, starting...')
       await startScreenShare()
     }
   }, [isActive, isInitializing, startScreenShare, stopScreenShare])
@@ -212,13 +213,13 @@ export function useScreenShare(options: UseScreenShareOptions = {}) {
         ? 'Provide a concise summary aligned with the current voice conversation.'
         : 'Analyze this screen and provide key insights.'
 
-      const { response } = await routeImageAnalysis(imageData, {
+      const { response } = routeImageAnalysis(imageData, {
         modality: 'screen',
         userIntent,
         sessionId
       })
 
-      const data = response as MediaAnalysisResult
+      const data = response
       const analysis = data?.analysis || data?.summary
       
       return analysis ? { analysis: typeof analysis === 'string' ? analysis : JSON.stringify(analysis) } : null
@@ -356,7 +357,7 @@ export function useScreenShare(options: UseScreenShareOptions = {}) {
             mimeType: 'image/jpeg',
             data: base64Data,
           }])
-          console.log('📺 Screen frame streamed to Live API')
+          logger.debug('📺 Screen frame streamed to Live API')
         } catch (err) {
           console.error('❌ Failed to stream screen frame:', err)
         }
@@ -389,7 +390,7 @@ export function useScreenShare(options: UseScreenShareOptions = {}) {
         }
       }
 
-      console.log('🖥️ Screen share capture:', {
+      logger.debug('🖥️ Screen share capture:', {
         dimensions: `${capture.metadata?.width ?? 0}x${capture.metadata?.height ?? 0}`,
         blobSize: `${Math.round(capture.blob.size / 1024)}KB`,
         timestamp: capture.timestamp,
@@ -418,7 +419,7 @@ export function useScreenShare(options: UseScreenShareOptions = {}) {
       (!requireVoiceSession || (sessionId && voiceConnectionId))
     
     if (shouldCapture) {
-      console.log(`Starting auto-capture every ${captureInterval}ms`)
+      logger.debug(`Starting auto-capture every ${captureInterval}ms`)
       
       const startDelay = setTimeout(() => {
         autoCaptureTimerRef.current = window.setInterval(() => {

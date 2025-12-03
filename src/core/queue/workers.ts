@@ -5,6 +5,7 @@ import { redisQueue } from './redis-queue'
 import { vercelCache } from 'src/lib/vercel-cache'
 import { DEFAULT_BACKOFF_MULTIPLIER, DEFAULT_BASE_RETRY_DELAY, DEFAULT_MAX_ATTEMPTS, calculateBackoffDelay } from 'src/lib/ai/retry-config'
 import { EmailService } from 'src/core/email-service'
+import { logger } from 'src/lib/logger'
 
 const MAX_RETRIES = DEFAULT_MAX_ATTEMPTS
 const DEAD_LETTER_QUEUE = 'dead-letter-agent-persistence'
@@ -96,7 +97,7 @@ export function registerWorkers(): void {
       throw new Error(`WAL sync failed: ${error.message}`)
     }
 
-    console.log(`✅ WAL synced to Supabase via queue: ${entryId}`)
+    logger.debug(`✅ WAL synced to Supabase via queue: ${entryId}`)
   })
 
   // PDF Generation Worker
@@ -111,9 +112,9 @@ export function registerWorkers(): void {
     try {
       const { generatePdfWithPuppeteer } = await import('src/core/pdf-generator-puppeteer')
       const pdfPath = outputPath || `/tmp/pdf-${sessionId}-${Date.now()}.pdf`
-      await generatePdfWithPuppeteer(summaryData as any, pdfPath, mode, language)
+      void generatePdfWithPuppeteer(summaryData as Parameters<typeof generatePdfWithPuppeteer>[0], pdfPath, mode, language)
       
-      console.log(`✅ PDF generated for session ${sessionId}: ${pdfPath}`)
+      logger.debug(`✅ PDF generated for session ${sessionId}: ${pdfPath}`)
     } catch (error) {
       console.error('PDF generation failed:', error)
       throw error
@@ -160,7 +161,7 @@ export function registerWorkers(): void {
         ...(emailAttachments ? { attachments: emailAttachments } : {})
       })
 
-      console.log(`✅ Email sent successfully: ${to} (${result.emailId || 'no-id'})`)
+      logger.debug(`✅ Email sent successfully: ${to} (${result.emailId || 'no-id'})`)
     } catch (error) {
       console.error('Failed to send email:', error)
       throw error
@@ -168,9 +169,9 @@ export function registerWorkers(): void {
   })
 
   // Embedding Processing Worker (placeholder for future)
-  redisQueue.registerHandler(JobType.PROCESS_EMBEDDING, async (payload: unknown) => {
+  redisQueue.registerHandler(JobType.PROCESS_EMBEDDING, (payload: unknown) => {
     // TODO: Implement background embedding processing
-    console.log('Embedding processing job received:', payload)
+    logger.debug('Embedding processing job received:', { payload })
     throw new Error('Embedding processing not yet implemented')
   })
 
@@ -182,7 +183,7 @@ export function registerWorkers(): void {
     // Check if already processed (idempotency)
     const processed = await checkEventProcessed(eventId)
     if (processed) {
-      console.log(`✅ Event already processed: ${eventId}`)
+      logger.debug(`✅ Event already processed: ${eventId}`)
       return
     }
     
@@ -207,7 +208,7 @@ export function registerWorkers(): void {
       
       // Type guard: ensure data is a valid partial context  
       // DatabaseConversationContext is an interface, import as type
-      const contextData = data as unknown as Partial<import('../context/context-types').DatabaseConversationContext>
+      const contextData = data as Partial<import('../context/context-types').DatabaseConversationContext>
       
       // Attempt with version check
       await storage.updateWithVersionCheck(sessionId, contextData, {
@@ -215,7 +216,7 @@ export function registerWorkers(): void {
         backoff: 100
       })
       
-      console.log(`✅ Retry ${retryCount + 1} successful for ${sessionId}/${eventId}`)
+      logger.debug(`✅ Retry ${retryCount + 1} successful for ${sessionId}/${eventId}`)
       
       // Mark event as processed in Redis
       await markEventProcessed(eventId)
@@ -240,7 +241,7 @@ export function registerWorkers(): void {
         delay
       })
 
-      console.log(`[METRIC] retry_queued session=${sessionId} event=${eventId} attempt=${retryCount + 1}`)
+      logger.debug(`[METRIC] retry_queued session=${sessionId} event=${eventId} attempt=${retryCount + 1}`)
     }
   })
 
@@ -287,7 +288,7 @@ export function registerWorkers(): void {
       const storage = new ContextStorage()
       await storage.update(sessionId, { analytics_pending: false })
       
-      console.log(`📊 Analytics logged: ${agent} at ${stage} for session ${sessionId}`)
+      logger.debug(`📊 Analytics logged: ${agent} at ${stage} for session ${sessionId}`)
     } catch (error) {
       console.error('Analytics logging failed (non-fatal):', error)
     }
@@ -301,7 +302,7 @@ export function registerWorkers(): void {
  */
 export function initializeWorkers(): void {
   registerWorkers()
-  console.log('✅ Queue workers initialized (immediate processing mode)')
+  logger.debug('✅ Queue workers initialized (immediate processing mode)')
 }
 
 /**
@@ -310,27 +311,29 @@ export function initializeWorkers(): void {
  * 
  * @deprecated For low-load scenarios, use initializeWorkers() instead
  */
-export async function startQueueProcessor(): Promise<void> {
+export function startQueueProcessor(): Promise<void> {
   // Register all workers
   registerWorkers()
 
   // Process queue every 5 seconds
-  const interval = setInterval(async () => {
-    try {
-      const processed = await redisQueue.processQueue(undefined, 10)
-      if (processed > 0) {
-        console.log(`🔄 Processed ${processed} jobs from queue`)
+  const interval = setInterval(() => {
+    void (async () => {
+      try {
+        const processed = await redisQueue.processQueue(undefined, 10)
+        if (processed > 0) {
+          logger.debug(`🔄 Processed ${processed} jobs from queue`)
+        }
+      } catch (error) {
+        console.error('Queue processor error:', error)
       }
-    } catch (error) {
-      console.error('Queue processor error:', error)
-    }
+    })()
   }, 5000)
 
   // Store interval ID for cleanup (if needed)
   const globalWithInterval = globalThis as { __queueProcessorInterval?: NodeJS.Timeout }
   globalWithInterval.__queueProcessorInterval = interval
 
-  console.log('✅ Queue processor started (background mode)')
+  logger.debug('✅ Queue processor started (background mode)')
 }
 
 /**
@@ -342,7 +345,7 @@ export function stopQueueProcessor(): void {
   if (interval) {
     clearInterval(interval)
     delete globalWithInterval.__queueProcessorInterval
-    console.log('🛑 Queue processor stopped')
+    logger.debug('🛑 Queue processor stopped')
   }
 }
 

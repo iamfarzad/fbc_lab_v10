@@ -61,7 +61,7 @@ class UnifiedContext {
                 if (parsed.transcript) {
                     parsed.transcript = parsed.transcript.map((item: any) => ({
                         ...item,
-                        timestamp: new Date(item.timestamp)
+                        timestamp: new Date(item.timestamp as string | number | Date)
                     }));
                 }
                 this.state = { ...this.state, ...parsed };

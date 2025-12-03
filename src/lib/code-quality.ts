@@ -7,6 +7,7 @@
 import { truncateText as truncateTextUtil } from './text-utils'
 import { safeParseJson } from 'src/lib/json'
 import { AppError } from 'src/lib/errors'
+import { logger } from 'src/lib/logger'
 
 // Type guards for runtime type checking
 export function isString(value: unknown): value is string {
@@ -307,7 +308,7 @@ export class PerformanceMonitor {
     const duration = performance.now() - startTime;
     this.timers.delete(label);
     
-    console.log(`⏱️ ${label}: ${duration.toFixed(2)}ms`);
+    logger.debug(`⏱️ ${label}: ${duration.toFixed(2)}ms`);
     return duration;
   }
 
@@ -345,7 +346,7 @@ export class PerformanceMonitor {
    */
   static logMemoryUsage(): void {
     const usage = this.getMemoryUsage();
-    console.log(`💾 Memory usage: ${usage.toFixed(2)} MB`);
+    logger.debug(`💾 Memory usage: ${usage.toFixed(2)} MB`);
   }
 }
 

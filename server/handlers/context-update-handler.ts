@@ -40,11 +40,11 @@ export interface ContextUpdateClient {
 /**
  * Handle context update messages from client
  */
-export async function handleContextUpdate(
+export function handleContextUpdate(
   connectionId: string,
   client: ContextUpdateClient,
   payload: ContextUpdatePayload
-): Promise<void> {
+): void {
   // Check rate limit
   const rateLimit = checkRateLimit(connectionId, client.sessionId, MESSAGE_TYPES.CONTEXT_UPDATE)
   if (!rateLimit.allowed) {

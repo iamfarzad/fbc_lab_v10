@@ -89,9 +89,9 @@ export async function saveConversation(
 }
 
 // Update only the PDF URL after generation
-export async function updatePdfUrl(conversationId: string, pdfUrl: string) {
+export function updatePdfUrl(conversationId: string, pdfUrl: string) {
   console.warn('updatePdfUrl called but pdf_url field not found in conversations table schema')
-  return { id: conversationId, pdf_url: pdfUrl }
+  return Promise.resolve({ id: conversationId, pdf_url: pdfUrl })
 }
 
 // Update only the email status after sending

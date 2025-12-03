@@ -42,7 +42,7 @@ export async function recordCapabilityUsed(
     // Preferred path: server-side RPC handles dedupe + logging
     const { error: rpcError } = await supabaseClient.rpc('append_capability_if_missing', {
       p_session_id: sessionId,
-      p_capability: capabilityName as string, // Cast to string to handle enum/text type mismatch
+      p_capability: capabilityName, // Cast to string to handle enum/text type mismatch
     })
     if (!rpcError) {
       // Update the capability_usage_log row with agent field

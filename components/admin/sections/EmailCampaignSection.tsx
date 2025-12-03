@@ -293,7 +293,9 @@ export function EmailCampaignSection() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(campaign.id)}
+                          onClick={() => {
+                            void handleDelete(campaign.id)
+                          }}
                         >
                           <Trash2 className="size-4" />
                         </Button>

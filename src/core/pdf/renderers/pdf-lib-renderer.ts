@@ -6,7 +6,6 @@ import { FALLBACK_PRICING } from '../utils/constants'
 import { formatDate, shortenText, toPrintable } from '../utils/formatting'
 import { generateApproveMailtoLink } from '../templates/proposal-template'
 import { generateROIChartsImages, isValidROIData } from './chart-renderer'
-import type { ROIData } from 'src/core/pdf-roi-charts'
 import { buildConversationPairs } from '../utils/conversation'
 import { extractConversationInsights } from '../utils/insights'
 import type { SummaryData } from '../utils/types'
@@ -14,7 +13,7 @@ import type { SummaryData } from '../utils/types'
 /**
  * Lightweight text helper until the Gemini translator is migrated.
  */
-async function translateText(text: string) {
+function translateText(text: string) {
   return text
 }
 
@@ -153,7 +152,7 @@ export async function generatePdfWithPdfLib(
     const sectionTitleSize = PDF_DESIGN_TOKENS.typography.sectionTitle.size
     writeLine('EXECUTIVE SUMMARY', sectionTitleSize, true, true)
     cursorY -= 5
-    await writeParagraph(summaryData.leadResearch.conversation_summary, PDF_DESIGN_TOKENS.typography.body.size)
+    writeParagraph(summaryData.leadResearch.conversation_summary, PDF_DESIGN_TOKENS.typography.body.size)
     cursorY -= PDF_DESIGN_TOKENS.spacing.sectionMargin.pt / 2
   }
 
@@ -250,7 +249,7 @@ export async function generatePdfWithPdfLib(
   if (summaryData.leadResearch?.consultant_brief) {
     writeLine('CONSULTANT BRIEF', sectionTitleSize, true, true)
     cursorY -= 5
-    await writeParagraph(summaryData.leadResearch.consultant_brief, bodySize)
+    writeParagraph(summaryData.leadResearch.consultant_brief, bodySize)
     cursorY -= PDF_DESIGN_TOKENS.spacing.sectionMargin.pt / 2
   }
   
@@ -299,8 +298,8 @@ export async function generatePdfWithPdfLib(
     
     if (mc.summary.modalitiesUsed.length > 0) {
       writeLine('MULTIMODAL INTERACTIONS', sectionTitleSize, true, true)
-      await writeParagraph(`Modalities Used: ${mc.summary.modalitiesUsed.join(', ')}`, bodySize)
-      await writeParagraph(`Total Messages: ${mc.summary.totalMessages}`, bodySize)
+      writeParagraph(`Modalities Used: ${mc.summary.modalitiesUsed.join(', ')}`, bodySize)
+      writeParagraph(`Total Messages: ${mc.summary.totalMessages}`, bodySize)
       cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt / 2
     }
 
@@ -314,7 +313,7 @@ export async function generatePdfWithPdfLib(
       for (const transcript of userTranscripts) {
         if (transcript.data.transcript) {
           writeLine(`[Voice] ${new Date(transcript.timestamp).toLocaleTimeString()}`, PDF_DESIGN_TOKENS.typography.small.size)
-          await writeParagraph(shortenText(transcript.data.transcript, 200), bodySize)
+          writeParagraph(shortenText(transcript.data.transcript, 200), bodySize)
           cursorY -= 2
         }
       }
@@ -337,7 +336,7 @@ export async function generatePdfWithPdfLib(
       const recent = mc.visualAnalyses.slice(-3)
       for (const analysis of recent) {
         writeLine(`[${analysis.type}] ${new Date(analysis.timestamp).toLocaleTimeString()}`, PDF_DESIGN_TOKENS.typography.small.size)
-        await writeParagraph(shortenText(analysis.analysis, 150), bodySize)
+        writeParagraph(shortenText(analysis.analysis, 150), bodySize)
         cursorY -= 2
       }
       cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt / 2
@@ -351,7 +350,7 @@ export async function generatePdfWithPdfLib(
         const pageInfo = file.pages ? ` (${file.pages} pages)` : ''
         writeLine(`${file.filename} - ${sizeKB}KB${pageInfo}`, PDF_DESIGN_TOKENS.typography.small.size)
         if (file.analysis) {
-          await writeParagraph(shortenText(file.analysis, 100), bodySize)
+          writeParagraph(shortenText(file.analysis, 100), bodySize)
         }
         cursorY -= 2
       }
@@ -382,7 +381,7 @@ export async function generatePdfWithPdfLib(
           font: boldFont,
           color: orangeColor
         })
-        await writeParagraph(shortenText(rec, 4), bodySize)
+        writeParagraph(shortenText(rec, 4), bodySize)
         cursorY -= 5
       }
       cursorY -= 10
@@ -399,7 +398,7 @@ export async function generatePdfWithPdfLib(
           font: boldFont,
           color: orangeColor
         })
-        await writeParagraph(shortenText(step, 4), bodySize)
+        writeParagraph(shortenText(step, 4), bodySize)
         cursorY -= 5
       }
       cursorY -= 10
@@ -416,7 +415,7 @@ export async function generatePdfWithPdfLib(
           font: boldFont,
           color: orangeColor
         })
-        await writeParagraph(shortenText(decision, 4), bodySize)
+        writeParagraph(shortenText(decision, 4), bodySize)
         cursorY -= 5
       }
       cursorY -= 10
@@ -433,7 +432,7 @@ export async function generatePdfWithPdfLib(
           font: boldFont,
           color: orangeColor
         })
-        await writeParagraph(shortenText(point, 4), bodySize)
+        writeParagraph(shortenText(point, 4), bodySize)
         cursorY -= 5
       }
       cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt / 2
@@ -446,7 +445,7 @@ export async function generatePdfWithPdfLib(
       const label = highlight.query ? `Query: ${highlight.query}` : `Insight ${index + 1}`
       writeLine(label, bodySize, true)
       if (highlight.combinedAnswer) {
-        await writeParagraph(highlight.combinedAnswer, bodySize)
+        writeParagraph(highlight.combinedAnswer, bodySize)
       }
       if (highlight.urlsUsed && highlight.urlsUsed.length > 0) {
         writeLine('Sources:', bodySize, true)
@@ -485,7 +484,7 @@ export async function generatePdfWithPdfLib(
       if (artifact.payload) {
         const preview = toPrintable(artifact.payload)
         if (preview) {
-          await writeParagraph(preview.length > 2000 ? `${preview.slice(0, 2000)}…` : preview, bodySize)
+          writeParagraph(preview.length > 2000 ? `${preview.slice(0, 2000)}…` : preview, bodySize)
         }
       }
       cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt / 2
@@ -503,7 +502,7 @@ export async function generatePdfWithPdfLib(
       cursorY -= 10
       ensureRoom()
 
-      const charts = await generateROIChartsImages(roiArtifact.payload!)
+      const charts = await generateROIChartsImages(roiArtifact.payload)
 
       // Embed investment chart (left side)
       const investmentImage = await pdfDoc.embedPng(charts.investmentChart)
@@ -548,7 +547,7 @@ export async function generatePdfWithPdfLib(
       ensureRoom()
 
       // Add ROI summary text
-      const roiPayload = roiArtifact.payload as ROIData
+      const roiPayload = roiArtifact.payload
       const investmentTotal = roiPayload.investment.initial + roiPayload.investment.annual
       const savingsTotal = Object.values(roiPayload.savings).reduce((a, b) => a + b, 0)
       const roiPercentage = ((roiPayload.roi.firstYear - investmentTotal) / investmentTotal * 100).toFixed(1)
@@ -567,7 +566,7 @@ export async function generatePdfWithPdfLib(
       if (roiArtifact.payload) {
         const preview = toPrintable(roiArtifact.payload)
         if (preview) {
-          await writeParagraph(preview.length > 2000 ? `${preview.slice(0, 2000)}…` : preview, bodySize)
+          writeParagraph(preview.length > 2000 ? `${preview.slice(0, 2000)}…` : preview, bodySize)
         }
       }
       cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt / 2
@@ -856,8 +855,8 @@ export async function generatePdfWithPdfLib(
     return pdfBytes
   }
 
-  async function writeParagraph(text: string, size = PDF_DESIGN_TOKENS.typography.body.size) {
-    const translated = await translateText(text)
+  function writeParagraph(text: string, size = PDF_DESIGN_TOKENS.typography.body.size) {
+    const translated = translateText(text)
     const maxWidth = 595.28 - marginX * 2
     const words = translated.split(/\s+/)
     let line = ''

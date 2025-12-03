@@ -6,6 +6,7 @@ import { ScrollArea } from 'src/components/ui/scroll-area'
 import { Activity, Play, Square, RefreshCw } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { isRecord } from 'src/lib/guards'
+import { logger } from 'src/lib/logger-client'
 
 // Type events and guard WS payloads
 type ActivityEvent = {
@@ -59,7 +60,7 @@ export function RealTimeActivitySection() {
         const type = typeof raw.type === 'string' ? raw.type : undefined
         
         if (type === 'connected') {
-          console.log('Connected to real-time activity stream')
+          logger.debug('Connected to real-time activity stream')
         } else if (type === 'activity') {
           // Guard payload fields before reading
           const activityData = isRecord(raw.data) ? raw.data : raw
@@ -209,7 +210,7 @@ export function RealTimeActivitySection() {
                   Disconnect
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={fetchInitialActivities}>
+              <Button variant="outline" size="sm" onClick={() => { void fetchInitialActivities() }}>
                 <RefreshCw className="mr-2 size-4" />
                 Refresh
               </Button>

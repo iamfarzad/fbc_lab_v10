@@ -150,11 +150,11 @@ export async function prepareAgentContext(params: {
   // Map conversationFlow to ConversationFlowState format
   // persistedFlow is Json type, need to extract as object first
   const flowObj = persistedFlow && typeof persistedFlow === 'object' && !Array.isArray(persistedFlow)
-    ? persistedFlow as Record<string, unknown>
+    ? persistedFlow
     : null
 
   const conversationFlowState: ConversationFlowState | undefined = flowObj
-    ? normalizeFlow(flowObj as Record<string, unknown>)
+    ? normalizeFlow(flowObj)
     : undefined
 
   // CRITICAL: Load intelligence context from storage if not provided in request

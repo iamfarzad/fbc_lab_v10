@@ -78,7 +78,7 @@ export const Lightbox: React.FC<{ attachment: any; onClose: () => void }> = ({ a
 
     const handleMouseUp = () => setIsDragging(false);
 
-    const textContent = !isImage ? (attachment.textContent || (attachment.data ? decodeBase64(attachment.data) : '')) : '';
+    const textContent = !isImage ? (attachment.textContent || (attachment.data ? decodeBase64(attachment.data as string) : '')) : '';
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in-up" onClick={onClose}>
@@ -164,7 +164,7 @@ export const StagingArea: React.FC<StagingAreaProps> = ({ selectedFile, onRemove
                      <div className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5">
                          <span className="uppercase font-medium tracking-wider">{selectedFile.mimeType.split('/')[1]}</span>
                          <span className="w-0.5 h-0.5 rounded-full bg-gray-400"></span>
-                         <span>{formatBytes(selectedFile.size)}</span>
+                         <span>{formatBytes(selectedFile.size as number)}</span>
                      </div>
                  </div>
 

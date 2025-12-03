@@ -10,19 +10,19 @@ import { buildConversationPairs } from '../utils/conversation'
 /**
  * Lightweight text helper until the Gemini translator is migrated.
  */
-async function translateText(text: string) {
+function translateText(text: string) {
   return text
 }
 
 /**
  * Generate base HTML template with all sections
  */
-export async function generateHtmlContent(summaryData: SummaryData, _mode: Mode, language: string): Promise<string> {
+export function generateHtmlContent(summaryData: SummaryData, _mode: Mode, language: string): string {
   const leadName = summaryData.leadInfo.name || 'Valued Client'
   const leadCompany = summaryData.leadInfo.company || ''
   const leadRole = summaryData.leadInfo.role || ''
-  const translatedSummary = await translateText(summaryData.leadResearch?.conversation_summary || '')
-  const translatedBrief = await translateText(summaryData.leadResearch?.consultant_brief || '')
+  const translatedSummary = translateText(summaryData.leadResearch?.conversation_summary || '')
+  const translatedBrief = translateText(summaryData.leadResearch?.consultant_brief || '')
   const conversationPairs = buildConversationPairs(summaryData.conversationHistory)
 
   const docDate = formatDate()
@@ -115,8 +115,8 @@ export async function generateHtmlContent(summaryData: SummaryData, _mode: Mode,
   const roiArtifact = summaryData.artifactInsights?.find(
     a => a.type === 'Cost-Benefit Analysis' && a.payload && isValidROIData(a.payload)
   )
-  const roiSection = roiArtifact && isValidROIData(roiArtifact.payload!)
-    ? generateROIChartsHTML(roiArtifact.payload!)
+  const roiSection: string = roiArtifact && isValidROIData(roiArtifact.payload!)
+    ? generateROIChartsHTML(roiArtifact.payload)
     : ''
 
   const insights = extractConversationInsights(conversationPairs)

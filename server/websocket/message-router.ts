@@ -60,10 +60,11 @@ export function setupMessageRouter(
 
   // Register message handler IMMEDIATELY (before any other operations)
   // This ensures we capture ALL messages regardless of timing
-  ws.on('message', async (message: RawData) => {
+  ws.on('message', (message: RawData) => {
+    void (async () => {
     // --- client ping -> server pong ---
     try {
-      const asString = typeof message === 'string' ? message : message.toString()
+      const asString = typeof message === 'string' ? message : String(message)
       // Try to parse as JSON first for more reliable detection
       const parsed = safeParseJson<{ type?: string } | null>(asString, null)
       if (parsed?.type === 'ping') {
@@ -71,7 +72,7 @@ export function setupMessageRouter(
         const sent = safeSendPriority(ws, pongResponse)
         const st = connectionStates.get(connectionId)
         if (st) st.lastPing = Date.now()
-        serverLogger.info('Responded to client ping with pong', {
+        void serverLogger.info('Responded to client ping with pong', {
           connectionId,
           sent,
           bufferedAmount: ws.bufferedAmount,
@@ -89,7 +90,7 @@ export function setupMessageRouter(
         const sent = safeSendPriority(ws, pongResponse)
         const st = connectionStates.get(connectionId)
         if (st) st.lastPing = Date.now()
-        serverLogger.info('Responded to client ping with pong (string match)', {
+        void serverLogger.info('Responded to client ping with pong (string match)', {
           connectionId,
           sent,
           bufferedAmount: ws.bufferedAmount,
@@ -123,12 +124,13 @@ export function setupMessageRouter(
           rawString,
           null,
           {
-            onError: (err) =>
-              serverLogger.warn('Failed to parse websocket message payload', {
+            onError: (err) => {
+              void serverLogger.warn('Failed to parse websocket message payload', {
                 connectionId,
                 error: err instanceof Error ? err.message : String(err),
                 preview: rawString?.substring(0, 100) || ''
               })
+            }
           }
         )
         : null
@@ -147,7 +149,7 @@ export function setupMessageRouter(
       // Only log raw/parsed messages in debug mode (too verbose for production)
       // Consolidated single log instead of 3 separate logs (per duplicate prevention rules)
       if (DEBUG_MODE) {
-        serverLogger.debug('Message received', {
+        void serverLogger.debug('Message received', {
           connectionId,
           messageType: messageType.toUpperCase(),
           rawSize: Buffer.isBuffer(message) ? message.length : 'unknown',
@@ -159,7 +161,7 @@ export function setupMessageRouter(
 
       switch (messageType) {
         case MESSAGE_TYPES.START: {
-          serverLogger.info('Handling start message', { connectionId })
+          void serverLogger.info('Handling start message', { connectionId })
           const startPayloadRecord = payloadRecord as Partial<StartPayload> | null
           try {
             activeSessions.get(connectionId)?.logger?.log('client_start', {
@@ -169,7 +171,9 @@ export function setupMessageRouter(
                 sessionId: startPayloadRecord?.sessionId
               }
             })
-          } catch { }
+          } catch {
+            // Ignore errors when handling start
+          }
           await handlers.handleStart(
             connectionId,
             ws,
@@ -185,7 +189,7 @@ export function setupMessageRouter(
         }
 
         case MESSAGE_TYPES.STOP: {
-          serverLogger.info('Handling stop message', { connectionId })
+          void serverLogger.info('Handling stop message', { connectionId })
           const client = activeSessions.get(connectionId)
           if (client) {
             await handlers.handleClose(
@@ -232,7 +236,7 @@ export function setupMessageRouter(
         case MESSAGE_TYPES.TOOL_RESULT: {
           const client = activeSessions.get(connectionId)
           if (!client) {
-            serverLogger.warn('TOOL_RESULT received but no active session', { connectionId })
+            void serverLogger.warn('TOOL_RESULT received but no active session', { connectionId })
             break
           }
           await handlers.handleToolResult(
@@ -270,7 +274,7 @@ export function setupMessageRouter(
             serverLogger.warn('CONTEXT_UPDATE received but no active session', { connectionId })
             break
           }
-          await handlers.handleContextUpdate(
+          void handlers.handleContextUpdate(
             connectionId,
             client,
             (parsedMessage.payload ?? {}) as ContextUpdatePayload
@@ -317,13 +321,14 @@ export function setupMessageRouter(
             originalError: error
           })
 
-      serverLogger[logMethod]('Error processing message', logError)
+      void serverLogger[logMethod]('Error processing message', logError)
 
       safeSend(
         ws,
         JSON.stringify(toWsErrorPayload(appError, { requestId: connectionId }))
       )
     }
+    })()
   })
 
   // Per-connection heartbeat interval for connection health monitoring

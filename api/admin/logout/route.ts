@@ -1,7 +1,7 @@
 import { logger } from 'src/lib/logger'
 import { generateRequestId } from 'src/core/lib/api-middleware'
 
-export async function POST(request: Request) {
+export function POST(request: Request) {
   try {
     const response = new Response(JSON.stringify({ success: true, message: 'Logged out successfully' }), {
       status: 200,

@@ -1,8 +1,8 @@
 import { WebSocket } from 'ws'
 import { serverLogger } from '../utils/env-setup'
-import { safeSend } from '../utils/websocket-helpers'
-import { checkRateLimit, connectionStates } from '../rate-limiting/websocket-rate-limiter'
-import { resetTurnCompletionTimer, DEBUG_MODE, AUDIO_LOG_INTERVAL } from '../utils/turn-completion'
+import { safeSend, ensureConnectionState } from '../utils/websocket-helpers'
+import { checkRateLimit } from '../rate-limiting/websocket-rate-limiter'
+import { resetTurnCompletionTimer, DEBUG_MODE, AUDIO_LOG_INTERVAL, type TurnCompletionClient } from '../utils/turn-completion'
 import { MESSAGE_TYPES } from '../message-types'
 import type { UserAudioPayload } from '../message-payload-types'
 
@@ -44,20 +44,15 @@ export async function handleUserMessage(
   const client = activeSessions.get(connectionId)
   
   // Verify connectionState exists before checking rate limit
-  let st = connectionStates.get(connectionId)
-  if (!st) {
-    serverLogger.warn('ConnectionState missing in handleUserMessage, initializing', { connectionId })
-    const now = Date.now()
-    st = {
-      isReady: false,
-      lastPing: now,
-      messageCount: 0,
-      lastMessageAt: now,
-      audioCount: 0,
-      audioLastAt: now
+  const st = ensureConnectionState(connectionId, {
+    handler: 'handleUserMessage',
+    phase: 'rate_limit_check',
+    additionalContext: {
+      hasClient: !!client,
+      hasSession: !!client?.session,
+      sessionId: client?.sessionId
     }
-    connectionStates.set(connectionId, st)
-  }
+  })
 
   // Check rate limit
   const rateLimit = checkRateLimit(connectionId, client?.sessionId, MESSAGE_TYPES.USER_AUDIO)
@@ -123,7 +118,7 @@ export async function handleUserMessage(
       // Update last audio activity time and reset turn completion timer
       client.lastAudioActivity = Date.now()
       // Create a compatible client object for turn completion
-      const turnClient: any = {
+      const turnClient = {
         ws: client.ws,
         ...(client.logger ? {
           logger: {
@@ -133,7 +128,7 @@ export async function handleUserMessage(
         ...(client.turnCompletionTimer ? {
           turnCompletionTimer: client.turnCompletionTimer
         } : {})
-      }
+      } as TurnCompletionClient
       resetTurnCompletionTimer(connectionId, turnClient)
       client.turnCompletionTimer = turnClient.turnCompletionTimer
       

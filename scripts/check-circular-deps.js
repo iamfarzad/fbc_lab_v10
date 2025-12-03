@@ -5,8 +5,12 @@
  * Analyzes import map to find circular import chains
  */
 
-const fs = require('fs')
-const path = require('path')
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const importMapPath = path.join(__dirname, '../what_to_import.md')
 const content = fs.readFileSync(importMapPath, 'utf-8')

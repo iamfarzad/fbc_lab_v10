@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { FaceLandmarkStore } from 'utils/visuals/store';
+import { FaceLandmarkStore, type Landmark3D } from 'utils/visuals/store';
 
 interface WebcamPreviewProps {
     isWebcamActive: boolean;
@@ -66,7 +66,8 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                     });
                     faceMesh.onResults((results: any) => {
                          if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                             FaceLandmarkStore.update(results.multiFaceLandmarks[0]);
+                             // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+                             FaceLandmarkStore.update(results.multiFaceLandmarks[0] as Landmark3D[]);
                          }
                     });
                     faceMeshRef.current = faceMesh;
@@ -119,9 +120,9 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                              }
                          }
                      }
-                     requestRef.current = requestAnimationFrame(processFrame);
+                     requestRef.current = requestAnimationFrame(() => { void processFrame() });
                 };
-                processFrame();
+                void processFrame();
     
                 if (isMounted) {
                     intervalId = setInterval(() => {
@@ -176,12 +177,12 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
             }
         };
     
-        startCamera();
+        void startCamera();
     
         return () => {
             isMounted = false;
             if (stream) stream.getTracks().forEach(t => t.stop());
-            if (intervalId) clearInterval(intervalId);
+            if (intervalId) clearInterval(intervalId as NodeJS.Timeout);
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
             if (videoRef.current) {
                 videoRef.current.srcObject = null;

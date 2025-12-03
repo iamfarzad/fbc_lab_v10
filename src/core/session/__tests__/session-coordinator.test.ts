@@ -12,10 +12,9 @@ import {
   withSessionHeaders,
   SESSION_HEADER,
   LEGACY_SESSION_HEADER,
-  SESSION_COOKIE,
-  SESSION_QUERY
+  SESSION_COOKIE
 } from '../session-coordinator'
-import { NextRequest } from 'next/server'
+// import { NextRequest } from 'next/server'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 describe('normalizeSessionId', () => {
@@ -44,13 +43,13 @@ describe('normalizeSessionId', () => {
 
 describe('getSessionIdFromRequest', () => {
   it('should extract session ID from query parameter', () => {
-    const req = new NextRequest('http://localhost:3000/api/chat?sessionId=query-session-123')
+    const req = new Request('http://localhost:3000/api/chat?sessionId=query-session-123')
     const sessionId = getSessionIdFromRequest(req)
     expect(sessionId).toBe('query-session-123')
   })
 
   it('should extract session ID from x-intelligence-session-id header', () => {
-    const req = new NextRequest('http://localhost:3000/api/chat', {
+    const req = new Request('http://localhost:3000/api/chat', {
       headers: {
         [SESSION_HEADER]: 'header-session-123'
       }
@@ -60,7 +59,7 @@ describe('getSessionIdFromRequest', () => {
   })
 
   it('should fallback to legacy x-session-id header', () => {
-    const req = new NextRequest('http://localhost:3000/api/chat', {
+    const req = new Request('http://localhost:3000/api/chat', {
       headers: {
         [LEGACY_SESSION_HEADER]: 'legacy-session-123'
       }
@@ -70,7 +69,7 @@ describe('getSessionIdFromRequest', () => {
   })
 
   it('should extract session ID from cookie', () => {
-    const req = new NextRequest('http://localhost:3000/api/chat', {
+    const req = new Request('http://localhost:3000/api/chat', {
       headers: {
         Cookie: `${SESSION_COOKIE}=cookie-session-123`
       }
@@ -80,7 +79,7 @@ describe('getSessionIdFromRequest', () => {
   })
 
   it('should prioritize query > header > cookie', () => {
-    const req = new NextRequest('http://localhost:3000/api/chat?sessionId=query-123', {
+    const req = new Request('http://localhost:3000/api/chat?sessionId=query-123', {
       headers: {
         [SESSION_HEADER]: 'header-123',
         Cookie: `${SESSION_COOKIE}=cookie-123`
@@ -91,7 +90,7 @@ describe('getSessionIdFromRequest', () => {
   })
 
   it('should prioritize new header over legacy header', () => {
-    const req = new NextRequest('http://localhost:3000/api/chat', {
+    const req = new Request('http://localhost:3000/api/chat', {
       headers: {
         [SESSION_HEADER]: 'new-header-123',
         [LEGACY_SESSION_HEADER]: 'legacy-header-123'
@@ -102,14 +101,14 @@ describe('getSessionIdFromRequest', () => {
   })
 
   it('should return empty string if no session ID found', () => {
-    const req = new NextRequest('http://localhost:3000/api/chat')
+    const req = new Request('http://localhost:3000/api/chat')
     const sessionId = getSessionIdFromRequest(req)
     expect(sessionId).toBe('')
   })
 
   it('should handle URL encoding in query params', () => {
     const encoded = encodeURIComponent('session with spaces')
-    const req = new NextRequest(`http://localhost:3000/api/chat?sessionId=${encoded}`)
+    const req = new Request(`http://localhost:3000/api/chat?sessionId=${encoded}`)
     const sessionId = getSessionIdFromRequest(req)
     expect(sessionId).toBe('session with spaces')
   })
@@ -155,20 +154,20 @@ describe('getOrCreateClientSessionId', () => {
       })
     } catch (e) {
       // Fallback if defineProperty fails
-      // @ts-ignore
+      // @ts-expect-error
       global.window.localStorage = localStorageMock
     }
 
     // Mock location
-    // @ts-ignore
+    // @ts-expect-error
     originalLocation = global.window.location
-    // @ts-ignore
+    // @ts-expect-error
     delete global.window.location
-    // @ts-ignore
+    // @ts-expect-error
     global.window.location = {
       href: 'http://localhost:3000/live',
       search: ''
-    }
+    } as unknown as Location
 
     // Mock document
     if (!global.document) {
@@ -181,7 +180,7 @@ describe('getOrCreateClientSessionId', () => {
         writable: true
       })
     } catch (e) {
-      // @ts-ignore
+      // @ts-expect-error
       global.document.cookie = ''
     }
   })
@@ -189,7 +188,7 @@ describe('getOrCreateClientSessionId', () => {
   afterEach(() => {
     // Restore location
     if (global.window && originalLocation) {
-      // @ts-ignore
+      // @ts-expect-error
       global.window.location = originalLocation
     }
 
@@ -212,9 +211,9 @@ describe('getOrCreateClientSessionId', () => {
 
   it.skip('should return session ID from URL query parameter', () => {
     // Mock URL with query param
-    // @ts-ignore
+    // @ts-expect-error
     global.window.location.href = 'http://localhost:3000/live?sessionId=query-session-123'
-    // @ts-ignore
+    // @ts-expect-error
     global.window.location.search = '?sessionId=query-session-123'
 
     const sessionId = getOrCreateClientSessionId()
@@ -226,9 +225,9 @@ describe('getOrCreateClientSessionId', () => {
   it.skip('should prioritize query > localStorage > cookie', () => {
     mockLocalStorage.set(SESSION_COOKIE, 'stored-session-123')
 
-    // @ts-ignore
+    // @ts-expect-error
     global.window.location.href = 'http://localhost:3000/live?sessionId=query-session-123'
-    // @ts-ignore
+    // @ts-expect-error
     global.window.location.search = '?sessionId=query-session-123'
 
     const sessionId = getOrCreateClientSessionId()
@@ -250,7 +249,7 @@ describe('getOrCreateClientSessionId', () => {
   })
 
   it('should return generated ID in SSR context (no window)', () => {
-    // @ts-ignore
+    // @ts-expect-error
     delete global.window
 
     const sessionId = getOrCreateClientSessionId()
@@ -299,20 +298,20 @@ describe('withSessionHeaders', () => {
       })
     } catch (e) {
       // Fallback
-      // @ts-ignore
+      // @ts-expect-error
       global.window.localStorage = localStorageMock
     }
 
     // Mock location
-    // @ts-ignore
+    // @ts-expect-error
     originalLocation = global.window.location
-    // @ts-ignore
+    // @ts-expect-error
     delete global.window.location
-    // @ts-ignore
+    // @ts-expect-error
     global.window.location = {
       href: 'http://localhost:3000/live',
       search: ''
-    }
+    } as unknown as Location
 
     // Mock document
     if (!global.document) {
@@ -325,7 +324,7 @@ describe('withSessionHeaders', () => {
         writable: true
       })
     } catch (e) {
-      // @ts-ignore
+      // @ts-expect-error
       global.document.cookie = ''
     }
   })
@@ -333,7 +332,7 @@ describe('withSessionHeaders', () => {
   afterEach(() => {
     // Restore location
     if (global.window && originalLocation) {
-      // @ts-ignore
+      // @ts-expect-error
       global.window.location = originalLocation
     }
 

@@ -1,3 +1,5 @@
+import { logger } from 'src/lib/logger'
+
 export interface SessionUsage {
   sessionId: string;
   email: string;
@@ -54,7 +56,7 @@ export const DEFAULT_LIMITS: Omit<SessionUsage, 'sessionId' | 'email' | 'started
 export class UsageLimiter {
   private storage: Map<string, SessionUsage> = new Map();
   
-  async initSession(sessionId: string, email: string): Promise<SessionUsage> {
+  initSession(sessionId: string, email: string): Promise<SessionUsage> {
     const usage: SessionUsage = {
       sessionId,
       email,
@@ -62,15 +64,15 @@ export class UsageLimiter {
       ...DEFAULT_LIMITS
     };
     this.storage.set(sessionId, usage);
-    return usage;
+    return Promise.resolve(usage);
   }
   
-  async checkLimit(sessionId: string, type: 'message' | 'voice' | 'screen' | 'webcam' | 'research'): Promise<{ allowed: boolean; reason?: string }> {
+  checkLimit(sessionId: string, type: 'message' | 'voice' | 'screen' | 'webcam' | 'research'): Promise<{ allowed: boolean; reason?: string }> {
     let usage = this.storage.get(sessionId);
     
     // Auto-initialize session if not found (graceful fallback)
     if (!usage) {
-      console.log(`[UsageLimiter] Auto-initializing session: ${sessionId}`);
+      logger.debug(`[UsageLimiter] Auto-initializing session: ${sessionId}`);
       usage = {
         sessionId,
         email: 'unknown',
@@ -114,15 +116,15 @@ export class UsageLimiter {
         break;
     }
     
-    return { allowed: true };
+    return Promise.resolve({ allowed: true });
   }
   
-  async trackUsage(sessionId: string, type: 'message' | 'voice_start' | 'voice_stop' | 'screen_start' | 'screen_stop' | 'webcam_start' | 'webcam_stop' | 'research'): Promise<void> {
+  trackUsage(sessionId: string, type: 'message' | 'voice_start' | 'voice_stop' | 'screen_start' | 'screen_stop' | 'webcam_start' | 'webcam_stop' | 'research'): Promise<void> {
     let usage = this.storage.get(sessionId);
     
     // Auto-initialize if needed
     if (!usage) {
-      console.log(`[UsageLimiter] Auto-initializing session for tracking: ${sessionId}`);
+      logger.debug(`[UsageLimiter] Auto-initializing session for tracking: ${sessionId}`);
       usage = {
         sessionId,
         email: 'unknown',
@@ -171,9 +173,10 @@ export class UsageLimiter {
     }
     
     this.storage.set(sessionId, usage);
+    return Promise.resolve();
   }
   
-  async getUsage(sessionId: string): Promise<SessionUsage | null> {
+  getUsage(sessionId: string): Promise<SessionUsage | null> {
     let usage = this.storage.get(sessionId);
     
     // Auto-initialize if needed (for UI polling)
@@ -187,7 +190,7 @@ export class UsageLimiter {
       this.storage.set(sessionId, usage);
     }
     
-    return usage;
+    return Promise.resolve(usage);
   }
 }
 

@@ -1,8 +1,8 @@
 # Project Status
 
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-03
 **Current Phase:** Critical Fixes & Deployment 🚧
-**Session:** Critical Issues Fixed - Ready for Deployment
+**Session:** Documentation Cleanup - All docs moved to `docs/` directory
 
 ## 🎯 Current Objective
 
@@ -22,6 +22,7 @@ Deploy v10 to Vercel using best practices (preview first, then production).
 - [x] Set up Git hooks (pre-commit, pre-push)
 - [x] Created secret detection
 - [x] Organized documentation in `docs/` directory
+- [x] **Documentation Cleanup (2025-12-03):** Moved 26 documentation files from root to `docs/` directory per project rules
 - [x] Created deployment documentation (Vercel, Fly.io, Supabase)
 - [x] Created testing & cleanup strategy
 - [x] Created logging & monitoring guide
@@ -76,6 +77,9 @@ Deploy v10 to Vercel using best practices (preview first, then production).
 - `docs/TESTING_AND_CLEANUP_STRATEGY.md` - Testing strategy
 - `docs/LOGGING_AND_MONITORING.md` - Logging guide
 - `docs/MCP_TOOLS_GUIDE.md` - MCP tools guide
+- `docs/CHAT_TEXT_PIPELINE_ANALYSIS.md` - Core chat/text pipeline
+- `docs/AGENT_DEEP_ANALYSIS.md` - In-depth agent analysis with gaps
+- `docs/MULTIMODAL_AGENT_INTEGRATION.md` - Multimodal integration (text/voice/webcam/files)
 - And more...
 
 ## ✅ V8 to V10 Import Complete
@@ -226,7 +230,7 @@ Deploy v10 to Vercel using best practices (preview first, then production).
 - Vercel deployment (link CLI, deploy preview, then production)
 - Monitor for any remaining issues
 
-See `CRITICAL_FIXES_COMPLETE.md` for detailed breakdown.
+See `docs/CRITICAL_FIXES_COMPLETE.md` for detailed breakdown.
 
 ---
 

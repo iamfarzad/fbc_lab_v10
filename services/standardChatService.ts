@@ -287,7 +287,7 @@ export class StandardChatService {
             // 6. Construct Response from all Parts (Text + Executable Code + Function Calls)
             let fullText = "";
             let reasoningText: string | undefined;
-            let toolCalls: any[] = [];
+            const toolCalls: any[] = [];
 
             const candidate = response.candidates?.[0];
             if (candidate && candidate.content && candidate.content.parts) {

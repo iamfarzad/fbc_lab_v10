@@ -30,17 +30,21 @@ pnpm type-check 2>&1 | tee /tmp/type-check-output.txt || {
 # Run linting
 echo "🔍 Running linter..."
 pnpm lint 2>&1 | tee /tmp/lint-output.txt || {
-  # Check if errors are just warnings (console, any types) or expected
+  # STRICT: Block ALL lint errors. Warnings are allowed only if explicitly configured.
   ERROR_COUNT=$(grep -c "error" /tmp/lint-output.txt || echo "0")
   WARNING_COUNT=$(grep -c "warning" /tmp/lint-output.txt || echo "0")
   
-  if [ "$ERROR_COUNT" -lt 30 ] && [ "$WARNING_COUNT" -lt 400 ]; then
-    echo "⚠️  Lint has warnings/errors, but they're expected (console statements, any types)"
-    echo "   Errors: $ERROR_COUNT, Warnings: $WARNING_COUNT"
-    echo "✅ Allowing commit (warnings are non-blocking)"
-  else
-    echo "❌ Linting failed with too many errors. Run 'pnpm lint:fix' to auto-fix issues."
+  # Block if there are ANY errors
+  if [ "$ERROR_COUNT" -gt 0 ]; then
+    echo "❌ Linting failed with $ERROR_COUNT error(s). Fix all errors before committing."
+    echo "   Run 'pnpm lint:fix' to auto-fix issues, then fix remaining errors manually."
     exit 1
+  fi
+  
+  # Warn if warnings exceed reasonable threshold (but don't block)
+  if [ "$WARNING_COUNT" -gt 200 ]; then
+    echo "⚠️  High warning count: $WARNING_COUNT warnings"
+    echo "   Consider fixing warnings to improve code quality."
   fi
 }
 

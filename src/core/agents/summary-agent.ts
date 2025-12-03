@@ -28,7 +28,7 @@ export async function summaryAgent(
 
   // Get full multimodal context
   const multimodalData = await multimodalContextManager.getConversationContext(
-    sessionId!,
+    sessionId,
     true,
     true
   )

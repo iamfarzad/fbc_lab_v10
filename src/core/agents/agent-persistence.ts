@@ -4,7 +4,7 @@ import type { AgentResult, AgentContext } from './types'
 import type { ConversationFlowState } from 'src/types/conversation-flow-types'
 import { AgentMetadata, IntelligenceContext as SchemaIntelligenceContext } from 'src/schemas/agents'
 import { generateHash } from 'src/lib/hash-utils'
-// import { logger } from 'src/lib/logger' // Not used
+import { logger } from 'src/lib/logger'
 
 const MAX_METADATA_SIZE = 50_000 // 50KB limit
 const REDIS_FALLBACK_TTL = 86400 // 24 hours
@@ -78,7 +78,7 @@ export class AgentPersistenceService {
 
     // Validate and sanitize metadata
     const metadata = agentResult.metadata ? AgentMetadata.parse(agentResult.metadata) : undefined
-    const sanitizedMetadata = this.sanitizeMetadata(metadata) as Record<string, unknown>
+    const sanitizedMetadata = this.sanitizeMetadata(metadata)
 
     // Extract proposal data from summary agent output
     const proposalData = this.extractProposalData(metadata) as Record<string, unknown> | null
@@ -274,7 +274,7 @@ export class AgentPersistenceService {
       tags: ['fallback', 'agent-result', sessionId]
     })
 
-    console.log(`✅ Fallback to Redis: agent-fallback:${identifier}`)
+    logger.debug(`✅ Fallback to Redis: agent-fallback:${identifier}`)
     this.trackMetric('redis_fallback', 0, true, sessionId, eventId)
   }
 
@@ -324,7 +324,7 @@ export class AgentPersistenceService {
       hasEmail: !!metadata?.email
     }
 
-    console.log(`[Persistence] Enqueuing analytics job for event ${eventId}`)
+    logger.debug(`[Persistence] Enqueuing analytics job for event ${eventId}`)
     await redisQueue.enqueue(JobType.AGENT_ANALYTICS, analyticsPayload, {
       priority: 'low',
       delay: 0
@@ -352,7 +352,7 @@ export class AgentPersistenceService {
     if (extra) logData.extra = extra
 
     if (success) {
-      console.log(JSON.stringify(logData))
+      logger.debug(JSON.stringify(logData))
     } else {
       console.error(JSON.stringify(logData))
     }

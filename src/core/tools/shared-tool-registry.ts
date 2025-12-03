@@ -106,7 +106,7 @@ const sharedToolDefinitions: Record<SharedToolName, SharedToolDefinition> = {
       if (typeof parsed.staffReductionSavings === 'number') roiParams.staffReductionSavings = parsed.staffReductionSavings
       if (typeof parsed.efficiencySavings === 'number') roiParams.efficiencySavings = parsed.efficiencySavings
       if (typeof parsed.retentionSavings === 'number') roiParams.retentionSavings = parsed.retentionSavings
-      return await calculateROI(sessionId, roiParams as any)
+      return await calculateROI(sessionId, roiParams as Parameters<typeof calculateROI>[1])
     }
   },
   draft_follow_up_email: {

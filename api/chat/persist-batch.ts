@@ -14,11 +14,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         for (const msg of messages) {
-            await multimodalContextManager.addConversationTurn(sessionId, {
+            await multimodalContextManager.addConversationTurn(sessionId as string, {
                 role: msg.role === 'user' ? 'user' : 'assistant',
-                text: msg.content,
+                text: msg.content as string,
                 isFinal: true,
-                timestamp: new Date(msg.timestamp).toISOString()
+                timestamp: new Date(msg.timestamp as string | number | Date).toISOString()
             });
         }
 

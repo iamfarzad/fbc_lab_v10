@@ -12,7 +12,7 @@ All documentation is organized in the `docs/` directory to keep the root clean.
 - `tsconfig.json` - TypeScript configuration
 - `vite.config.ts` - Vite configuration
 - `vitest.config.ts` - Test configuration
-- `what_to_import.md` - Import map data (large file, stays in root)
+- `docs/what_to_import.md` - Import map data
 
 **Tools (analysis scripts):**
 - `analyze-dependencies.js` - Dependency analysis
@@ -108,7 +108,7 @@ All documentation is organized in the `docs/` directory to keep the root clean.
 Root/
 ├── README.md                    # Start here
 ├── package.json                 # Dependencies
-├── what_to_import.md           # Import map data
+├── docs/what_to_import.md      # Import map data
 └── docs/                       # All documentation
     ├── README.md               # Documentation index
     ├── IMPORT_STRATEGY.md     # Main strategy

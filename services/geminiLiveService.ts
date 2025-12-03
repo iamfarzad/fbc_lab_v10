@@ -3,6 +3,7 @@ import { createPcmBlob, base64ToBytes, decodeAudioData } from '../utils/audioUti
 import { LiveServiceConfig, TranscriptItem, ResearchResult } from 'types';
 import { AppConfig } from '../config';
 import { unifiedContext } from './unifiedContext';
+import { logger } from 'src/lib/logger'
 
 // Audio Constants
 const INPUT_SAMPLE_RATE = AppConfig.api.audio.inputSampleRate;
@@ -140,7 +141,7 @@ export class GeminiLiveService {
 
       // Setup event listeners for Fly.io server events
       this.liveClient.on('connected', (connectionId) => {
-        console.log('[GeminiLiveService] Connected to Fly.io server:', connectionId);
+        logger.debug('[GeminiLiveService] Connected to Fly.io server:', { connectionId });
 
         const snapshot = unifiedContext.getSnapshot();
         const rc = snapshot.researchContext;
@@ -163,17 +164,17 @@ export class GeminiLiveService {
       });
 
       this.liveClient.on('start_ack', (payload) => {
-        console.log('[GeminiLiveService] Start acknowledged:', payload);
+        logger.debug('[GeminiLiveService] Start acknowledged:', payload);
         // Set timeout: if session_started doesn't arrive within 15s (reduced from 35s), something's wrong
         this.sessionStartTimeout = setTimeout(() => {
           console.error('[GeminiLiveService] Timeout: session_started not received within 15s after start_ack');
           this.config.onStateChange('ERROR');
-          this.disconnect();
+          void this.disconnect();
         }, 15000);
       });
 
       this.liveClient.on('session_started', (payload) => {
-        console.log('[GeminiLiveService] Session started:', payload);
+        logger.debug('[GeminiLiveService] Session started:', payload);
         // Clear timeout since we got session_started
         if (this.sessionStartTimeout) {
           clearTimeout(this.sessionStartTimeout);
@@ -210,15 +211,15 @@ export class GeminiLiveService {
         }
       });
 
-      this.liveClient.on('audio', async (audioData, mimeType) => {
+      this.liveClient.on('audio', (audioData, mimeType) => {
         if (audioData && mimeType) {
-          await this.playAudio(audioData, mimeType);
+          this.playAudio(audioData, mimeType);
         }
       });
 
       // NEW: Listen for stage updates to trigger agent-specific animations
       this.liveClient.on('stage_update', (payload: any) => {
-        console.log('[GeminiLiveService] Stage update from server:', payload);
+        logger.debug('[GeminiLiveService] Stage update from server:', payload as Record<string, unknown>);
         // Forward agent metadata to transcript handler for shape changes
         if (this.config.onTranscript && payload) {
           const agentMetadata = {
@@ -231,17 +232,19 @@ export class GeminiLiveService {
         }
       });
 
-      this.liveClient.on('tool_call', async (payload) => {
-        console.log('[GeminiLiveService] Tool call from server:', payload);
-        if (this.config.onToolCall) {
-          const results = await this.config.onToolCall(payload.functionCalls || []);
-          console.log('[GeminiLiveService] Tool results:', results);
+      this.liveClient.on('tool_call', (payload) => {
+        void (async () => {
+          logger.debug('[GeminiLiveService] Tool call from server:', payload as Record<string, unknown>);
+          if (this.config.onToolCall) {
+            const results = await this.config.onToolCall((payload.functionCalls || []) as any[]);
+            logger.debug('[GeminiLiveService] Tool results:', results);
 
-          // CRITICAL: Send results back to server
-          if (results && results.length > 0) {
-            this.liveClient?.sendToolResponse(results);
+            // CRITICAL: Send results back to server
+            if (results && results.length > 0) {
+              this.liveClient?.sendToolResponse(results);
+            }
           }
-        }
+        })();
       });
 
       this.liveClient.on('error', (error) => {
@@ -250,7 +253,7 @@ export class GeminiLiveService {
       });
 
       this.liveClient.on('close', (reason) => {
-        console.log('[GeminiLiveService] Connection closed:', reason);
+        logger.debug('[GeminiLiveService] Connection closed:', { reason });
         this.isConnected = false;
         this.config.onStateChange('DISCONNECTED');
       });
@@ -292,19 +295,19 @@ export class GeminiLiveService {
     } catch (err) {
       console.error("Connection failed", err);
       this.config.onStateChange('ERROR');
-      this.disconnect();
+      void this.disconnect();
     }
   }
 
   // Send Context from Standard Chat History + optional metadata
-  public async sendContext(
+  public sendContext(
     history: TranscriptItem[],
     opts?: {
       location?: { latitude: number; longitude: number };
       research?: ResearchResult | null;
       intelligenceContext?: any;
     }
-  ): Promise<void> {
+  ): void {
     if (!this.liveClient || !this.isConnected) {
       console.warn('[GeminiLiveService] Cannot send context: not connected');
       return;
@@ -374,7 +377,7 @@ export class GeminiLiveService {
         return;
     }
     // LOGGING: Verify media streaming
-    // console.log(`[GeminiLiveService] Sending real-time media: ${media.mimeType}, size: ${media.data.length}`);
+    // logger.debug(`[GeminiLiveService] Sending real-time media: ${media.mimeType}, size: ${media.data.length}`);
     this.liveClient.sendRealtimeInput([{
       mimeType: media.mimeType,
       data: media.data
@@ -386,7 +389,7 @@ export class GeminiLiveService {
     unifiedContext.setSessionId(sessionId);
   }
 
-  public async sendVideo(frameData: Blob) {
+  public sendVideo(frameData: Blob): void {
     // Send video frame to Fly.io server
     if (!this.liveClient) return;
 
@@ -403,7 +406,7 @@ export class GeminiLiveService {
             ...(base64data ? { imageData: base64data } : {}),
             capturedAt: Date.now()
           });
-          console.log('[GeminiLiveService] Sent video frame to Live API');
+          logger.debug('[GeminiLiveService] Sent video frame to Live API');
         }
       }
     };
@@ -455,13 +458,13 @@ export class GeminiLiveService {
   }
 
   // Audio playback
-  private async playAudio(audioData: string, _mimeType: string) {
+  private playAudio(audioData: string, _mimeType: string) {
     if (!this.outputAudioContext || !this.outputNode) return;
 
     try {
       // Decode base64 audio data
       const bytes = base64ToBytes(audioData);
-      const audioBuffer = await decodeAudioData(bytes, this.outputAudioContext, OUTPUT_SAMPLE_RATE);
+      const audioBuffer = decodeAudioData(bytes, this.outputAudioContext, OUTPUT_SAMPLE_RATE);
 
       // Schedule playback
       const source = this.outputAudioContext.createBufferSource();

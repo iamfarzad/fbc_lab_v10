@@ -1,11 +1,12 @@
-import { google, generateText } from 'src/lib/ai-client'
+import { safeGenerateText } from 'src/lib/gemini-safe'
 import { formatMessagesForAI } from 'src/lib/format-messages'
 import { detectExitIntent } from 'src/lib/exit-detection'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult, FunnelStage } from './types'
 import type { ConversationFlowState, ConversationCategory } from 'src/types/conversation-flow-types'
 import { GEMINI_MODELS } from 'src/config/constants'
 import { PHRASE_BANK } from 'src/core/chat/conversation-phrases'
-import { IntelligenceContext } from 'src/schemas/agents'
+import { extractCompanySize, extractBudgetSignals, extractTimelineUrgency } from './utils'
+import { analyzeUrl } from 'src/core/intelligence/url-context-tool'
 
 /**
  * Discovery Agent - Systematically qualifies leads through conversation
@@ -19,7 +20,8 @@ export async function discoveryAgent(
   context: AgentContext
 ): Promise<AgentResult> {
   const { intelligenceContext: intelligenceContextRaw, conversationFlow, multimodalContext, voiceActive } = context
-  const intelligenceContext = intelligenceContextRaw ? IntelligenceContext.parse(intelligenceContextRaw) : undefined
+  // Use raw intelligenceContext to access extended fields (budget, timeline, etc.)
+  const intelligenceContext = intelligenceContextRaw
 
   const steps: ChainOfThoughtStep[] = []
 
@@ -53,6 +55,75 @@ export async function discoveryAgent(
     }
   }
 
+  // === URL DETECTION & ANALYSIS ===
+  const conversationText = messages
+    .filter((m): m is ChatMessage & { content: string } => typeof m.content === 'string')
+    .map(m => m.content)
+    .join('\n')
+  const lastMessage = messages[messages.length - 1]?.content || ''
+  const urlRegex = /https?:\/\/[^\s]+/g
+  const urls = lastMessage.match(urlRegex) || []
+  let urlContext = ''
+
+  if (urls.length > 0 && intelligenceContext) {
+    try {
+      const primaryUrl = urls[0]
+      if (!primaryUrl) {
+        throw new Error('No URL found')
+      }
+      const primaryUrlStr = String(primaryUrl)
+      const analysis = await analyzeUrl(primaryUrlStr)
+      urlContext = `
+URL ANALYSIS (${primaryUrlStr}):
+- Summary: ${analysis.pageSummary}
+- Key initiatives: ${analysis.keyInitiatives.join(', ')}
+- Tech stack hints: ${analysis.techStackHints?.join(', ') || 'none detected'}
+- Hiring: ${analysis.hiringSignals?.join(', ') || 'none'}
+- Pain points mentioned: ${analysis.painPointsMentioned?.join(', ') || 'none'}
+`.trim()
+
+      // Auto-fill company website if missing
+      const companyDomain = (intelligenceContext.company)?.domain || ''
+      if (companyDomain && primaryUrlStr.includes(companyDomain)) {
+        if (!intelligenceContext.company) {
+          (intelligenceContext).company = { domain: companyDomain }
+        }
+        intelligenceContext.company.website = primaryUrlStr
+      }
+    } catch (err) {
+      console.warn('URL analysis failed', err)
+      urlContext = `I tried to review the page you shared but couldn't load it.`
+    }
+  }
+
+  // === STRUCTURED EXTRACTION (parallel) ===
+  if (intelligenceContext) {
+    try {
+      const [companySize, budget, timeline] = await Promise.all([
+        extractCompanySize(conversationText),
+        extractBudgetSignals(conversationText),
+        extractTimelineUrgency(conversationText),
+      ])
+
+      // Update intelligence context with extracted data
+      if (!intelligenceContext.company) {
+        intelligenceContext.company = { domain: '' }
+      }
+      intelligenceContext.company.size = companySize.size
+      intelligenceContext.company.employeeCount = companySize.employeeCount
+
+      ;(intelligenceContext).budget = {
+        ...((intelligenceContext).budget || {}),
+        ...budget
+      }
+
+      ;(intelligenceContext).timeline = timeline
+    } catch (err) {
+      console.warn('Structured extraction failed', err)
+      // Continue without extracted data
+    }
+  }
+
   // Step 1: Analyze conversation flow
   steps.push({
     label: 'Analyzing conversation flow',
@@ -65,9 +136,13 @@ export async function discoveryAgent(
   let systemPrompt = `You are F.B/c Discovery AI - a lead qualification specialist.
 
 INTELLIGENCE CONTEXT:
-${intelligenceContext?.company?.name ? `Company: ${intelligenceContext.company.name}` : ''}
-${intelligenceContext?.person?.role ? `Role: ${intelligenceContext.person.role}` : ''}
+${intelligenceContext?.company?.name ? `Company: ${(intelligenceContext.company).name}` : ''}
+${(intelligenceContext?.company)?.size ? `Size: ${(intelligenceContext.company).size}` : ''}
+${intelligenceContext?.person?.role ? `Role: ${(intelligenceContext.person).role}` : ''}
+${(intelligenceContext)?.budget?.hasExplicit ? `Budget: explicit (${(intelligenceContext).budget.minUsd ? `$${(intelligenceContext).budget.minUsd}k+` : 'mentioned'})` : 'Budget: none yet'}
+${(intelligenceContext)?.timeline?.urgency ? `Timeline urgency: ${((intelligenceContext).timeline.urgency).toFixed(2)}` : ''}
 ${intelligenceContext?.leadScore ? `Lead Score: ${intelligenceContext.leadScore}` : ''}
+${urlContext ? `${urlContext}\n\nReference this naturally in your response.` : ''}
 
 YOUR MISSION:
 Systematically discover lead's needs across 6 categories:
@@ -105,6 +180,8 @@ STYLE:
 - Two sentences max per turn
 - Ask ONE focused question at a time
 - Mirror user's language and build on latest turn
+- If they shared a URL, act like you deeply read it
+- Reference hiring, tech stack, initiatives naturally
 - Natural integration of multimodal context:
   ✅ GOOD: "I noticed your dashboard shows revenue declining..."
   ❌ BAD: "Based on the screen share tool output..."
@@ -161,15 +238,10 @@ ${conversationFlow?.shouldOfferRecap
   let generatedText = ''
 
   try {
-    result = await generateText({
-      model: google(GEMINI_MODELS.DEFAULT_CHAT, {
-        // Pass thinking level if provided in context
-        // Note: This relies on the underlying SDK supporting these options or custom headers
-        ...(context.thinkingLevel ? { thinking: context.thinkingLevel } : {})
-      }),
-      messages: formatMessagesForAI(messages),
+    result = await safeGenerateText({
       system: systemPrompt,
-      temperature: context.thinkingLevel === 'high' ? 1.0 : 0.7 // Gemini 3 recommends temp 1.0 for high thinking
+      messages: formatMessagesForAI(messages),
+      temperature: context.thinkingLevel === 'high' ? 1.0 : 0.7
     })
 
     generatedText = result.text || ''
@@ -194,7 +266,7 @@ ${conversationFlow?.shouldOfferRecap
           role: m.role,
           hasContent: !!m.content,
           contentType: typeof m.content,
-          hasAttachments: !!(m as any).attachments
+          hasAttachments: !!(m && typeof m === 'object' && 'attachments' in m && m.attachments)
         }))
       })
     }
@@ -245,12 +317,19 @@ ${conversationFlow?.shouldOfferRecap
     recommendedNext?: string | null
   }
 
+  // Determine next stage based on extracted data
+  const hasCompanySize = (intelligenceContext?.company)?.size && (intelligenceContext.company).size !== 'unknown'
+  const hasBudget = (intelligenceContext)?.budget?.hasExplicit
+  const hasUrlContext = urls.length > 0
+  // If we have all required data, metadata will indicate next stage
+  const shouldFastTrack = hasCompanySize && hasBudget && hasUrlContext
+
   return {
     output: generatedText,
     agent: 'Discovery Agent',
     model: GEMINI_MODELS.DEFAULT_CHAT,
     metadata: {
-      stage: 'DISCOVERY' as FunnelStage,
+      stage: shouldFastTrack ? ('QUALIFIED' as FunnelStage) : ('DISCOVERY' as FunnelStage),
       chainOfThought: { steps },
       categoriesCovered,
       ...(((enhancedFlow as EnhancedFlow | null)?.recommendedNext !== undefined || conversationFlow?.recommendedNext !== undefined) && {
@@ -283,7 +362,7 @@ function generateRecap(conversationFlow: ConversationFlowState | undefined): str
   if (!conversationFlow?.evidence) return 'We discussed your AI needs and challenges.';
 
   const categories: ConversationCategory[] = ['goals', 'pain', 'data', 'readiness', 'budget', 'success'];
-  const coveredCategories = categories.filter(cat => conversationFlow.covered?.[cat as ConversationCategory]);
+  const coveredCategories = categories.filter(cat => conversationFlow.covered?.[cat]);
 
   if (coveredCategories.length === 0) return 'We just started discussing your AI needs.';
 
@@ -306,8 +385,8 @@ function formatConversationStatus(flow: ConversationFlowState | undefined): stri
   if (!flow) return 'Starting discovery'
 
   const categories: ConversationCategory[] = ['goals', 'pain', 'data', 'readiness', 'budget', 'success']
-  const covered = categories.filter(cat => flow.covered?.[cat as ConversationCategory])
-  const pending = categories.filter(cat => !flow.covered?.[cat as ConversationCategory])
+  const covered = categories.filter(cat => flow.covered?.[cat])
+  const pending = categories.filter(cat => !flow.covered?.[cat])
 
   const totalUserTurns = typeof flow.totalUserTurns === 'number' ? flow.totalUserTurns : 0
   const recommendedNext = typeof flow.recommendedNext === 'string' ? flow.recommendedNext : null

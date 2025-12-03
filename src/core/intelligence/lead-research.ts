@@ -1,8 +1,8 @@
-import { GoogleGenAI } from '@google/genai'
+import { generateObject, google } from 'src/lib/ai-client'
 import { GEMINI_MODELS } from 'src/config/constants'
-import { createGoogleGenAI } from 'src/config/env'
 import { createCachedFunction, CACHE_TTL } from 'src/lib/ai-cache'
 import { z } from 'zod'
+import { logger } from 'src/lib/logger'
 
 export interface CompanyContext {
   name: string
@@ -43,15 +43,40 @@ export interface ResearchResult {
   }>
 }
 
-export class LeadResearchService {
-  private genAI: GoogleGenAI
+// Zod schema for ResearchResult (used with generateObject)
+const ResearchResultSchema = z.object({
+  company: z.object({
+    name: z.string(),
+    domain: z.string(),
+    industry: z.string().optional(),
+    size: z.string().optional(),
+    summary: z.string().optional(),
+    website: z.string().optional(),
+    linkedin: z.string().optional(),
+    country: z.string().optional(),
+  }),
+  person: z.object({
+    fullName: z.string(),
+    role: z.string().optional(),
+    seniority: z.string().optional(),
+    profileUrl: z.string().optional(),
+    company: z.string().optional(),
+  }),
+  strategic: z.object({
+    latest_news: z.array(z.string()).optional(),
+    competitors: z.array(z.string()).optional(),
+    pain_points: z.array(z.string()).optional(),
+    market_trends: z.array(z.string()).optional(),
+  }).optional(),
+  role: z.string(),
+  confidence: z.number().min(0).max(1),
+})
 
+export class LeadResearchService {
   // Cached research function
   private cachedResearch: (email: string, name?: string, companyUrl?: string, sessionId?: string) => Promise<ResearchResult>
 
   constructor() {
-    this.genAI = createGoogleGenAI()
-
     // Wrap the internal method with caching (24 hour TTL)
     // This handles server-side/memory caching via the stub or future implementation
     this.cachedResearch = createCachedFunction(
@@ -72,7 +97,7 @@ export class LeadResearchService {
     if (typeof window !== 'undefined') {
         const cached = localStorage.getItem(cacheKey)
         if (cached) {
-            console.log('Using cached research for:', email)
+            logger.debug('Using cached research', { email })
             try {
                 return JSON.parse(cached) as ResearchResult
             } catch (e) {
@@ -101,13 +126,13 @@ export class LeadResearchService {
     void sessionId
 
     try {
-      console.log('🔍 [Lead Research] Starting for:', email)
+      logger.debug('🔍 [Lead Research] Starting', { email })
 
       const domain = email.split('@')[1] || 'unknown.com'
 
       // Known profile fallback for Farzad Bayat
       if (email === 'farzad@talktoeve.com' && (name?.toLowerCase().includes('farzad') || !name)) {
-        console.log('🎯 Using known profile for Farzad Bayat')
+        logger.debug('🎯 Using known profile for Farzad Bayat')
         return {
           company: {
             name: 'Talk to EVE',
@@ -138,9 +163,8 @@ export class LeadResearchService {
         }
       }
 
-      // Prompt structure designed for synthesis
-    const prompt = `
-    Research the following individual and company using Google Search.
+      // Use generateObject with Google Grounding Search
+      const prompt = `Research the following individual and company using Google Search.
 
     Target:
 Email: ${email}
@@ -156,128 +180,27 @@ Domain: ${domain}
        - Identify key competitors.
        - Infer likely pain points based on the role and industry trends.
     
-    Return ONLY valid JSON, no markdown code blocks or extra text. Return a structured profile matching the schema:
-{
-  "company": {
-    "name": "Company Name",
-    "domain": "${domain}",
-    "industry": "Industry",
-    "size": "Company size",
-    "summary": "Company description",
-    "website": "Website URL",
-        "linkedin": "LinkedIn company URL",
-        "country": "Country"
-  },
-  "person": {
-    "fullName": "Full Name",
-    "role": "Professional role",
-    "seniority": "Seniority level",
-    "profileUrl": "LinkedIn profile URL",
-    "company": "Company name"
-  },
-      "strategic": {
-        "latest_news": ["news item 1", "news item 2"],
-        "competitors": ["competitor 1", "competitor 2"],
-        "pain_points": ["pain point 1", "pain point 2"],
-        "market_trends": ["trend 1", "trend 2"]
-      },
-  "role": "Detected role",
-  "confidence": 0.85
-}
-`
+Return structured data matching the schema.`
 
-      // Generate Content with Google Grounding Search
-    const result = await this.genAI.models.generateContent({
-        model: GEMINI_MODELS.DEFAULT_CHAT, // Use DEFAULT_CHAT which is likely Pro or Flash supporting tools
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-            tools: [{ googleSearch: {} }]  // Enables Google Grounding Search
-        }
-    })
-
-    interface GenerateContentResult {
-      text?: string | (() => string)
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>
-          },
-          groundingMetadata?: {
-            groundingChunks?: Array<{
-              web?: {
-                uri?: string
-                title?: string
-              }
-            }>
-        }
-      }>
-    }
-
-    const resultRecord = result as unknown as GenerateContentResult
-    const text = typeof resultRecord.text === 'function'
-      ? resultRecord.text()
-      : typeof resultRecord.text === 'string'
-        ? resultRecord.text
-        : (resultRecord.candidates?.[0]?.content?.parts || [])
-          .map((p: { text?: string }) => p.text || '')
-          .filter(Boolean)
-          .join('\n')
-
-    // Extract JSON from response and validate with schema
-    try {
-        let jsonText = text.trim()
-        // Remove markdown code blocks if present
-        if (jsonText.startsWith('```json')) {
-            jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '')
-        } else if (jsonText.startsWith('```')) {
-            jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '')
-        }
-
-        const raw = JSON.parse(jsonText) as unknown
-
-        // Schema for research result structure
-        const ResearchResultSchema = z.object({
-          company: z.object({
-            name: z.string(),
-            domain: z.string(),
-            industry: z.string().optional(),
-            size: z.string().optional(),
-            summary: z.string().optional(),
-            website: z.string().optional(),
-            linkedin: z.string().optional(),
-            country: z.string().optional(),
-          }),
-          person: z.object({
-            fullName: z.string(),
-            role: z.string().optional(),
-            seniority: z.string().optional(),
-            profileUrl: z.string().optional(),
-            company: z.string().optional(),
-          }),
-          strategic: z.object({
-            latest_news: z.array(z.string()).optional(),
-            competitors: z.array(z.string()).optional(),
-            pain_points: z.array(z.string()).optional(),
-            market_trends: z.array(z.string()).optional(),
-          }).optional(),
-          role: z.string(),
-          confidence: z.number().min(0).max(1),
+      try {
+        const { object: parsed } = await generateObject({
+          model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an elite B2B researcher. Use Google Search aggressively.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          schema: ResearchResultSchema,
+          temperature: 0.3,
+          tools: [{ googleSearch: {} }] as Array<{ googleSearch: Record<string, never> }>  // Enable Google Grounding Search
         })
 
-        const parsed = ResearchResultSchema.parse(raw)
-
-        // Extract citations from grounding metadata
-        const allCitations = resultRecord.candidates?.[0]?.groundingMetadata?.groundingChunks
-            ?.map(c => {
-                const uri = c.web?.uri || ''
-                if (!uri) return null
-        return {
-                    uri,
-                    ...(c.web?.title && { title: c.web.title }),
-                    description: `Source for ${c.web?.title || 'unknown'}`
-                }
-            })
-            .filter((c): c is NonNullable<typeof c> => c !== null) || []
-
+        // Build ResearchResult from parsed object
         const researchResult: ResearchResult = {
           company: {
             name: parsed.company.name,
@@ -306,19 +229,19 @@ Domain: ${domain}
           }),
           role: parsed.role,
           confidence: parsed.confidence,
-          citations: allCitations
+          citations: [] // Citations would come from grounding metadata if available
         }
         
-        console.log('✅ [Lead Research] Completed:', {
+        logger.debug('✅ [Lead Research] Completed', {
             company: researchResult.company.name,
             person: researchResult.person.fullName,
             confidence: researchResult.confidence
         })
         
         return researchResult
-
-    } catch (parseError) {
-      console.error('JSON parsing or validation failed:', parseError, 'Raw text:', text)
+      } catch (error) {
+        logger.warn('Lead research failed, returning fallback', { error: error instanceof Error ? error.message : String(error), email, name, domain })
+        throw error // Will be caught by outer try-catch
     }
 
       // Fallback if no JSON found or parsing failed

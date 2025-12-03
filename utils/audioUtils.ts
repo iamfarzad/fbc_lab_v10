@@ -34,12 +34,12 @@ export function bytesToBase64(bytes: Uint8Array): string {
  * Decodes raw PCM data into an AudioBuffer for playback.
  * Handles 16-bit Int PCM conversion to 32-bit Float AudioBuffer.
  */
-export async function decodeAudioData(
+export function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
   sampleRate: number = 24000,
   numChannels: number = 1
-): Promise<AudioBuffer> {
+): AudioBuffer {
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);

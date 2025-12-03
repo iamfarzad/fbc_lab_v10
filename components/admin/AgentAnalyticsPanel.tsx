@@ -83,7 +83,9 @@ export function AgentAnalyticsPanel() {
     void fetchAnalytics()
     
     // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchAnalytics, 30000)
+    const interval = setInterval(() => {
+      void fetchAnalytics()
+    }, 30000)
     return () => clearInterval(interval)
   }, [fetchAnalytics])
 

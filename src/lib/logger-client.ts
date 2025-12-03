@@ -1,6 +1,7 @@
 /**
  * Client-side logging utility (for browser)
  * Handles logging for frontend code
+ * Also works in Node.js by falling back to process.env
  */
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -10,8 +11,36 @@ interface LogContext {
 }
 
 class ClientLogger {
-  private isDevelopment = import.meta.env.DEV
-  private isProduction = import.meta.env.PROD
+  private isDevelopment: boolean
+  private isProduction: boolean
+
+  constructor() {
+    // Always use process.env in Node.js (server-side)
+    // import.meta.env is only available in Vite/browser builds
+    if (typeof process !== 'undefined' && process.env) {
+      this.isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
+      this.isProduction = process.env.NODE_ENV === 'production'
+    } else {
+      // Browser environment - safely access import.meta.env
+      let metaEnv: any = null
+      try {
+        if (typeof import.meta !== 'undefined') {
+          metaEnv = import.meta.env
+        }
+      } catch {
+        // Ignore if import.meta is not available
+      }
+      
+      if (metaEnv) {
+        this.isDevelopment = metaEnv.DEV === true
+        this.isProduction = metaEnv.PROD === true
+      } else {
+        // Fallback
+        this.isDevelopment = false
+        this.isProduction = false
+      }
+    }
+  }
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString()
@@ -33,66 +62,34 @@ class ClientLogger {
 
   warn(message: string, context?: LogContext): void {
     console.warn(this.formatMessage('warn', message, context))
-    
-    // In production, could send to monitoring service
-    if (this.isProduction) {
-      // Send to error tracking service
-    }
   }
 
-  error(message: string, error?: Error, context?: LogContext): void {
-    const errorContext = {
-      ...context,
-      error: error ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      } : undefined,
-    }
-    
-    console.error(this.formatMessage('error', message, errorContext))
-    
-    // In production, send to error tracking service
-    if (this.isProduction) {
-      // Send to Sentry, LogRocket, etc.
-      // Example: Sentry.captureException(error, { extra: context })
-    }
-  }
+  log(...args: any[]) { if (this.isDevelopment) console.log('[FBC]', ...args); }
+  // warn(...args: any[]) { if (this.isDevelopment) console.warn('[FBC]', ...args); } // Duplicate warn
+  error(...args: any[]) { console.error('[FBC]', ...args); }
+  // debug(...args: any[]) { if (this.isDevelopment) console.debug('[FBC]', ...args); } // Duplicate debug
+  // info(...args: any[]) { if (this.isDevelopment) console.info('[FBC]', ...args); } // Duplicate info
+  
+  group(label: string) { if (this.isDevelopment) console.group(label); }
+  groupEnd() { if (this.isDevelopment) console.groupEnd(); }
+  table(data: any) { if (this.isDevelopment) console.table(data); }
 
-  // Group related logs
-  group(label: string): void {
+  logRequest(method: string, url: string, data?: any) {
     if (this.isDevelopment) {
-      console.group(label)
+      this.group(`🚀 API Request: ${method} ${url}`);
+      if (data) this.log('Data:', data);
+      this.groupEnd();
     }
   }
 
-  groupEnd(): void {
+  logResponse(method: string, url: string, status: number, data?: any) {
     if (this.isDevelopment) {
-      console.groupEnd()
-    }
-  }
-
-  // Table for structured data
-  table(data: any): void {
-    if (this.isDevelopment) {
-      console.table(data)
-    }
-  }
-
-  // Network logging
-  logRequest(url: string, method: string, data?: any): void {
-    if (this.isDevelopment) {
-      console.log(`[REQUEST] ${method} ${url}`, data)
-    }
-  }
-
-  logResponse(url: string, status: number, data?: any): void {
-    if (this.isDevelopment) {
-      const level = status >= 400 ? 'error' : 'info'
-      console[level](`[RESPONSE] ${status} ${url}`, data)
+      const icon = status >= 200 && status < 300 ? '✅' : '❌';
+      this.group(`${icon} API Response: ${method} ${url} (${status})`);
+      if (data) this.log('Data:', data);
+      this.groupEnd();
     }
   }
 }
 
-export const logger = new ClientLogger()
-
+export const logger = new ClientLogger();

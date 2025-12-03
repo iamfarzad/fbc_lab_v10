@@ -45,7 +45,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
   const endRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
   const [selectedFile, setSelectedFile] = useState<{ url: string, base64: string, mimeType: string, name: string, size: number, type: 'image' | 'file', textContent?: string } | null>(null);
-  const [previewItem, setPreviewItem] = useState<any | null>(null);
+  const [previewItem, setPreviewItem] = useState<any>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   // Resizable Sidebar State
@@ -287,9 +287,9 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
           {/* CHAT HEADER - Inside Card Constraints */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 shrink-0 z-10 bg-white/40 dark:bg-black/40 backdrop-blur-md">
               <div className="flex items-center gap-2">
-                 <div className={`w-2 h-2 rounded-full ${connectionState === 'CONNECTED' ? 'bg-orange-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                 <div className={`w-2 h-2 rounded-full ${connectionState === LiveConnectionState.CONNECTED ? 'bg-orange-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
                  <span className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/40' : 'text-black/40'}`}>
-                    {connectionState === 'CONNECTED' ? 'Live Session' : 'Chat History'}
+                    {connectionState === LiveConnectionState.CONNECTED ? 'Live Session' : 'Chat History'}
                  </span>
               </div>
               

@@ -172,7 +172,9 @@ export function AdminChatHistory({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={(e) => handleDeleteSession(session.id, e)}
+                    onClick={(e) => {
+                      void handleDeleteSession(session.id, e)
+                    }}
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Trash2 className="h-3 w-3" />

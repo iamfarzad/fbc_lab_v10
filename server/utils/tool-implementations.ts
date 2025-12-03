@@ -9,13 +9,13 @@ export interface ToolResult {
 /**
  * Search the web using Google Search API or similar
  */
-export async function executeSearchWeb(args: { query: string; urls?: string[] }): Promise<ToolResult> {
+export function executeSearchWeb(args: { query: string; urls?: string[] }): Promise<ToolResult> {
     try {
         serverLogger.info('Executing search_web', { query: args.query })
 
         // TODO: Implement actual Google Search API integration
         // For now, return placeholder with useful structure
-        return {
+        return Promise.resolve({
             success: true,
             data: {
                 query: args.query,
@@ -28,12 +28,12 @@ export async function executeSearchWeb(args: { query: string; urls?: string[] })
                 ],
                 message: `Found results for "${args.query}" (placeholder - real search coming soon)`
             }
-        }
+        })
     } catch (error) {
-        return {
+        return Promise.resolve({
             success: false,
             error: error instanceof Error ? error.message : 'Search failed'
-        }
+        })
     }
 }
 
@@ -89,7 +89,7 @@ export async function executeExtractActionItems(_args: any, sessionId?: string):
 /**
  * Calculate ROI based on inputs
  */
-export async function executeCalculateROI(args: any): Promise<ToolResult> {
+export function executeCalculateROI(args: any): Promise<ToolResult> {
     try {
         const {
             currentCost = 0,
@@ -127,22 +127,22 @@ export async function executeCalculateROI(args: any): Promise<ToolResult> {
                 : 0
         }
 
-        return {
+        return Promise.resolve({
             success: true,
             data: {
                 roi: Math.round(roi * 10) / 10,
-                annualSavings: Math.round(annualSavings),
+                annualSavings: Math.round(annualSavings as number),
                 netSavings: Math.round(netSavings),
                 paybackMonths,
                 timeline,
                 message: `ROI: ${Math.round(roi)}% over ${timeline} months, payback in ${paybackMonths} months`
             }
-        }
+        })
     } catch (error) {
-        return {
+        return Promise.resolve({
             success: false,
             error: error instanceof Error ? error.message : 'ROI calculation failed'
-        }
+        })
     }
 }
 
@@ -180,13 +180,13 @@ export async function executeGenerateSummaryPreview(args: any, sessionId?: strin
 /**
  * Draft follow-up email
  */
-export async function executeDraftFollowUpEmail(args: any, _sessionId?: string): Promise<ToolResult> {
+export function executeDraftFollowUpEmail(args: any, _sessionId?: string): Promise<ToolResult> {
     try {
         const { recipient = 'client', tone = 'professional', includeSummary = true } = args
 
         const email = `Subject: Follow-up from our conversation\n\nDear ${recipient},\n\nThank you for our discussion. ${includeSummary ? 'Here\'s a summary of what we covered...' : ''}\n\nBest regards`
 
-        return {
+        return Promise.resolve({
             success: true,
             data: {
                 email,
@@ -194,19 +194,19 @@ export async function executeDraftFollowUpEmail(args: any, _sessionId?: string):
                 tone,
                 message: `Draft email created for ${recipient} in ${tone} tone`
             }
-        }
+        })
     } catch (error) {
-        return {
+        return Promise.resolve({
             success: false,
             error: error instanceof Error ? error.message : 'Email drafting failed'
-        }
+        })
     }
 }
 
 /**
  * Generate proposal draft
  */
-export async function executeGenerateProposalDraft(_args: any, sessionId?: string): Promise<ToolResult> {
+export function executeGenerateProposalDraft(_args: any, sessionId?: string): Promise<ToolResult> {
     try {
         if (!sessionId) {
             return { success: false, error: 'Session ID required' }
@@ -214,38 +214,38 @@ export async function executeGenerateProposalDraft(_args: any, sessionId?: strin
 
         const proposal = `# Proposal Draft\n\n## Executive Summary\nBased on our conversation...\n\n## Scope of Work\n- Item 1\n- Item 2\n\n## Investment\nTo be discussed`
 
-        return {
+        return Promise.resolve({
             success: true,
             data: {
                 proposal,
                 format: 'markdown',
                 message: 'Proposal draft generated'
             }
-        }
+        })
     } catch (error) {
-        return {
+        return Promise.resolve({
             success: false,
             error: error instanceof Error ? error.message : 'Proposal generation failed'
-        }
+        })
     }
 }
 
 /**
  * Capture screen snapshot
  */
-export async function executeCaptureScreenSnapshot(args: any, connectionId: string, activeSessions: any): Promise<ToolResult> {
+export function executeCaptureScreenSnapshot(args: any, connectionId: string, activeSessions: any): Promise<ToolResult> {
     try {
         const client = activeSessions.get(connectionId)
         const snapshot = client?.latestContext?.screen
 
         if (!snapshot) {
-            return {
+            return Promise.resolve({
                 success: true,
                 data: { message: 'No screen snapshot available' }
-            }
+            })
         }
 
-        return {
+        return Promise.resolve({
             success: true,
             data: {
                 analysis: snapshot.analysis,
@@ -253,31 +253,31 @@ export async function executeCaptureScreenSnapshot(args: any, connectionId: stri
                 hasImage: !!snapshot.imageData && !args.summaryOnly,
                 message: 'Screen snapshot retrieved'
             }
-        }
+        })
     } catch (error) {
-        return {
+        return Promise.resolve({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to capture screen snapshot'
-        }
+        })
     }
 }
 
 /**
  * Capture webcam snapshot
  */
-export async function executeCaptureWebcamSnapshot(args: any, connectionId: string, activeSessions: any): Promise<ToolResult> {
+export function executeCaptureWebcamSnapshot(args: any, connectionId: string, activeSessions: any): Promise<ToolResult> {
     try {
         const client = activeSessions.get(connectionId)
         const snapshot = client?.latestContext?.webcam
 
         if (!snapshot) {
-            return {
+            return Promise.resolve({
                 success: true,
                 data: { message: 'No webcam snapshot available' }
-            }
+            })
         }
 
-        return {
+        return Promise.resolve({
             success: true,
             data: {
                 analysis: snapshot.analysis,
@@ -285,11 +285,11 @@ export async function executeCaptureWebcamSnapshot(args: any, connectionId: stri
                 hasImage: !!snapshot.imageData && !args.summaryOnly,
                 message: 'Webcam snapshot retrieved'
             }
-        }
+        })
     } catch (error) {
-        return {
+        return Promise.resolve({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to capture webcam snapshot'
-        }
+        })
     }
 }

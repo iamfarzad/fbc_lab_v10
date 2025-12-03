@@ -8,9 +8,9 @@ const formatInline = (text: string): React.ReactNode[] => {
             return <code key={i} className="bg-black/5 px-1 py-0.5 rounded text-xs font-mono">{part.slice(1,-1)}</code>;
         }
         
-        const linkParts = part.split(/(\[[^\]]+\]\([^\)]+\))/g);
+        const linkParts = part.split(/(\[[^\]]+\]\([^)]+\))/g);
         return linkParts.map((subPart, j) => {
-            const linkMatch = subPart.match(/^\[([^\]]+)\]\(([^\)]+)\)$/);
+            const linkMatch = subPart.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
             if (linkMatch) {
                 return (
                     <a 
@@ -47,7 +47,7 @@ const CodeBlock: React.FC<{ language: string, code: string }> = ({ language, cod
     const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(code);
+        void navigator.clipboard.writeText(code);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -143,8 +143,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser }) 
             flushList();
             elements.push(<h2 key={i} className="text-base font-bold mt-6 mb-3 tracking-tight">{formatInline(trimmed.slice(3))}</h2>);
         } 
-        else if (trimmed.match(/^[\*\-]\s+(.*)/)) {
-             const match = trimmed.match(/^[\*\-]\s+(.*)/);
+        else if (trimmed.match(/^[*-]\s+(.*)/)) {
+             const match = trimmed.match(/^[*-]\s+(.*)/);
              if (match && match[1]) {
                  listBuffer.push(<li key={`li-${i}`} className="pl-1 leading-relaxed">{formatInline(match[1])}</li>);
              }

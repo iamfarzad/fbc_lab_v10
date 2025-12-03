@@ -1,5 +1,6 @@
 import { LeadResearchService } from 'src/core/intelligence/lead-research'
 import type { ChainOfThoughtStep } from './types'
+import { logger } from 'src/lib/logger'
 
 /**
  * Lead Intelligence Agent - Background research worker
@@ -22,7 +23,7 @@ export async function leadIntelligenceAgent({
   companyUrl?: string
   sessionId: string
 }) {
-  console.log('🔍 [Lead Intelligence Agent] Starting research for:', email)
+  logger.debug('🔍 [Lead Intelligence Agent] Starting research for:', { email })
 
   const steps: ChainOfThoughtStep[] = []
 
@@ -86,7 +87,7 @@ export async function leadIntelligenceAgent({
       timestamp: Date.now()
     })
 
-    console.log('✅ [Lead Intelligence Agent] Research complete:', {
+    logger.debug('✅ [Lead Intelligence Agent] Research complete:', {
       company: research.company.name,
       role: research.role,
       confidence: research.confidence,

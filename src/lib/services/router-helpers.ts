@@ -13,7 +13,7 @@ import type { MediaAnalysisResult } from 'src/types/media-analysis'
  * @param context - Additional context (modality, user intent, etc.)
  * @returns Route decision and response
  */
-export async function routeImageAnalysis(
+export function routeImageAnalysis(
   _imageBase64: string,
   context: {
     modality?: 'screen' | 'webcam' | 'image'
@@ -21,7 +21,7 @@ export async function routeImageAnalysis(
     previousRoute?: string
     sessionId?: string
   } = {}
-): Promise<{ route: { target: string }; response: MediaAnalysisResult }> {
+): { route: { target: string }; response: MediaAnalysisResult } {
   // Stub implementation - returns a basic response
   // In production, this would route to the appropriate service
   return {

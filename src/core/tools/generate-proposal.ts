@@ -8,6 +8,7 @@ import { generateText, google } from 'src/lib/ai-client'
 import { CONTACT_CONFIG, GEMINI_MODELS } from 'src/config/constants'
 import { ContextStorage } from 'src/core/context/context-storage'
 import { usageLimiter } from 'src/lib/usage-limits'
+import { logger } from 'src/lib/logger'
 
 const contextStorage = new ContextStorage()
 
@@ -28,7 +29,7 @@ export async function generateProposal(sessionId: string): Promise<string> {
     }
     
     const contextObj = context as unknown as Record<string, unknown>
-    console.log('📄 Generating proposal for:', (contextObj.name as string | undefined) || 'Unknown')
+    logger.debug('📄 Generating proposal for:', { name: (contextObj.name as string | undefined) || 'Unknown' })
     
     // Generate proposal content using AI (same logic as /api/generate-proposal)
     const proposalPrompt = `Based on this consulting conversation, generate a personalized proposal in markdown format:

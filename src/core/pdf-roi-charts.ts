@@ -26,7 +26,7 @@ export function isValidROIData(data: unknown): data is ROIData {
   )
 }
 
-export async function generateROIChartsImages(_data: ROIData): Promise<{
+export function generateROIChartsImages(_data: ROIData): Promise<{
   investmentChart: Uint8Array
   savingsChart: Uint8Array
   roiChart: Uint8Array
@@ -38,14 +38,14 @@ export async function generateROIChartsImages(_data: ROIData): Promise<{
     0, 0, 10, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5, 0, 1,
     13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
   ])
-  return {
+  return Promise.resolve({
     investmentChart: emptyPng,
     savingsChart: emptyPng,
     roiChart: emptyPng
-  }
+  })
 }
 
-export async function generateROIChartsHTML(_data: ROIData): Promise<string> {
-  return '<div>ROI Charts Placeholder</div>'
+export function generateROIChartsHTML(_data: ROIData): Promise<string> {
+  return Promise.resolve('<div>ROI Charts Placeholder</div>')
 }
 

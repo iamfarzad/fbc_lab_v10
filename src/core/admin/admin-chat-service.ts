@@ -2,6 +2,7 @@ import { supabaseService } from 'src/core/supabase/client'
 import { asAdminSession, asAdminConversations, asConversations } from 'src/lib/supabase-parsers'
 import type { AdminSessionRow, AdminConversationRow } from 'src/schemas/supabase'
 import type { Database } from 'src/core/database.types'
+import { logger } from 'src/lib/logger'
 
 type AdminMessageType = 'user' | 'assistant' | 'system'
 
@@ -98,7 +99,7 @@ export class AdminChatService {
    * Save message to persistent storage with embeddings
    */
   async saveMessage(message: AdminMessage): Promise<AdminConversationRow> {
-    console.log('Saving admin message:', { sessionId: message.sessionId, type: message.type, contentLength: message.content.length })
+    logger.debug('Saving admin message:', { sessionId: message.sessionId, type: message.type, contentLength: message.content.length })
 
     // Generate embeddings for the message content (optional - don't fail if it doesn't work)
     let embeddings: number[] | undefined
@@ -239,7 +240,7 @@ export class AdminChatService {
         summary: c.summary || '',
         leadScore: c.lead_score || 0,
         researchData: c.research_json && typeof c.research_json === 'object' && !Array.isArray(c.research_json)
-          ? c.research_json as Record<string, unknown>
+          ? c.research_json
           : {}
       }
     })

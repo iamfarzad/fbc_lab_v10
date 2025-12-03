@@ -17,9 +17,10 @@ export function calculateParticleTarget(
     ctx: ParticleContext
 ): ShapeResult {
 
-    const shouldFormShape = ctx.visualState.isActive || shape !== 'orb';
-
-    if (!shouldFormShape) {
+    // Show idle state only when shape is 'orb' and inactive (for voice mode)
+    // For text chat, always show the shape regardless of isActive
+    const shouldShowIdle = shape === 'orb' && !ctx.visualState.isActive;
+    if (shouldShowIdle) {
         return GeometricShapes.idle(ctx);
     }
 

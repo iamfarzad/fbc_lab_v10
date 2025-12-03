@@ -1,3 +1,5 @@
+import { logger } from 'src/lib/logger'
+
 /**
  * CENTRALIZED CONFIGURATION
  * DO NOT HARDCODE THESE VALUES ANYWHERE ELSE
@@ -118,7 +120,7 @@ export const WEBSOCKET_CONFIG = {
     if (isLocalhostRuntime()) {
       // Prefer explicit dev URL when present
       if (process.env.NEXT_PUBLIC_LIVE_SERVER_DEV_URL) {
-        console.log('[WEBSOCKET_CONFIG] Using dev URL from NEXT_PUBLIC_LIVE_SERVER_DEV_URL:', this.DEVELOPMENT_URL)
+        logger.debug('[WEBSOCKET_CONFIG] Using dev URL from NEXT_PUBLIC_LIVE_SERVER_DEV_URL:', { url: this.DEVELOPMENT_URL })
         return this.DEVELOPMENT_URL
       }
       
@@ -131,22 +133,22 @@ export const WEBSOCKET_CONFIG = {
         const port = process.env.NEXT_PUBLIC_LIVE_SERVER_DEV_PORT ?? '3001'
         const portSuffix = port ? `:${port}` : ''
         const devUrl = `${protocol}://${host}${portSuffix}`
-        console.log('[WEBSOCKET_CONFIG] Using dev URL (local development):', devUrl)
+        logger.debug('[WEBSOCKET_CONFIG] Using dev URL (local development):', { url: devUrl })
         return devUrl
       }
       
-      console.log('[WEBSOCKET_CONFIG] Using default dev URL (local development):', this.DEVELOPMENT_URL)
+      logger.debug('[WEBSOCKET_CONFIG] Using default dev URL (local development):', { url: this.DEVELOPMENT_URL })
       return this.DEVELOPMENT_URL
     }
     
     // Production mode - use NEXT_PUBLIC_LIVE_SERVER_URL if set, otherwise fallback
     if (process.env.NEXT_PUBLIC_LIVE_SERVER_URL) {
-      console.log('[WEBSOCKET_CONFIG] Using production URL from NEXT_PUBLIC_LIVE_SERVER_URL:', this.PRODUCTION_URL)
+      logger.debug('[WEBSOCKET_CONFIG] Using production URL from NEXT_PUBLIC_LIVE_SERVER_URL:', { url: this.PRODUCTION_URL })
       return this.PRODUCTION_URL
     }
     
     // Production fallback
-    console.log('[WEBSOCKET_CONFIG] Using production URL (fallback):', this.PRODUCTION_URL)
+    logger.debug('[WEBSOCKET_CONFIG] Using production URL (fallback):', { url: this.PRODUCTION_URL })
     return this.PRODUCTION_URL
   },
   RECONNECT_DELAY: 3000,

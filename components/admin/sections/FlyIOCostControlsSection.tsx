@@ -127,7 +127,7 @@ export function FlyIOCostControlsSection() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={fetchUsage}>
+              <Button variant="outline" size="sm" onClick={() => { void fetchUsage() }}>
                 <RefreshCw className={`mr-2 size-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
@@ -177,7 +177,7 @@ export function FlyIOCostControlsSection() {
                         onCheckedChange={setIsAlertEnabled}
                       />
                     </div>
-                    <Button onClick={handleSaveSettings} disabled={saving} className="w-full">
+                    <Button onClick={() => { void handleSaveSettings() }} disabled={saving} className="w-full">
                       {saving ? 'Saving...' : 'Save Settings'}
                     </Button>
                   </div>

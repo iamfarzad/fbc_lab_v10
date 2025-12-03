@@ -1,4 +1,5 @@
 import { google, generateText } from 'src/lib/ai-client'
+import { safeGenerateText } from 'src/lib/gemini-safe'
 import { formatMessagesForAI } from 'src/lib/format-messages'
 import { z } from 'zod'
 import type { ChatMessage } from './types'
@@ -406,7 +407,7 @@ TOOLS AVAILABLE:
               })
             ])
 
-            if (typedArgs.agentName && agentData.agentBreakdown && (agentData.agentBreakdown as Record<string, number>)[typedArgs.agentName]) {
+            if (typedArgs.agentName && agentData.agentBreakdown && (agentData.agentBreakdown)[typedArgs.agentName]) {
               return {
                 agent: typedArgs.agentName,
                 executions: agentData.agentBreakdown[typedArgs.agentName],
@@ -442,19 +443,12 @@ TOOLS AVAILABLE:
     }
   }
 
-  const generateTextOptions: Parameters<typeof generateText>[0] = {
-    model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, { thinking: 'high' }), // Admin needs reasoning
-    messages: formatMessagesForAI(messages),
+  const result = await safeGenerateText({
     system: systemPrompt,
-    temperature: 1.0 // Recommended for high thinking
-  }
-  if (tools) {
-    const typedTools = tools as unknown as Parameters<typeof generateText>[0]['tools']
-    if (typedTools !== undefined) {
-      generateTextOptions.tools = typedTools
-    }
-  }
-  const result = await generateText(generateTextOptions)
+    messages: formatMessagesForAI(messages),
+    temperature: 1.0, // Recommended for high thinking
+    tools: tools
+  })
 
   return {
     output: result.text,
@@ -538,7 +532,6 @@ export async function searchConversations(query: {
  * Helper: Draft follow-up email for a lead
  */
 export async function draftFollowUpEmail({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   leadId: _leadId,
   leadName,
   conversationSummary,

@@ -14,8 +14,8 @@ const SUGGESTIONS = [
 interface ChatInputDockProps {
     inputValue: string;
     setInputValue: (val: string) => void;
-    selectedFile: any | null;
-    setSelectedFile: (file: any | null) => void;
+    selectedFile: any;
+    setSelectedFile: (file: any) => void;
     isWebcamActive: boolean;
     onWebcamChange: (active: boolean) => void;
     onSendMessage: (text: string, file?: { mimeType: string, data: string }) => void;
@@ -383,7 +383,9 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-xl border border-white/40 dark:border-white/10 shadow-xl ring-1 ring-black/5 overflow-hidden animate-fade-in-up origin-bottom z-[100]">
                                             <div className="p-1.5 flex flex-col gap-0.5">
                                                 <button 
-                                                    onClick={() => executeMagicAction('rewrite')}
+                                                    onClick={() => {
+                                                      void executeMagicAction('rewrite')
+                                                    }}
                                                     className="flex items-center gap-3 px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-white/10 hover:text-purple-700 dark:hover:text-purple-400 rounded-lg transition-colors"
                                                 >
                                                     <svg className="w-4 h-4 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -394,7 +396,9 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                                 </button>
                                                 <div className="h-px bg-gray-100 dark:bg-white/10 my-0.5"></div>
                                                 <button 
-                                                    onClick={() => executeMagicAction('proofread')}
+                                                    onClick={() => {
+                                                      void executeMagicAction('proofread')
+                                                    }}
                                                     className="flex items-center gap-3 px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-white/10 hover:text-purple-700 dark:hover:text-purple-400 rounded-lg transition-colors"
                                                 >
                                                     <svg className="w-4 h-4 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>

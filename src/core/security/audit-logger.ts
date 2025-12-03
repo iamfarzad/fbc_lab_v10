@@ -1,6 +1,7 @@
 import { getSupabaseService } from 'src/lib/supabase'
 import { toJson } from 'src/types/json-guards'
 import type { Json } from 'src/core/database.types'
+import { logger } from 'src/lib/logger'
 
 export interface AuditEvent {
   actorId?: string
@@ -52,7 +53,7 @@ class AuditLogger {
         console.error('Audit log insert failed:', error)
         // Don't throw - audit failure shouldn't break operations
       } else {
-        console.log(`Audit logged: ${action} for ${event.sessionId}`)
+        logger.debug(`Audit logged: ${action} for ${event.sessionId}`)
       }
     } catch (err) {
       console.error('Audit logger error:', err)

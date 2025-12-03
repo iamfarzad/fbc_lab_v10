@@ -53,10 +53,11 @@ export function scheduleDebouncedInjection(
     clearTimeout(timers[modalityKey])
   }
 
-  timers[modalityKey] = setTimeout(async () => {
-    try {
-      const snap = client.latestContext[modalityKey]
-      if (!snap) return
+  timers[modalityKey] = setTimeout(() => {
+    void (async () => {
+      try {
+        const snap = client.latestContext[modalityKey]
+        if (!snap) return
       const now = Date.now()
       if (typeof snap.lastInjected === 'number' && snap.lastInjected > now - VISUAL_INJECT_THROTTLE_MS) {
         serverLogger.info('Context injection skipped (recently injected)', { connectionId, modality })
@@ -109,6 +110,7 @@ export function scheduleDebouncedInjection(
     } finally {
       delete timers[modalityKey]
     }
+    })()
   }, CONTEXT_INJECT_DEBOUNCE_MS)
 }
 

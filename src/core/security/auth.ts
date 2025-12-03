@@ -11,7 +11,8 @@ function encode(payload: object): string {
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
 }
 
-function decode(token: string): unknown | null {
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+function decode(token: string): null | unknown {
   try {
     const json = Buffer.from(token, 'base64url').toString('utf8')
     return JSON.parse(json)
@@ -20,13 +21,13 @@ function decode(token: string): unknown | null {
   }
 }
 
-export async function createToken(payload: Omit<JWTPayload, 'exp'>): Promise<string> {
+export function createToken(payload: Omit<JWTPayload, 'exp'>): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60
   const body = { ...payload, exp }
-  return TOKEN_PREFIX + encode(body)
+  return Promise.resolve(TOKEN_PREFIX + encode(body))
 }
 
-export async function verifyToken(token: string): Promise<JWTPayload | null> {
+export function verifyToken(token: string): Promise<JWTPayload | null> {
   if (!token) return null
   const normalized = token.startsWith(TOKEN_PREFIX) ? token.slice(TOKEN_PREFIX.length) : token
   const payload = decode(normalized)

@@ -19,6 +19,7 @@ import { LiveConnectionState, TranscriptItem, VisualState, VisualShape, Groundin
 import { GEMINI_MODELS } from "src/config/constants";
 import { generatePDF } from './utils/pdfUtils';
 import { Tool, Type } from '@google/genai';
+import { logger } from 'src/lib/logger-client'
 
 // Routing Logic Types
 interface ModelRoute {
@@ -103,11 +104,11 @@ export const App: React.FC = () => {
     const setViewAndNavigate = useCallback((newView: 'landing' | 'chat' | 'admin') => {
         setView(newView);
         if (newView === 'admin') {
-            navigate('/admin', { replace: true });
+            void navigate('/admin', { replace: true });
         } else if (newView === 'chat') {
-            navigate('/chat', { replace: true });
+            void navigate('/chat', { replace: true });
         } else {
-            navigate('/', { replace: true });
+            void navigate('/', { replace: true });
         }
     }, [navigate]);
     
@@ -143,7 +144,7 @@ export const App: React.FC = () => {
         isActive: false,
         audioLevel: 0,
         mode: 'idle',
-        shape: 'orb'
+        shape: 'wave'
     });
     const [transcript, setTranscript] = useState<TranscriptItem[]>([]);
 
@@ -168,8 +169,8 @@ export const App: React.FC = () => {
     // Local AI State
     const [localAiCaps, setLocalAiCaps] = useState<ChromeAiCapabilities>({ hasModel: false, hasSummarizer: false, hasRewriter: false, status: 'unsupported' });
 
-    // Store the current semantic theme (default orb)
-    const semanticShapeRef = useRef<VisualShape>('orb');
+    // Store the current semantic theme (default wave - gentler than orb spiral)
+    const semanticShapeRef = useRef<VisualShape>('wave');
     // Store data refs to persist across updates
     const weatherDataRef = useRef<VisualState['weatherData']>(undefined);
     const chartDataRef = useRef<VisualState['chartData']>(undefined);
@@ -219,7 +220,7 @@ export const App: React.FC = () => {
             // Restore session context if available
             const savedProfile = sessionStorage.getItem('fbc_user_profile');
             if (savedProfile) {
-                setUserProfile(JSON.parse(savedProfile));
+                setUserProfile(JSON.parse(savedProfile) as UserProfile | null);
             }
         }
     }, []);
@@ -306,12 +307,12 @@ export const App: React.FC = () => {
 
         // 2. Apply Permissions
         if (permissions) {
-            console.log('[App] Applying user permissions:', permissions);
+            logger.debug('[App] Applying user permissions:', permissions);
 
             // Auto-enable webcam if user granted permission
             if (permissions.webcam) {
                 setIsWebcamActive(true);
-                console.log('[App] Webcam permission granted, enabling camera');
+                logger.debug('[App] Webcam permission granted, enabling camera');
             }
 
             // Auto-request location if granted
@@ -320,7 +321,7 @@ export const App: React.FC = () => {
                     const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
                         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
                     });
-                    console.log('[App] Location access granted:', { lat: pos.coords.latitude, lng: pos.coords.longitude });
+                    logger.debug('[App] Location access granted:', { lat: pos.coords.latitude, lng: pos.coords.longitude });
                     const location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
                     // Store location in unified context
                     unifiedContext.setLocation(location);
@@ -335,7 +336,7 @@ export const App: React.FC = () => {
 
             // Voice is handled by the live service connection
             if (permissions.voice) {
-                console.log('[App] Voice permission granted');
+                logger.debug('[App] Voice permission granted');
             }
 
             // Store permissions for reference
@@ -346,7 +347,7 @@ export const App: React.FC = () => {
         setView('chat');
 
         // 4. Trigger Background Research (Deep Path)
-        performBackgroundResearch(email, name, companyUrl);
+        void performBackgroundResearch(email, name, companyUrl);
     };
 
     const performBackgroundResearch = async (email: string, name: string, companyUrl?: string) => {
@@ -357,11 +358,11 @@ export const App: React.FC = () => {
         const domain = email.split('@')[1]?.toLowerCase();
 
         if (domain && genericDomains.includes(domain) && !companyUrl) {
-            console.log("Generic email detected without override, skipping deep research.");
+            logger.debug("Generic email detected without override, skipping deep research.");
             return;
         }
 
-        console.log("Triggering Background Lead Research for:", email);
+        logger.debug("Triggering Background Lead Research for:", { email });
 
         try {
             const result = await researchServiceRef.current.researchLead(email, name, companyUrl);
@@ -417,7 +418,7 @@ export const App: React.FC = () => {
             // Only trigger if it's different from the user's email we already researched
             if (userProfile && email === userProfile.email) return;
 
-            console.log("Triggering Manual Lead Research for:", email);
+            logger.debug("Triggering Manual Lead Research for:", { email });
 
             setTranscript(prev => [...prev, {
                 id: Date.now().toString(),
@@ -465,7 +466,7 @@ export const App: React.FC = () => {
             const caps = await chromeAiRef.current.getCapabilities();
             setLocalAiCaps(caps);
         };
-        checkLocalAi();
+        void checkLocalAi();
     }, []);
 
     // --- MODEL ROUTING LOGIC ---
@@ -527,10 +528,13 @@ export const App: React.FC = () => {
     const extractWeatherData = useCallback((text: string): VisualState['weatherData'] | undefined => {
         const t = text.toLowerCase();
 
-        // Extract temperature with stricter regex
+        // Extract temperature with improved regex - handles "0°C", "0°", "0 degrees", etc.
         const tempRegex = /(-?\d+)\s*(?:°|degrees?|deg)\s*[CF]?(?!\s*[NSEW])/i;
         const match = text.match(tempRegex);
-        const temperature = match ? match[0].toUpperCase().replace(/\s+/g, '') : undefined;
+        // Also try simpler pattern like "0°C" or "0°"
+        const simpleMatch = !match ? text.match(/(-?\d+)\s*°\s*[CF]?/i) : null;
+        const finalMatch = match || simpleMatch;
+        const temperature = finalMatch ? finalMatch[0].replace(/\s+/g, '').toUpperCase() : undefined;
 
         let condition: 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'stormy' = 'cloudy';
 
@@ -560,9 +564,9 @@ export const App: React.FC = () => {
         let trend: 'up' | 'down' | 'neutral' = 'neutral';
 
         if (hasWord(t, 'up') || hasWord(t, 'rose') || hasWord(t, 'increase') || hasWord(t, 'gain') || hasWord(t, 'bull') || hasWord(t, 'high') || /\+\d/.test(text)) trend = 'up';
-        else if (hasWord(t, 'down') || hasWord(t, 'fell') || hasWord(t, 'drop') || hasWord(t, 'loss') || hasWord(t, 'bear') || hasWord(t, 'low') || /\-\d/.test(text)) trend = 'down';
+        else if (hasWord(t, 'down') || hasWord(t, 'fell') || hasWord(t, 'drop') || hasWord(t, 'loss') || hasWord(t, 'bear') || hasWord(t, 'low') || /-\d/.test(text)) trend = 'down';
 
-        const valueRegex = /(\$\d[\d,.]*|\d[\d,.]*\%)/;
+        const valueRegex = /(\$\d[\d,.]*|\d[\d,.]*%)/;
         const match = text.match(valueRegex);
         const value = match ? match[0] : undefined;
 
@@ -609,6 +613,35 @@ export const App: React.FC = () => {
             return 'code';
         }
 
+        // Check for weather FIRST (before map/chart) to prioritize weather visualization
+        const weatherData = extractWeatherData(text);
+        if (weatherData) {
+            weatherDataRef.current = weatherData;
+            textContentRef.current = undefined;
+            return 'weather';
+        }
+
+        // Also check for weather keywords even if extractWeatherData didn't find structured data
+        if (
+            (hasWord(t, 'weather') || hasWord(t, 'temperature') || hasWord(t, 'forecast') ||
+             hasWord(t, 'celsius') || hasWord(t, 'fahrenheit') || hasWord(t, 'degrees') ||
+             hasWord(t, 'cloudy') || hasWord(t, 'sunny') || hasWord(t, 'rainy') || hasWord(t, 'snowy') || hasWord(t, 'stormy')) &&
+            (/\d+\s*°/.test(text) || hasWord(t, 'temperature') || hasWord(t, 'weather'))
+        ) {
+            // Try to extract basic weather info even if regex didn't match
+            const tempMatch = text.match(/(-?\d+)\s*°?\s*[CF]?/i);
+            const temp = tempMatch ? tempMatch[0].replace(/\s+/g, '') : undefined;
+            let condition: 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'stormy' = 'cloudy';
+            if (hasWord(t, 'snow') || hasWord(t, 'flurries')) condition = 'snowy';
+            else if (hasWord(t, 'rain') || hasWord(t, 'rainy') || hasWord(t, 'drizzle')) condition = 'rainy';
+            else if (hasWord(t, 'storm') || hasWord(t, 'thunder')) condition = 'stormy';
+            else if (hasWord(t, 'sun') || hasWord(t, 'sunny') || hasWord(t, 'clear')) condition = 'sunny';
+            
+            weatherDataRef.current = { condition, ...(temp ? { temperature: temp } : {}) };
+            textContentRef.current = undefined;
+            return 'weather';
+        }
+
         if (
             hasPhrase('where is') || hasWord(t, 'location') || hasWord(t, 'map') || hasWord(t, 'direction') ||
             hasWord(t, 'navigate') || hasWord(t, 'gps') || hasWord(t, 'route')
@@ -626,13 +659,6 @@ export const App: React.FC = () => {
             if (data) chartDataRef.current = data;
             textContentRef.current = undefined;
             return 'chart';
-        }
-
-        const weatherData = extractWeatherData(text);
-        if (weatherData) {
-            weatherDataRef.current = weatherData;
-            textContentRef.current = undefined;
-            return 'weather';
         }
 
         if (hasWord(t, 'planet') || hasWord(t, 'space') || hasWord(t, 'orbit') || hasWord(t, 'cosmos') || hasWord(t, 'solar') || hasWord(t, 'galaxy') || hasWord(t, 'universe') || hasWord(t, 'moon')) {
@@ -709,7 +735,9 @@ export const App: React.FC = () => {
                 semanticShapeRef.current = detected;
                 setVisualState(prev => ({
                     ...prev,
+                    // isActive stays false for text chat (only true for voice)
                     shape: detected,
+                    mode: 'speaking', // Show speaking mode
                     ...(textContentRef.current !== undefined && { textContent: textContentRef.current }),
                     ...(weatherDataRef.current !== undefined && { weatherData: weatherDataRef.current }),
                     ...(chartDataRef.current !== undefined && { chartData: chartDataRef.current }),
@@ -833,7 +861,7 @@ export const App: React.FC = () => {
                 }];
             }
         });
-    }, [detectVisualIntent, extractMapCoords, resolveAgentShape]);
+    }, [detectVisualIntent, extractMapCoords]);
 
     const handleToolCall = useCallback(async (functionCalls: any[]) => {
         const results: any[] = [];
@@ -897,7 +925,7 @@ export const App: React.FC = () => {
                 // NEW: Handle calendar widget creation
                 const { title, description, url } = call.args;
 
-                console.log('[App] Creating calendar widget:', { title, description, url });
+                logger.debug('[App] Creating calendar widget:', { title, description, url });
 
                 // Inject widget into transcript
                 setTranscript(prev => [...prev, {
@@ -948,7 +976,7 @@ export const App: React.FC = () => {
         // Fly.io server handles server-side tool execution automatically
         // Tool results will come back via TOOL_RESULT event from LiveClientWS
         if (serverCalls.length > 0) {
-            console.log('[App] Server executing tools:', serverCalls.map(c => c.name).join(', '));
+            logger.debug('[App] Server executing tools:', { tools: serverCalls.map(c => c.name).join(', ') });
         }
 
         return results;
@@ -1053,7 +1081,7 @@ export const App: React.FC = () => {
         // Prevent double instantiation
         if (liveServiceRef.current) {
             console.warn('[App] Disconnecting existing LiveService before creating new one');
-            liveServiceRef.current.disconnect();
+            void liveServiceRef.current.disconnect();
         }
 
         liveServiceRef.current = new GeminiLiveService({
@@ -1092,7 +1120,7 @@ export const App: React.FC = () => {
                 // Wait for session to be ready
                 await new Promise(resolve => setTimeout(resolve, 500));
                 const unifiedSnapshot = unifiedContext.getSnapshot();
-                liveServiceRef.current.sendContext(transcriptRef.current, {
+                void liveServiceRef.current.sendContext(transcriptRef.current, {
                     ...(unifiedSnapshot.location ? { location: unifiedSnapshot.location } : {}),
                     ...(unifiedSnapshot.researchContext ? { research: unifiedSnapshot.researchContext } : {}),
                     ...(unifiedSnapshot.intelligenceContext ? { intelligenceContext: unifiedSnapshot.intelligenceContext } : {})
@@ -1107,7 +1135,7 @@ export const App: React.FC = () => {
     }, [handleVolumeChange, handleTranscript, handleToolCall, userProfile]);
 
     const handleDisconnect = useCallback(() => {
-        liveServiceRef.current?.disconnect();
+        void liveServiceRef.current?.disconnect();
         setActiveRoute({
             id: 'gemini-2.5-flash',
             label: 'READY',
@@ -1148,7 +1176,9 @@ export const App: React.FC = () => {
 
         setVisualState(prev => ({
             ...prev,
+            // isActive stays false for text chat (only true for voice)
             shape: targetShape,
+            mode: 'thinking', // Show thinking mode while processing
             ...(textContentRef.current !== undefined && { textContent: textContentRef.current }),
             ...(weatherDataRef.current !== undefined && { weatherData: weatherDataRef.current }),
             ...(chartDataRef.current !== undefined && { chartData: chartDataRef.current }),
@@ -1280,7 +1310,7 @@ export const App: React.FC = () => {
                 if (!abortControllerRef.current || abortControllerRef.current.signal.aborted) return;
 
                 // Log agent response for debugging
-                console.log('[App] Agent response received:', {
+                logger.debug('[App] Agent response received:', {
                     success: agentResponse.success,
                     agent: agentResponse.agent,
                     hasOutput: !!agentResponse.output,
@@ -1421,22 +1451,65 @@ export const App: React.FC = () => {
 
                 // Trigger agent-specific animation
                 if (agentResponse.agent) {
-                    const agentShape = resolveAgentShape(agentResponse.agent, agentResponse.metadata?.stage as string | undefined);
+                    const agentShape = resolveAgentShape(agentResponse.agent, agentResponse.metadata?.stage);
                     semanticShapeRef.current = agentShape;
                     setVisualState(prev => ({ ...prev, shape: agentShape }));
                 } else if (agentResponse.metadata?.stage) {
-                    const stageShape = resolveAgentShape(null, agentResponse.metadata.stage as string);
+                    const stageShape = resolveAgentShape(null, agentResponse.metadata.stage);
                     semanticShapeRef.current = stageShape;
                     setVisualState(prev => ({ ...prev, shape: stageShape }));
                 }
 
+                // Always include research citations if available (user asked about sources)
+                const researchCitations = researchResultRef.current?.citations;
+                logger.debug('[App] Research citations available:', { count: researchCitations?.length || 0, citations: researchCitations });
+                
+                // Build grounding metadata with citations
+                let enhancedGroundingMetadata: GroundingMetadata | undefined = agentResponse.metadata?.groundingMetadata as GroundingMetadata | undefined;
+                
+                // Add research citations to grounding metadata if they exist
+                if (researchCitations && researchCitations.length > 0) {
+                    // Convert research citations to grounding chunks format for display
+                    const citationChunks = researchCitations.map(cite => ({
+                        web: {
+                            uri: cite.uri,
+                            title: cite.title || cite.uri,
+                            ...(cite.description && { snippet: cite.description })
+                        }
+                    }));
+                    
+                    logger.debug('[App] Adding citations to grounding metadata:', { count: citationChunks.length });
+                    
+                    enhancedGroundingMetadata = {
+                        groundingChunks: [
+                            ...(enhancedGroundingMetadata?.groundingChunks || []),
+                            ...citationChunks
+                        ],
+                        ...(enhancedGroundingMetadata?.webSearchQueries && { webSearchQueries: enhancedGroundingMetadata.webSearchQueries }),
+                        ...(enhancedGroundingMetadata?.searchEntryPoint && { searchEntryPoint: enhancedGroundingMetadata.searchEntryPoint })
+                    };
+                }
+                
+                logger.debug('[App] Final grounding metadata:', {
+                    hasMetadata: !!enhancedGroundingMetadata,
+                    chunksCount: enhancedGroundingMetadata?.groundingChunks?.length || 0,
+                    chunks: enhancedGroundingMetadata?.groundingChunks
+                });
+                
                 setTranscript(prev => prev.map(item =>
                     item.id === loadingId.toString()
                         ? {
                             ...item,
                             text: responseText,
                             ...(agentResponse.metadata?.reasoning && typeof agentResponse.metadata.reasoning === 'string' ? { reasoning: agentResponse.metadata.reasoning } : {}),
-                            ...(agentResponse.metadata?.groundingMetadata && typeof agentResponse.metadata.groundingMetadata === 'object' && agentResponse.metadata.groundingMetadata !== null ? { groundingMetadata: agentResponse.metadata.groundingMetadata as GroundingMetadata } : {}),
+                            // Always set groundingMetadata if we have citations, even if empty structure
+                            ...(enhancedGroundingMetadata ? { 
+                                groundingMetadata: {
+                                    groundingChunks: enhancedGroundingMetadata.groundingChunks || [],
+                                    ...(enhancedGroundingMetadata.webSearchQueries && { webSearchQueries: enhancedGroundingMetadata.webSearchQueries }),
+                                    ...(enhancedGroundingMetadata.searchEntryPoint && { searchEntryPoint: enhancedGroundingMetadata.searchEntryPoint })
+                                } as GroundingMetadata
+                            } : {}),
                             isFinal: true,
                             status: 'complete'
                         }
@@ -1452,7 +1525,7 @@ export const App: React.FC = () => {
                     const toolResults = await handleToolCall(agentResponse.metadata.tools);
                     // Tool results are handled, visual state should already be updated
                     // But ensure agent shape persists if tool doesn't override it
-                    if (agentResponse.agent && !toolResults.some(r => r.name === 'update_dashboard')) {
+                    if (agentResponse.agent && !toolResults.some((r: any) => r.name === 'update_dashboard')) {
                         // Keep agent shape if no dashboard update tool was called
                         const agentShape = resolveAgentShape(agentResponse.agent, agentResponse.metadata?.stage as string | undefined);
                         semanticShapeRef.current = agentShape;
@@ -1469,13 +1542,14 @@ export const App: React.FC = () => {
                         if (semanticShapeRef.current === 'scanner' && (responseText.includes('report') || responseText.includes('summary'))) {
                             // Keep scanner active
                         } else if (!agentResponse.agent) {
-                            semanticShapeRef.current = 'orb';
+                            semanticShapeRef.current = 'wave';
                         }
                     }
                 }
 
                 setVisualState(prev => ({
                     ...prev,
+                    // isActive stays false for text chat (only true for voice)
                     shape: semanticShapeRef.current,
                     ...(textContentRef.current !== undefined && { textContent: textContentRef.current }),
                     ...(weatherDataRef.current !== undefined && { weatherData: weatherDataRef.current }),
@@ -1538,7 +1612,7 @@ export const App: React.FC = () => {
                 if (result) return result;
             }
             if (standardChatRef.current) {
-                console.log("Local AI unavailable, using Cloud Fallback (Flash Lite) for edit.");
+                logger.debug("Local AI unavailable, using Cloud Fallback (Flash Lite) for edit.");
                 return await standardChatRef.current.performQuickAction(text, action);
             }
             return text;
@@ -1572,7 +1646,7 @@ export const App: React.FC = () => {
             {/* LEAD CAPTURE MODAL */}
             {showTerms && (
                 <TermsOverlay
-                    onComplete={handleTermsComplete}
+                    onComplete={(name, email, companyUrl, permissions) => { void handleTermsComplete(name, email, companyUrl, permissions) }}
                     onCancel={() => setShowTerms(false)}
                     isDarkMode={isDarkMode}
                 />
@@ -1638,7 +1712,7 @@ export const App: React.FC = () => {
                                 {/* Single System Status Pill */}
                                 <div className="relative group">
                                     <div className={`flex items-center gap-2 px-3 py-1.5 backdrop-blur-md rounded-full border shadow-sm transition-all duration-300 ${isDarkMode ? 'bg-white/10 border-white/10 hover:bg-white/20' : 'bg-white/30 border-white/30 hover:bg-white/50'}`}>
-                                        <div className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${activeRoute.color} ${connectionState === 'CONNECTED' ? 'animate-pulse' : ''}`} />
+                                        <div className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${activeRoute.color} ${connectionState === LiveConnectionState.CONNECTED ? 'animate-pulse' : ''}`} />
                                         <span className={`text-[10px] font-mono font-medium tracking-[0.2em] uppercase ${isDarkMode ? 'text-white/60' : 'text-black/60'}`}>
                                             {activeRoute.label}
                                         </span>
@@ -1699,10 +1773,10 @@ export const App: React.FC = () => {
                         <MultimodalChat
                             items={transcript}
                             connectionState={connectionState}
-                            onSendMessage={handleSendMessage}
-                            onSendVideoFrame={handleSendVideoFrame}
-                            onConnect={handleConnect}
-                            onDisconnect={handleDisconnect}
+                            onSendMessage={(...args) => void handleSendMessage(...args)}
+                            onSendVideoFrame={(...args) => void handleSendVideoFrame(...args)}
+                            onConnect={() => void handleConnect()}
+                            onDisconnect={() => void handleDisconnect()}
                             isWebcamActive={isWebcamActive}
                             onWebcamChange={setIsWebcamActive}
                             localAiAvailable={localAiCaps.hasModel || !!process.env.API_KEY}
@@ -1712,19 +1786,21 @@ export const App: React.FC = () => {
                             onToggleVisibility={setIsChatVisible}
                             isDarkMode={isDarkMode}
                             onToggleTheme={() => setIsDarkMode(!isDarkMode)}
-                            onGeneratePDF={() => generatePDF({
-                                transcript,
-                                userProfile,
-                                researchContext: researchResultRef.current
-                            })}
+                            onGeneratePDF={() => {
+                                void generatePDF({
+                                    transcript,
+                                    userProfile,
+                                    researchContext: researchResultRef.current
+                                });
+                            }}
                         />
 
                         <div className={`pointer-events-auto ${isChatVisible ? 'hidden md:block' : 'block'}`}>
                             <ControlPanel
                                 connectionState={connectionState}
                                 audioLevel={visualState.audioLevel}
-                                onConnect={handleConnect}
-                                onDisconnect={handleDisconnect}
+                                onConnect={() => void handleConnect()}
+                                onDisconnect={() => void handleDisconnect()}
                             />
                         </div>
                     </div>

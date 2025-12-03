@@ -1,5 +1,6 @@
 import { TranscriptItem } from 'types';
 import { unifiedContext } from './unifiedContext';
+import { logger } from 'src/lib/logger'
 
 interface AIBrainResponse {
     success: boolean;
@@ -110,7 +111,7 @@ export class AIBrainService {
             };
 
             const url = `${this.baseUrl}/api/chat`;
-            console.log('[AIBrainService] Sending request to:', url);
+            logger.debug('[AIBrainService] Sending request to:', { url });
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -215,13 +216,19 @@ export class AIBrainService {
                     const errorJson = JSON.parse(errorText);
                     errorMsg = errorJson.error || errorJson.message || errorMsg;
                     errorDetails = errorJson.details;
+                    console.error('[AIBrainService] Server returned error:', { 
+                        status: response.status, 
+                        message: errorMsg, 
+                        details: errorDetails,
+                        fullError: errorJson
+                    });
                 } catch {
-                    // ignore parse error
+                    console.error('[AIBrainService] Failed to parse error response:', errorText);
                 }
-                console.error('[AIBrainService] Server returned error:', { status: response.status, message: errorMsg, details: errorDetails });
                 return {
                     success: false,
-                    error: errorMsg
+                    error: errorMsg,
+                    ...(errorDetails && { details: errorDetails })
                 };
             }
 

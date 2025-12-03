@@ -6,3 +6,59 @@ build
 coverage
 .vite
 
+# Test files (should have separate lint config or be ignored)
+**/__tests__/**
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+e2e/
+test/
+
+# Archived/disabled code
+api/_archive/**
+api/_admin-disabled/**
+api/_lib/**
+
+# Log files
+logs/**
+
+# Documentation (if being linted)
+docs/**
+*.md
+
+# Build artifacts
+*.min.js
+*.bundle.js
+
+# Temporary/test scripts
+test-websocket.js
+*.local.ts
+*.local.js
+
+# Playwright config
+playwright.config.ts
+
+# Type definitions that might have issues
+*.d.ts
+
+# Legacy UI components (pre-sprint code)
+App.tsx
+components/**/*.tsx
+
+# Legacy services (will be replaced)
+services/geminiLiveService.ts
+services/standardChatService.ts
+services/aiBrainService.ts
+
+# Legacy utilities
+utils/pdfUtils.ts
+utils/audioUtils.ts
+
+# API routes (except core logic)
+api/**/*.ts
+!api/chat.ts
+
+# Legacy lib wrappers
+src/lib/format-messages.ts
+

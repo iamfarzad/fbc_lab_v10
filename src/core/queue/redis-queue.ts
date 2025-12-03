@@ -1,6 +1,7 @@
 import { vercelCache } from 'src/lib/vercel-cache'
 import { Job, JobOptions, JobPriority, JobHandler } from './job-types'
 import { DEFAULT_BASE_RETRY_DELAY, DEFAULT_MAX_ATTEMPTS, calculateBackoffDelay } from 'src/lib/ai/retry-config'
+import { logger } from 'src/lib/logger'
 
 const QUEUE_PREFIX = 'queue'
 
@@ -50,7 +51,7 @@ export class RedisQueue {
       // Store job data (payload is already typed as Record<string, unknown>)
       const jobData: Job<T> = {
         ...job,
-        payload: payload as T,
+        payload: payload,
       }
       await vercelCache.set('queue_job', jobId, jobData, { ttl: 86400 }) // 24h TTL
 
@@ -76,7 +77,7 @@ export class RedisQueue {
       })
       await vercelCache.set('queue_list', queueListKey, queue, { ttl: 86400 })
 
-      console.log(`✅ Job enqueued: ${jobType} (${jobId.substring(0, 8)}...) [priority: ${job.priority}]`)
+      logger.debug(`✅ Job enqueued: ${jobType} (${jobId.substring(0, 8)}...) [priority: ${job.priority}]`)
 
       // For low-load scenarios: Process immediately asynchronously (non-blocking)
       // This avoids needing a separate background processor
@@ -99,7 +100,7 @@ export class RedisQueue {
    */
   registerHandler<T>(jobType: string, handler: JobHandler<T>): void {
     this.handlers.set(jobType, handler as JobHandler)
-    console.log(`✅ Handler registered for job type: ${jobType}`)
+    logger.debug(`✅ Handler registered for job type: ${jobType}`)
   }
 
   /**
@@ -111,11 +112,11 @@ export class RedisQueue {
       // Race condition fix: If handler is missing, it might be because workers are still initializing asynchronously
       // Wait 500ms and try one more time before failing
       if (job.attempts === 0) {
-        console.log(`⚠️ No handler for ${job.type} yet, waiting for initialization...`)
+        logger.debug(`⚠️ No handler for ${job.type} yet, waiting for initialization...`)
         await new Promise(resolve => setTimeout(resolve, 500))
         const retryHandler = this.handlers.get(job.type)
         if (retryHandler) {
-          console.log(`✅ Handler for ${job.type} found after wait`)
+          logger.debug(`✅ Handler for ${job.type} found after wait`)
           // Recursive call with the found handler
           return this.processJob(job)
         }
@@ -130,7 +131,7 @@ export class RedisQueue {
 
       // Job succeeded - remove from queue
       await this.removeJobFromQueue(job.type, job.id)
-      console.log(`✅ Job processed successfully: ${job.type} (${job.id.substring(0, 8)}...)`)
+      logger.debug(`✅ Job processed successfully: ${job.type} (${job.id.substring(0, 8)}...)`)
       return true
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -150,7 +151,7 @@ export class RedisQueue {
       // This is different from retry() in @/lib/code-quality which retries synchronously
       // Queue jobs need to be re-enqueued with a delay, not retried immediately
       const delay = calculateBackoffDelay(job.attempts, QUEUE_BACKOFF_CONFIG)
-      console.log(`🔄 Retrying job ${job.type} (${job.id.substring(0, 8)}...) after ${delay}ms (attempt ${job.attempts}/${job.maxAttempts})`)
+      logger.debug(`🔄 Retrying job ${job.type} (${job.id.substring(0, 8)}...) after ${delay}ms (attempt ${job.attempts}/${job.maxAttempts})`)
 
       // Update job and re-enqueue with delay
       await vercelCache.set('queue_job', job.id, job, { ttl: 86400 })

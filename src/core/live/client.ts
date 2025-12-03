@@ -2,6 +2,7 @@ import { WEBSOCKET_CONFIG } from 'src/config/constants'
 import { calculateBackoffDelay, DEFAULT_BACKOFF_MULTIPLIER } from 'src/lib/ai/retry-config'
 import { safeParseJson } from 'src/lib/json'
 import type { LiveServerEvent, LiveClientEventMap } from 'src/core/live/types'
+import { logger } from 'src/lib/logger'
 type ToolResponse = { functionResponses?: unknown[] }
 
 /**
@@ -53,12 +54,12 @@ export class LiveClientWS {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set())
     const listeners = this.listeners.get(event)
     if (listeners) listeners.add(cb as (...args: unknown[]) => void)
-    console.log('[LIVE_CLIENT] listener added', {
+    logger.debug('[LIVE_CLIENT] listener added', {
       event,
       listenerCount: this.listenerCount(event),
     });
     if (event === 'session_started') {
-      console.log('[LIVE_CLIENT] session_started listener added - checking replay conditions', {
+      logger.debug('[LIVE_CLIENT] session_started listener added - checking replay conditions', {
         sessionActive: this.sessionActive,
         hasCachedPayload: !!this.lastSessionStartedPayload,
         cachedConnectionId: this.lastSessionStartedPayload?.connectionId
@@ -67,7 +68,7 @@ export class LiveClientWS {
     // Replay cached payload if available (even if sessionActive is false, the payload might be from a recent session_started event)
     // This handles the race condition where session_started arrives before listeners are re-added after cleanup
     if (event === 'session_started' && this.lastSessionStartedPayload) {
-      console.log('[LIVE_CLIENT] Replaying cached session_started payload to new listener', {
+      logger.debug('[LIVE_CLIENT] Replaying cached session_started payload to new listener', {
         connectionId: this.lastSessionStartedPayload.connectionId,
         sessionActive: this.sessionActive,
         listenerCount: this.listenerCount(event)
@@ -80,7 +81,7 @@ export class LiveClientWS {
             voiceName?: string
             mock?: boolean
           })
-          console.log('[LIVE_CLIENT] Cached session_started payload replayed successfully')
+          logger.debug('[LIVE_CLIENT] Cached session_started payload replayed successfully')
         } catch (error) {
           console.error('[LIVE_CLIENT] Error replaying cached session_started payload', error)
         }
@@ -91,7 +92,7 @@ export class LiveClientWS {
 
   off<K extends keyof LiveClientEventMap>(event: K, cb: LiveClientEventMap[K]) {
     this.listeners.get(event)?.delete(cb as (...args: unknown[]) => void)
-    console.log('[LIVE_CLIENT] listener removed', {
+    logger.debug('[LIVE_CLIENT] listener removed', {
       event,
       listenerCount: this.listenerCount(event),
     })
@@ -135,7 +136,7 @@ export class LiveClientWS {
 
   private emit<K extends keyof LiveClientEventMap>(event: K, ...args: Parameters<LiveClientEventMap[K]>) {
     const eventListeners = this.listeners.get(event);
-    console.log('[LIVE_CLIENT] emit called', {
+    logger.debug('[LIVE_CLIENT] emit called', {
       event,
       listenerCount: eventListeners?.size ?? 0,
       hasListeners: (eventListeners?.size ?? 0) > 0
@@ -216,7 +217,7 @@ export class LiveClientWS {
       maxDelay: 30000,
       backoffMultiplier: DEFAULT_BACKOFF_MULTIPLIER
     });
-    console.log(`🔌 [LiveClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${this.MAX_RECONNECT_ATTEMPTS})`);
+    logger.debug(`🔌 [LiveClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${this.MAX_RECONNECT_ATTEMPTS})`);
 
     this.reconnectTimerId = setTimeout(() => {
       this.reconnectTimerId = null;
@@ -230,13 +231,13 @@ export class LiveClientWS {
   connect() {
     // Prevent multiple simultaneous connection attempts - check AND set atomically
     if (this.isConnecting) {
-      console.log('🔌 [LiveClient] Connection already in progress, skipping');
+      logger.debug('🔌 [LiveClient] Connection already in progress, skipping');
       return;
     }
 
     // If socket is already open, skip
     if (this.socket?.readyState === WebSocket.OPEN) {
-      console.log('🔌 [LiveClient] Socket already open, skipping connect');
+      logger.debug('🔌 [LiveClient] Socket already open, skipping connect');
       return;
     }
 
@@ -259,7 +260,7 @@ export class LiveClientWS {
         }
       } else {
         // Still connecting within timeout, skip
-        console.log('🔌 [LiveClient] Socket already exists and is connecting, skipping connect');
+        logger.debug('🔌 [LiveClient] Socket already exists and is connecting, skipping connect');
         this.isConnecting = false;
         return
       }
@@ -306,12 +307,12 @@ export class LiveClientWS {
     }, this.CONNECT_TIMEOUT_MS)
 
     const url = WEBSOCKET_CONFIG.URL
-    console.log('🔌 [LiveClient] Connecting to:', url);
+    logger.debug('🔌 [LiveClient] Connecting to:', { url });
     const ws = new WebSocket(url)
     this.socket = ws
 
     ws.onopen = () => {
-      console.log('🔌 [LiveClient] WebSocket opened successfully');
+      logger.debug('🔌 [LiveClient] WebSocket opened successfully');
       this.isConnecting = false;
       this.onOpen();
     }
@@ -346,7 +347,7 @@ export class LiveClientWS {
       } else if (error && typeof error === 'object') {
         // Handle Event objects - try to extract what we can
         // Event objects don't have enumerable properties, so Object.keys() returns []
-        const event = error as Event
+        const event = error
         errorDetails = {
           type: event.type,
           target: (event.target as WebSocket)?.readyState,
@@ -508,7 +509,7 @@ export class LiveClientWS {
       type ParsedMessage = { type: string; payload?: unknown; data?: unknown;[key: string]: unknown }
       const typedParsed = parsed as ParsedMessage
 
-      console.log('[LIVE_CLIENT] WebSocket message received', {
+      logger.debug('[LIVE_CLIENT] WebSocket message received', {
         type: parsed.type,
         hasPayload: Boolean(typedParsed.payload),
         hasData: Boolean(typedParsed.data),
@@ -535,7 +536,7 @@ export class LiveClientWS {
 
       if (parsed.type === 'session_ready') {
         const readyData = (parsed as { type: string; data?: { sessionId?: string; timestamp?: number } })
-        console.log('[LIVE_CLIENT] session_ready event received', {
+        logger.debug('[LIVE_CLIENT] session_ready event received', {
           sessionId: readyData.data?.sessionId,
           timestamp: readyData.data?.timestamp,
           sessionActive: this.sessionActive
@@ -546,7 +547,7 @@ export class LiveClientWS {
             languageCode: this.lastStartOptions?.languageCode,
             voiceName: this.lastStartOptions?.voiceName
           }
-          console.log('[LIVE_CLIENT] Synthesizing session_started from session_ready', fallbackPayload)
+          logger.debug('[LIVE_CLIENT] Synthesizing session_started from session_ready', fallbackPayload)
           this.routeEvent({ type: 'session_started', payload: fallbackPayload } as LiveServerEvent)
         }
         return;
@@ -562,7 +563,7 @@ export class LiveClientWS {
     this.devLog('event', { type: msg.type })
     type MessageWithPayload = { type: string; payload?: unknown }
     const typedMsg = msg as MessageWithPayload
-    console.log('[LIVE_CLIENT] routeEvent called', {
+    logger.debug('[LIVE_CLIENT] routeEvent called', {
       type: msg.type,
       hasPayload: Boolean(typedMsg.payload)
     })
@@ -577,7 +578,7 @@ export class LiveClientWS {
           this.pendingStartOpts = null
           this.lastStartOptions = opts
           const sent = this.send({ type: 'start', payload: opts })
-          console.log('[LIVE_CLIENT] Sent queued start after connected', {
+          logger.debug('[LIVE_CLIENT] Sent queued start after connected', {
             sent,
             connectionId: this.connectionId
           })
@@ -591,7 +592,7 @@ export class LiveClientWS {
         break
       case 'start_ack': {
         if (!msg.payload) return
-        console.log('[LIVE_CLIENT] start_ack received', {
+        logger.debug('[LIVE_CLIENT] start_ack received', {
           connectionId: msg.payload.connectionId,
           pendingStart: Boolean(this.pendingStartOpts),
           lastStartOptions: this.lastStartOptions
@@ -606,7 +607,7 @@ export class LiveClientWS {
         if (!msg.payload) return
         this.sessionActive = true
         this.lastSessionStartedPayload = msg.payload
-        console.log('[LIVE_CLIENT] session_started event received', {
+        logger.debug('[LIVE_CLIENT] session_started event received', {
           connectionId: msg.payload.connectionId,
           languageCode: msg.payload.languageCode,
           voiceName: msg.payload.voiceName
@@ -615,7 +616,7 @@ export class LiveClientWS {
         this.clearStartRetryTimer()
         this.startSendAttempts = 0
         const listenerCount = this.listenerCount('session_started');
-        console.log('[LIVE_CLIENT] Emitting session_started event', {
+        logger.debug('[LIVE_CLIENT] Emitting session_started event', {
           listenerCount,
           hasListeners: listenerCount > 0,
           connectionId: msg.payload.connectionId
@@ -695,7 +696,7 @@ export class LiveClientWS {
 
     // Always queue the start message until we receive 'connected' from server
     if (!this.connectionId) {
-      console.log('🔌 [LiveClient] Queueing start message until server sends connected event');
+      logger.debug('🔌 [LiveClient] Queueing start message until server sends connected event');
       this.pendingStartOpts = startOptions
       this.startSendAttempts = 0
       this.scheduleStartRetry()
@@ -704,7 +705,7 @@ export class LiveClientWS {
 
     // If socket is not open yet, queue it anyway (will be sent when socket opens)
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      console.log('🔌 [LiveClient] Queueing start message until socket is OPEN');
+      logger.debug('🔌 [LiveClient] Queueing start message until socket is OPEN');
       this.pendingStartOpts = startOptions
       this.startSendAttempts = 0
       this.scheduleStartRetry()
@@ -897,7 +898,7 @@ export class LiveClientWS {
         ? (this.heartbeatSuccessCount / (this.heartbeatSuccessCount + this.heartbeatFailureCount)) * 100
         : 100;
 
-      console.log('🔌 [LiveClient] Connection health metrics', {
+      logger.debug('🔌 [LiveClient] Connection health metrics', {
         avgBufferedAmount: Math.round(avgBuffer),
         maxBufferedAmount: maxBuffer,
         currentBufferedAmount: bufferedAmount,
@@ -930,10 +931,10 @@ export class LiveClientWS {
 }
 
 // Backward-compat no-op export (previous prototype-based connect)
-export async function connectLive(): Promise<LiveClientWS> {
+export function connectLive(): Promise<LiveClientWS> {
   const client = new LiveClientWS()
   client.connect()
-  return client
+  return Promise.resolve(client)
 }
 
 // Browser-global singleton to survive HMR/fast refresh in dev and avoid

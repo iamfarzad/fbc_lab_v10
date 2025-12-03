@@ -94,6 +94,37 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item, onPreview, isDarkMode =
                             </div>
                         )}
                     </div>
+
+                    {/* Citations Section */}
+                    {data.citations && data.citations.length > 0 && (
+                        <div className="px-5 py-3 border-t border-slate-100 dark:border-white/5">
+                            <h4 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">Sources</h4>
+                            <div className="space-y-1.5">
+                                {data.citations.slice(0, 5).map((cite: { uri: string; title?: string; description?: string }, idx: number) => (
+                                    <a
+                                        key={idx}
+                                        href={cite.uri}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block text-xs text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors truncate"
+                                        title={cite.uri}
+                                    >
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+                                            </svg>
+                                            <span className="truncate">{cite.title || cite.uri}</span>
+                                        </span>
+                                    </a>
+                                ))}
+                                {data.citations.length > 5 && (
+                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                                        +{data.citations.length - 5} more source{data.citations.length - 5 !== 1 ? 's' : ''}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     
                     {/* Card Footer */}
                     <div className="px-5 py-3 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/5 flex justify-between items-center">
@@ -137,7 +168,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item, onPreview, isDarkMode =
     }
 
     const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
+        void navigator.clipboard.writeText(text);
     };
 
     return (

@@ -1,5 +1,5 @@
 import { kv } from '@vercel/kv';
-import { logger } from './logger.js';
+import { logger } from 'src/lib/logger'
 
 // Cache configuration
 export interface CacheConfig {
@@ -44,7 +44,7 @@ export class VercelCache {
     const kvToken = process.env.FBC_UPSTASH_REDIS_REST_KV_REST_API_TOKEN;
     const hasRequiredEnvVars = kvUrl && kvToken;
 
-    console.log('Vercel KV Debug:', {
+    logger.debug('Vercel KV Debug:', {
       kvUrl: kvUrl ? 'present' : 'missing',
       kvToken: kvToken ? 'present' : 'missing',
       hasRequiredEnvVars,
@@ -191,14 +191,14 @@ export class VercelCache {
   }
 
   // Get cache statistics
-  async getStats(): Promise<{
+  getStats(): Promise<{
     enabled: boolean;
     // Note: Vercel KV doesn't provide detailed stats like Redis
     // We could implement our own stats tracking if needed
   }> {
-    return {
+    return Promise.resolve({
       enabled: this.enabled
-    };
+    });
   }
 }
 
@@ -335,25 +335,27 @@ export function generateISRConfig(revalidate: number = 3600) {
 class MemoryCache {
   private cache = new Map<string, { data: unknown; expiry: number }>();
 
-  async set(key: string, data: unknown, ttlSeconds: number): Promise<void> {
+  set(key: string, data: unknown, ttlSeconds: number): Promise<void> {
     const expiry = Date.now() + (ttlSeconds * 1000);
     this.cache.set(key, { data, expiry });
+    return Promise.resolve();
   }
 
-  async get<T>(key: string): Promise<T | null> {
+  get<T>(key: string): Promise<T | null> {
     const entry = this.cache.get(key);
-    if (!entry) return null;
+    if (!entry) return Promise.resolve(null);
 
     if (Date.now() > entry.expiry) {
       this.cache.delete(key);
-      return null;
+      return Promise.resolve(null);
     }
 
-    return entry.data as T;
+    return Promise.resolve(entry.data as T);
   }
 
-  async delete(key: string): Promise<void> {
+  delete(key: string): Promise<void> {
     this.cache.delete(key);
+    return Promise.resolve();
   }
 }
 

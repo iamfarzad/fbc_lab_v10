@@ -65,7 +65,7 @@ export function createMockChromeAI(caps: {
 }
 
 export function setupChromeAIMock(ai: MockChromeAI) {
-  ;(globalThis as any).window = {
+  (globalThis as any).window = {
     ...globalThis.window,
     ai
   }

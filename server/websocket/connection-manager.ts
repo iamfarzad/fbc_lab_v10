@@ -61,7 +61,7 @@ export function createConnectionManager(): ConnectionManager {
 
       // Disable socket delay to improve performance
       try {
-        ;(req.socket as any)?.setNoDelay?.(true)
+        (req.socket as any)?.setNoDelay?.(true)
       } catch (error) {
         serverLogger.warn('Unable to disable socket delay', {
           connectionId,
@@ -80,7 +80,7 @@ export function createConnectionManager(): ConnectionManager {
       safeSend(ws, connectedMessage)
 
       // Initialize session logger asynchronously to not block message handling
-      Promise.resolve().then(() => {
+      void Promise.resolve().then(() => {
         try {
           const logger = new SessionLogger(connectionId)
           logger.log('connected')
@@ -146,13 +146,17 @@ export function createConnectionManager(): ConnectionManager {
           code,
           reason: reason?.toString?.()
         })
-      } catch {}
+      } catch {
+        // Ignore errors when closing logger
+      }
       try {
         rec?.logger?.close()
-      } catch {}
+      } catch {
+        // Ignore errors when closing logger
+      }
 
       if (rec) {
-        handleClose(
+        void handleClose(
           connectionId,
           {
             get: (id: string) => {
@@ -190,7 +194,9 @@ export function createConnectionManager(): ConnectionManager {
           where: 'websocket',
           message: err instanceof Error ? err.message : String(err)
         })
-      } catch {}
+      } catch {
+        // Ignore errors when sending heartbeat
+      }
       if (heartbeatTimer) {
         clearInterval(heartbeatTimer)
       }
@@ -199,7 +205,7 @@ export function createConnectionManager(): ConnectionManager {
 
       const rec = activeSessions.get(connectionId)
       if (rec) {
-        handleClose(
+        void handleClose(
           connectionId,
           {
             get: (id: string) => {

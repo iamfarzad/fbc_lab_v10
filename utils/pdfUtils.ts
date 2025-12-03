@@ -7,15 +7,15 @@ interface PDFOptions {
     researchContext?: ResearchResult | null;
 }
 
-export const generatePDF = async ({ transcript, userProfile, researchContext }: PDFOptions) => {
-    // @ts-ignore
+export const generatePDF = ({ transcript, userProfile, researchContext }: PDFOptions) => {
+    // @ts-expect-error - jsPDF is loaded dynamically and may not be in window type
     if (!window.jspdf) {
         console.error("jsPDF library not loaded");
         alert("PDF Generator is initializing. Please try again in a moment.");
         return;
     }
 
-    // @ts-ignore
+    // @ts-expect-error - jsPDF is loaded dynamically and may not be in window type
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({
         orientation: 'p',

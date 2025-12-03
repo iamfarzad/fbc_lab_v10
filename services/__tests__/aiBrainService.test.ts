@@ -1,12 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { AIBrainService } from '../aiBrainService'
-import type { AgentResponse } from '../aiBrainService'
 import { createMockFetch, createMockFetchError } from '../../test/helpers/mock-fetch'
 import {
   mockTranscript,
   mockTranscriptWithAttachment,
-  mockAgentResponse,
-  mockAgentResponseWithError
+  mockAgentResponse
 } from '../../test/helpers/test-data'
 
 const ensureImportEnv = () => {

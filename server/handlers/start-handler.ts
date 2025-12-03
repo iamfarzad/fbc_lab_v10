@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws'
 import { serverLogger } from '../utils/env-setup'
-import { safeSend } from '../utils/websocket-helpers'
+import { safeSend, ensureConnectionState } from '../utils/websocket-helpers'
 import { DEBUG_MODE } from '../utils/turn-completion'
 import { connectionStates } from '../rate-limiting/websocket-rate-limiter'
 import { loadConversationHistory } from '../context/conversation-history'
@@ -13,6 +13,7 @@ import { VOICE_CONFIG } from 'src/config/constants'
 import { normalizeSessionId } from 'src/core/session/session-coordinator'
 import type { StartPayload } from '../message-payload-types'
 import type { SessionLogger } from '../session-logger'
+import { logger } from 'src/lib/logger'
 
 // Visual trigger + throttle configuration
 const VISUAL_TRIGGER_WORDS = VOICE_CONFIG.VISUAL_TRIGGERS
@@ -209,7 +210,7 @@ export async function handleStart(
     let session: any
     const connectStartTime = Date.now()
     try {
-      serverLogger.info('Calling ai.live.connect()...', { connectionId, model, configKeys: Object.keys(liveConfig || {}) })
+      serverLogger.info('Calling ai.live.connect()...', { connectionId, model, configKeys: Object.keys((liveConfig || {}) as Record<string, unknown>) })
       session = await Promise.race([
         ai.live.connect({
           model,
@@ -220,8 +221,9 @@ export async function handleStart(
               serverLogger.info('Live API session opened', { connectionId })
               activeSessions.get(connectionId)?.logger?.log('live_open')
             },
-            onmessage: async (message: any) => {
-              try {
+            onmessage: (message: any) => {
+              void (async () => {
+                try {
                 // Log EVERY message from Gemini for comprehensive debugging
                 if (DEBUG_MODE) {
                   serverLogger.debug('GEMINI MESSAGE', { connectionId, message: JSON.stringify(message, null, 2) })
@@ -237,25 +239,22 @@ export async function handleStart(
 
                   // Setup completion confirms readiness - ensure isReady is set
                   // (It should already be true from session_started, but confirm here)
-                  const state = connectionStates.get(connectionId)
-                  const now = Date.now()
+                  const state = ensureConnectionState(connectionId, {
+                    handler: 'handleStart',
+                    phase: 'setup_complete',
+                    additionalContext: {
+                      sessionId: sessionId || 'anonymous',
+                      hasActiveSession: !!activeSessions.get(connectionId)
+                    }
+                  })
                   
-                  if (!state) {
-                    // Defensive: initialize if missing
-                    connectionStates.set(connectionId, {
-                      isReady: true,
-                      lastPing: now,
-                      messageCount: 0,
-                      lastMessageAt: now,
-                      audioCount: 0,
-                      audioLastAt: now
-                    })
-                    serverLogger.warn('ConnectionState missing during setup_complete, initialized', { connectionId })
-                  } else if (!state.isReady) {
+                  if (!state.isReady) {
                     // Should already be true, but ensure it's set
                     state.isReady = true
                     serverLogger.info('Marked session as ready during setup_complete', { connectionId })
                   }
+                  
+                  const now = Date.now()
 
                   // Send session_ready event (already marked ready, but confirm with client)
                   const sessionReadyPayload = JSON.stringify({
@@ -283,7 +282,7 @@ export async function handleStart(
                 if (!serverContent) {
                   // Log what we received if no serverContent
                   if (DEBUG_MODE) {
-                    serverLogger.debug('NO SERVER CONTENT', { connectionId, messageKeys: Object.keys(message || {}) })
+                    serverLogger.debug('NO SERVER CONTENT', { connectionId, messageKeys: Object.keys((message || {}) as Record<string, unknown>) })
                   }
                   return
                 }
@@ -309,7 +308,7 @@ export async function handleStart(
                     partTypes: serverContent.modelTurn.parts?.map((p: any) => ({
                       hasText: !!p.text,
                       hasInlineData: !!p.inlineData,
-                      inlineDataKeys: p.inlineData ? Object.keys(p.inlineData) : []
+                      inlineDataKeys: p.inlineData ? Object.keys(p.inlineData as Record<string, unknown>) : []
                     }))
                   })
                 }
@@ -317,7 +316,7 @@ export async function handleStart(
                 // Transcriptions
                 if (serverContent.inputTranscription) {
                   const text = serverContent.inputTranscription.text
-                  const isFinal = (serverContent.inputTranscription as any).isFinal ?? false
+                  const isFinal = (serverContent.inputTranscription).isFinal ?? false
 
                   // Track latest transcript for persistence on turn_complete
                   const client = activeSessions.get(connectionId)
@@ -353,7 +352,7 @@ export async function handleStart(
                         if (text && text.trim().length > 0) {
                           await multimodalContextManager.addVoiceTranscript(
                             sessionClient.sessionId,
-                            text,
+                            text as string,
                             'user',
                             true
                           )
@@ -416,7 +415,7 @@ export async function handleStart(
                 }
                 if (serverContent.outputTranscription) {
                   const text = serverContent.outputTranscription.text
-                  const isFinal = (serverContent.outputTranscription as any).isFinal ?? false
+                  const isFinal = (serverContent.outputTranscription).isFinal ?? false
 
                   // Track latest transcript for persistence on turn_complete
                   const client = activeSessions.get(connectionId)
@@ -443,7 +442,7 @@ export async function handleStart(
                         if (text && text.trim().length > 0) {
                           await multimodalContextManager.addVoiceTranscript(
                             sessionClient.sessionId,
-                            text,
+                            text as string,
                             'assistant',
                             true
                           )
@@ -501,7 +500,7 @@ export async function handleStart(
                       if (DEBUG_MODE) {
                         serverLogger.debug('MODEL PART - Has inlineData but no data field', {
                           connectionId,
-                          keys: Object.keys(part.inlineData || {})
+                          keys: Object.keys((part.inlineData || {}) as Record<string, unknown>)
                         })
                       }
                     }
@@ -569,6 +568,7 @@ export async function handleStart(
                 serverLogger.error('Live message handler error', err instanceof Error ? err : undefined, { connectionId })
                 activeSessions.get(connectionId)?.logger?.log('error', { where: 'live_onmessage', message: err instanceof Error ? err.message : String(err) })
               }
+            })();
             },
             onerror: (error: any) => {
               const message = error?.message || (error instanceof Error ? error.message : 'Live API error')
@@ -620,12 +620,9 @@ export async function handleStart(
     // Apply compatibility shim for session.start() method
     // Gemini Live API session is already active on connect(), but some code expects a start() method
     if (typeof session.start !== 'function') {
-      session.start = async () => {
+      session.start = () => {
         // No-op. Session is already active on connect.
-        if (!isOpen) {
-          // Wait a microtask to allow onopen to flip in edge cases.
-          await Promise.resolve()
-        }
+        // Removed async/await as it's not needed for a no-op
       }
     }
 
@@ -645,7 +642,9 @@ export async function handleStart(
     // do not proceed. Close the Live session to avoid orphaned sessions and bail.
     if (ws.readyState !== WebSocket.OPEN) {
       serverLogger.warn('Client socket closed before session ready; closing Live session', { connectionId })
-      try { (session as any)?.close?.() } catch { }
+      try { (session)?.close?.() } catch {
+        // Ignore errors when closing session
+      }
       activeSessions.delete(connectionId)
       sessionStarting.delete(connectionId)
       return
@@ -666,27 +665,23 @@ export async function handleStart(
 
     // Set isReady to true BEFORE sending session_started to avoid race condition
     // The session is effectively ready once the Live API connection is established
-    const state = connectionStates.get(connectionId)
-    if (state) {
-      state.isReady = true
-      serverLogger.info('Session marked as ready before session_started event', { connectionId })
-    } else {
-      // Defensive: initialize connectionState if missing
-      const now = Date.now()
-      connectionStates.set(connectionId, {
-        isReady: true,
-        lastPing: now,
-        messageCount: 0,
-        lastMessageAt: now,
-        audioCount: 0,
-        audioLastAt: now
-      })
-      serverLogger.warn('ConnectionState was missing during session start, initialized', { connectionId })
-    }
+    const state = ensureConnectionState(connectionId, {
+      handler: 'handleStart',
+      phase: 'session_started',
+      additionalContext: {
+        sessionId: sessionId || 'anonymous',
+        model,
+        hasActiveSession: !!activeSessions.get(connectionId),
+        isOpen
+      }
+    })
+    
+    state.isReady = true
+    serverLogger.info('Session marked as ready before session_started event', { connectionId })
 
     // Send session started message to client
     const sessionStartedPayload = JSON.stringify({ type: MESSAGE_TYPES.SESSION_STARTED, payload: { connectionId, languageCode: lang, voiceName } })
-    console.log('[SERVER] Sending session_started event', {
+    logger.debug('[SERVER] Sending session_started event', {
       connectionId,
       languageCode: lang,
       voiceName,

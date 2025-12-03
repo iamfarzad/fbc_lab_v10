@@ -9,7 +9,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
  * Note: Vercel supports WebSockets in serverless functions
  * This endpoint will upgrade HTTP to WebSocket and proxy to Gemini Live API
  */
-export default async function handler(
+export default function handler(
     req: VercelRequest,
     res: VercelResponse
 ) {

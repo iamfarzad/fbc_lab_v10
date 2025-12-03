@@ -1,6 +1,6 @@
 import { routeToAgent, getCurrentStage } from '../orchestrator'
 import type { AgentContext, ChatMessage } from '../types'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 
 // Mock API key before any imports that need it
 process.env.GEMINI_API_KEY = 'test-api-key'

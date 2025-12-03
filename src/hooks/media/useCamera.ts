@@ -10,8 +10,9 @@ import { toast } from 'sonner'
 import { blobToBase64 } from 'src/lib/utils'
 import { getLiveClientSingleton } from 'src/core/live/client'
 import { WEBSOCKET_CONFIG, RATE_LIMITS } from 'src/config/constants'
-import type { MediaAnalysisResult, LiveClient } from 'src/types/media-analysis'
+import type { LiveClient } from 'src/types/media-analysis'
 import { parseJsonResponse } from 'src/lib/json'
+import { logger } from 'src/lib/logger'
 
 export interface UseCameraOptions {
   onCapture?: (blob: Blob, imageData?: string) => void
@@ -157,7 +158,7 @@ export function useCamera(options: UseCameraOptions = {}) {
 
   const startCamera = useCallback(async (deviceId?: string, facingOverride?: 'user' | 'environment') => {
     if (isInitializing) {
-      console.log('Camera initialization already in progress')
+      logger.debug('Camera initialization already in progress')
       return
     }
 
@@ -184,9 +185,9 @@ export function useCamera(options: UseCameraOptions = {}) {
         audio: false,
       }
 
-      console.log('📷 [useCamera] Requesting getUserMedia with constraints:', constraints)
+      logger.debug('📷 [useCamera] Requesting getUserMedia with constraints:', constraints)
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-      console.log('📷 [useCamera] getUserMedia success, stream tracks:', mediaStream.getTracks().length)
+      logger.debug('📷 [useCamera] getUserMedia success, stream tracks:', { tracks: mediaStream.getTracks().length })
       
       const videoTrack = mediaStream.getVideoTracks()[0]
       if (!videoTrack) {
@@ -212,7 +213,7 @@ export function useCamera(options: UseCameraOptions = {}) {
       }
 
       videoTrack.addEventListener('ended', () => {
-        console.log('Camera track ended')
+        logger.debug('Camera track ended')
         stopCamera()
       })
 
@@ -220,7 +221,7 @@ export function useCamera(options: UseCameraOptions = {}) {
       setStream(mediaStream)
       setIsActive(true)
       setIsInitializing(false)
-      console.log('📷 [useCamera] Camera started successfully')
+      logger.debug('📷 [useCamera] Camera started successfully')
 
       if (!videoRef.current) {
         try {
@@ -250,16 +251,16 @@ export function useCamera(options: UseCameraOptions = {}) {
   }, [enumerateDevices, isInitializing, stopCamera])
 
   const toggleCamera = useCallback(async () => {
-    console.log('📷 [useCamera] toggleCamera called', { isActive, currentDeviceId, isInitializing })
+    logger.debug('📷 [useCamera] toggleCamera called', { isActive, currentDeviceId, isInitializing })
     if (isInitializing) {
-      console.log('📷 [useCamera] Initialization in progress, ignoring toggle request.')
+      logger.debug('📷 [useCamera] Initialization in progress, ignoring toggle request.')
       return
     }
     if (isActive) {
-      console.log('📷 [useCamera] Camera is active, stopping...')
+      logger.debug('📷 [useCamera] Camera is active, stopping...')
       stopCamera()
     } else {
-      console.log('📷 [useCamera] Camera is inactive, starting...')
+      logger.debug('📷 [useCamera] Camera is inactive, starting...')
       await startCamera(currentDeviceId)
     }
   }, [isActive, currentDeviceId, isInitializing, startCamera, stopCamera])
@@ -307,13 +308,13 @@ export function useCamera(options: UseCameraOptions = {}) {
       })
 
       const { routeImageAnalysis } = await import('src/lib/services/router-helpers')
-      const { response } = await routeImageAnalysis(imageBase64, {
+      const { response } = routeImageAnalysis(imageBase64, {
         modality: 'webcam',
         previousRoute: 'webcam',
         sessionId
       })
 
-      const data = response as MediaAnalysisResult
+      const data = response
       const analysis = data?.analysis
       const normalized =
         typeof analysis === 'string'
@@ -325,18 +326,18 @@ export function useCamera(options: UseCameraOptions = {}) {
     } catch (err) {
       console.error('Router-based webcam analysis failed, falling back to direct call', err)
       try {
-        const formData = new FormData()
-        formData.append('webcamCapture', blob, `webcam-${Date.now()}.jpg`)
-
         const response = await fetch('/api/tools/webcam', {
-          method: 'POST',
-          headers: {
-            'x-intelligence-session-id': sessionId,
-            ...(voiceConnectionId ? { 'x-voice-connection-id': voiceConnectionId } : {}),
-          },
-          body: formData,
-        })
-
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: _imageData,
+          prompt: 'Analyze this webcam frame for sales context (facial expressions, environment, engagement).',
+          sessionId,
+          voiceConnectionId
+        }),
+      })
         if (response.ok) {
           const raw = await parseJsonResponse<unknown>(response, null)
           if (raw && typeof raw === 'object') {
@@ -465,7 +466,7 @@ export function useCamera(options: UseCameraOptions = {}) {
           
           // Send to Live API
           sendRealtimeInputRef.current([frame])
-          console.log('📹 Webcam frame streamed to Live API', {
+          logger.debug('📹 Webcam frame streamed to Live API', {
               bufferedAmount,
               quality: currentQualityRef.current,
               size: base64Data.length
@@ -503,7 +504,7 @@ export function useCamera(options: UseCameraOptions = {}) {
         }
       }
 
-      console.log('📷 Camera capture:', {
+      logger.debug('📷 Camera capture:', {
         dimensions: `${capture.metadata?.width ?? 0}x${capture.metadata?.height ?? 0}`,
         blobSize: `${Math.round(capture.blob.size / 1024)}KB`,
         deviceId: capture.metadata?.deviceId ?? 'unknown',
@@ -551,7 +552,7 @@ export function useCamera(options: UseCameraOptions = {}) {
         if (frame && sendRealtimeInputRef.current) {
           try {
             sendRealtimeInputRef.current([frame])
-            console.log('📹 Processed queued frame', {
+            logger.debug('📹 Processed queued frame', {
               bufferedAmount,
               remainingQueue: frameQueueRef.current.length
             })
@@ -593,7 +594,7 @@ export function useCamera(options: UseCameraOptions = {}) {
       isStreamingActiveRef.current = true
       
       const STREAM_INTERVAL = RATE_LIMITS.WEBCAM_STREAM_INTERVAL
-      console.log(`Starting webcam streaming at ${1000 / STREAM_INTERVAL} FPS (every ${STREAM_INTERVAL}ms)`)
+      logger.debug(`Starting webcam streaming at ${1000 / STREAM_INTERVAL} FPS (every ${STREAM_INTERVAL}ms)`)
 
       const startDelay = setTimeout(() => {
         if (!autoCaptureTimerRef.current && isStreamingActiveRef.current) {
@@ -607,7 +608,7 @@ export function useCamera(options: UseCameraOptions = {}) {
         clearTimeout(startDelay)
       }
     } else if (shouldCapture && !autoCaptureTimerRef.current && !isStreamingActiveRef.current) {
-      console.log(`Starting auto-capture every ${captureInterval}ms`)
+      logger.debug(`Starting auto-capture every ${captureInterval}ms`)
       
       const startDelay = setTimeout(() => {
         if (!autoCaptureTimerRef.current) {

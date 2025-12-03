@@ -81,7 +81,7 @@ The AI is following all the rules correctly:
 
 1. **Could mention reading `.cursorrules`** - But not critical since it's following them
 2. **Could explicitly say "I read PROJECT_STATUS.md"** - But it did check it
-3. **Could reference `NEXT_STEPS.md`** - But it provided the same info
+3. **Could reference `docs/NEXT_STEPS.md`** - But it provided the same info
 
 **These are minor - the AI is doing everything correctly!**
 

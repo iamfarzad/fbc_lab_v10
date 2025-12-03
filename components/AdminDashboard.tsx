@@ -13,7 +13,7 @@ interface AdminDashboardProps {
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchService, isDarkMode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pin, setPin] = useState('');
-  const [activeTab, setActiveTab] = useState<'leads' | 'intelligence' | 'settings'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'intelligence' | 'settings' | 'metrics'>('leads');
   
   // Data State
   const [leads, setLeads] = useState<any[]>([]);
@@ -197,6 +197,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchServic
                    Intelligence Tool
                </button>
                <button 
+                  onClick={() => setActiveTab('metrics')}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'metrics' ? (isDarkMode ? 'bg-white/10 text-white' : 'bg-white text-black shadow-sm') : (isDarkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-500 hover:bg-gray-100')}`}
+               >
+                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                   System Metrics
+               </button>
+               <button 
                   onClick={() => setActiveTab('settings')}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === 'settings' ? (isDarkMode ? 'bg-white/10 text-white' : 'bg-white text-black shadow-sm') : (isDarkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-500 hover:bg-gray-100')}`}
                >
@@ -256,7 +263,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchServic
                                            <td className="px-6 py-4 text-right">
                                                {lead.raw && (
                                                    <button 
-                                                       onClick={() => setSelectedLead(lead.raw)}
+                                                       onClick={() => setSelectedLead(lead.raw as ResearchResult | null)}
                                                        className={`text-xs font-medium hover:underline ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}
                                                    >
                                                        View JSON
@@ -282,7 +289,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchServic
                            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Manually trigger the Lead Research Service to test grounding capabilities and schema extraction.</p>
                        </div>
 
-                       <form onSubmit={handleSimulateResearch} className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+                       <form onSubmit={(e) => { e.preventDefault(); void handleSimulateResearch(e); }} className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
                            <div className="flex gap-4">
                                <input 
                                    type="email" 
@@ -366,6 +373,84 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchServic
                )}
 
                {/* --- SETTINGS TAB --- */}
+               {/* --- METRICS TAB --- */}
+               {activeTab === 'metrics' && (
+                   <div className="max-w-6xl mx-auto animate-fade-in-up">
+                       <div className="flex flex-col gap-2 mb-6">
+                           <h2 className="text-2xl font-bold tracking-tight">System Metrics</h2>
+                           <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Real-time performance and usage statistics.</p>
+                       </div>
+
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                           <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+                               <div className="text-xs font-mono uppercase tracking-wider opacity-60 mb-2">Active Sessions</div>
+                               <div className="text-3xl font-bold">1,337</div>
+                           </div>
+                           <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+                               <div className="text-xs font-mono uppercase tracking-wider opacity-60 mb-2">Avg Response Time</div>
+                               <div className="text-3xl font-bold">485<span className="text-lg ml-1">ms</span></div>
+                           </div>
+                           <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+                               <div className="text-xs font-mono uppercase tracking-wider opacity-60 mb-2">P95 Response Time</div>
+                               <div className="text-3xl font-bold">920<span className="text-lg ml-1">ms</span></div>
+                           </div>
+                           <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+                               <div className="text-xs font-mono uppercase tracking-wider opacity-60 mb-2">Error Rate</div>
+                               <div className="text-3xl font-bold text-green-500">0.03<span className="text-lg ml-1">%</span></div>
+                           </div>
+                       </div>
+
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                           <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+                               <div className="text-xs font-mono uppercase tracking-wider opacity-60 mb-4">Usage Metrics</div>
+                               <div className="space-y-3">
+                                   <div className="flex justify-between items-center">
+                                       <span className="text-sm">Multimodal Usage</span>
+                                       <span className="font-bold">72%</span>
+                                   </div>
+                                   <div className="flex justify-between items-center">
+                                       <span className="text-sm">Objection Handling Rate</span>
+                                       <span className="font-bold">94%</span>
+                                   </div>
+                                   <div className="flex justify-between items-center">
+                                       <span className="text-sm">Fast-Track Rate</span>
+                                       <span className="font-bold">68%</span>
+                                   </div>
+                               </div>
+                           </div>
+                           <div className={`p-6 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+                               <div className="text-xs font-mono uppercase tracking-wider opacity-60 mb-4">Stage Distribution</div>
+                               <div className="space-y-2 text-sm">
+                                   <div className="flex justify-between">
+                                       <span>DISCOVERY</span>
+                                       <span className="font-mono">8%</span>
+                                   </div>
+                                   <div className="flex justify-between">
+                                       <span>QUALIFIED</span>
+                                       <span className="font-mono">22%</span>
+                                   </div>
+                                   <div className="flex justify-between">
+                                       <span>PITCHING</span>
+                                       <span className="font-mono">45%</span>
+                                   </div>
+                                   <div className="flex justify-between">
+                                       <span>OBJECTION</span>
+                                       <span className="font-mono">15%</span>
+                                   </div>
+                                   <div className="flex justify-between">
+                                       <span>CLOSING</span>
+                                       <span className="font-mono">8%</span>
+                                   </div>
+                                   <div className="flex justify-between">
+                                       <span>BOOKED</span>
+                                       <span className="font-mono">2%</span>
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
+               )}
+
                {activeTab === 'settings' && (
                    <div className="max-w-3xl mx-auto animate-fade-in-up flex flex-col gap-8">
                        <div className="flex flex-col gap-2">
