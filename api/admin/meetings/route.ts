@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         return Response.json({ error: 'Failed to fetch meetings' }, { status: 500 })
       }
 
-      participantCountByMeeting = (participantsRaw || []).reduce<Record<string, number>>((acc, participant) => {
+      participantCountByMeeting = (participantsRaw || []).reduce<Record<string, number>>((acc: Record<string, number>, participant: { meeting_id?: string | null }) => {
         const meetingId = participant?.meeting_id
         if (typeof meetingId === 'string' && meetingId.length > 0) {
           acc[meetingId] = (acc[meetingId] ?? 0) + 1
