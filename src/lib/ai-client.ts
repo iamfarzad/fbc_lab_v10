@@ -14,6 +14,11 @@ let googleProvider: GoogleGenerativeAIProvider | null = null
 const ensureGeminiConfigured = () => {
   if (!isGeminiConfigured) {
     const apiKey = getResolvedGeminiApiKey()
+    if (!apiKey) {
+      // Return a mock provider that will throw when actually used
+      // This allows the app to load but will error when trying to use AI features
+      throw new Error('Gemini API key not configured. Please set GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY environment variable.')
+    }
     googleProvider = createGoogleGenerativeAI({ apiKey })
     isGeminiConfigured = true
   }
@@ -21,19 +26,34 @@ const ensureGeminiConfigured = () => {
 }
 
 // Create a callable wrapper that uses the provider with resolved API key
+// Make it lazy - don't call ensureGeminiConfigured at module load time
 const googleWrapper = ((modelId: string, settings?: unknown) => {
   const provider = ensureGeminiConfigured()
   // Cast to any to bypass strict type check if the installed SDK version doesn't explicitly support settings yet
   return (provider as any)(modelId, settings)
 }) as GoogleGenerativeAIProvider
 
-// Copy all provider methods and properties
-Object.assign(googleWrapper, ensureGeminiConfigured())
+// Lazy initialization - only copy properties when first accessed
+// This prevents errors at module load time if API key is missing
+let propertiesCopied = false
+const ensurePropertiesCopied = () => {
+  if (!propertiesCopied) {
+    try {
+      const provider = ensureGeminiConfigured()
+      Object.assign(googleWrapper, provider)
+      propertiesCopied = true
+    } catch (error) {
+      // If API key is missing, properties will be copied when first used (which will throw then)
+      // This allows the app to load
+    }
+  }
+}
 
 // Export as any to allow passing settings which might not be in the official type yet
 export const google: any = googleWrapper
 
 export const generateText: typeof baseGenerateText = async (options) => {
+  ensurePropertiesCopied()
   ensureGeminiConfigured()
   // Pass through options directly - the AI SDK and our model configuration will handle specific parameters
   // if they are part of the standard options or model-specific settings.
@@ -41,26 +61,31 @@ export const generateText: typeof baseGenerateText = async (options) => {
 }
 
 export const streamText: typeof baseStreamText = (...args) => {
+  ensurePropertiesCopied()
   ensureGeminiConfigured()
   return baseStreamText(...args)
 }
 
 export const generateObject: typeof baseGenerateObject = async (...args) => {
+  ensurePropertiesCopied()
   ensureGeminiConfigured()
   return baseGenerateObject(...args)
 }
 
 export const createRetryableGemini = () => {
+  ensurePropertiesCopied()
   ensureGeminiConfigured()
   return baseCreateRetryableGemini()
 }
 
 export const createRetryableGeminiStream = () => {
+  ensurePropertiesCopied()
   ensureGeminiConfigured()
   return baseCreateRetryableGeminiStream()
 }
 
 export const createRetryableGeminiReliable = () => {
+  ensurePropertiesCopied()
   ensureGeminiConfigured()
   return baseCreateRetryableGeminiReliable()
 }

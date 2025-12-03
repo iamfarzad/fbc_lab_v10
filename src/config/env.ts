@@ -20,9 +20,18 @@ export function getResolvedGeminiApiKey(): string {
     process.env.GOOGLE_GEMINI_API_KEY ||
     process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
     process.env.GOOGLE_API_KEY ||
+    process.env.API_KEY ||
     ''
 
+  // Don't throw at module load - return empty string and let callers handle it
+  // This allows the app to load and show proper error messages
   if (!key) {
+    if (typeof window !== 'undefined') {
+      // Browser: log warning but don't crash
+      console.warn('Missing Google Generative AI API key (set GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY). Some features may not work.')
+      return ''
+    }
+    // Server: throw error (should have API key configured)
     throw new Error('Missing Google Generative AI API key (set GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY)')
   }
 
