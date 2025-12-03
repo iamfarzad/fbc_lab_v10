@@ -173,10 +173,10 @@ export class StandardChatService {
             }
 
             // Determine if Tools are supported by the model
-            const isFlashModel = activeModel.includes('flash') || activeModel.includes('2.5-flash') || activeModel.includes('2.0-flash');
+            const isFlashModel = activeModel.includes('flash') || activeModel.includes(GEMINI_MODELS.FLASH_2025_09) || activeModel.includes('2.0-flash');
 
             // Pro models that support tools (but NOT preview versions which may be unstable)
-            const isProModel = (activeModel.includes('3-pro') || activeModel.includes('gemini-3-pro')) && !isFlashModel;
+            const isProModel = (activeModel.includes('3-pro') || activeModel.includes(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW)) && !isFlashModel;
 
             // Enable tools for Pro models (will catch API errors if not supported)
             supportsTools = isProModel;

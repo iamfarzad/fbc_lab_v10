@@ -1,5 +1,6 @@
 import { generateText, type GenerateTextResult } from 'ai';
 import { google } from 'src/lib/ai-client';
+import { GEMINI_MODELS } from 'src/config/constants';
 
 export async function safeGenerateText(params: {
   system: string;
@@ -12,7 +13,7 @@ export async function safeGenerateText(params: {
 
   try {
     return await generateText({
-      model: google('gemini-3-pro-preview'),
+      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
       system,
       messages: messages.slice(-20),
       temperature,
@@ -24,7 +25,7 @@ export async function safeGenerateText(params: {
 
     // Flash is cheaper, faster, and almost as good for sales
     return await generateText({
-      model: google('gemini-2.5-flash'),
+      model: google(GEMINI_MODELS.DEFAULT_RELIABLE),
       system: system.slice(0, 1500), // Flash has smaller context
       messages: messages.slice(-15),
       temperature: temperature + 0.1, // slightly more creative

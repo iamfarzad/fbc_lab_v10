@@ -62,8 +62,8 @@ class Particle {
         width: w,
         height: h,
         time,
-        audio: smoothedAudio,
-        rawAudio: visualState.audioLevel,
+        audio: smoothedAudio, // Smoothed audio for general reactivity
+        rawAudio: Math.max(visualState.audioLevel || 0, 0), // Raw instantaneous audio (clamped to 0+)
         mouse: { x: mouseX, y: mouseY },
         p: { x: this.x, y: this.y, baseAlpha: this.baseAlpha },
         visualState,
@@ -105,9 +105,22 @@ class Particle {
         this.vy -= Math.cos(angle) * orbitSpeed * dist * 0.02;
     }
 
-    // Noise
-    this.vx += (Math.random() - 0.5) * noise;
-    this.vy += (Math.random() - 0.5) * noise;
+    // Reasoning complexity affects particle behavior
+    // Higher complexity = more chaotic movement (higher noise, lower friction)
+    const reasoningComplexity = visualState.reasoningComplexity || 0;
+    let adjustedNoise = noise;
+    let adjustedFriction = friction;
+    
+    if (reasoningComplexity > 0) {
+        // Increase noise based on complexity (more complex = more random movement)
+        adjustedNoise = noise * (1 + reasoningComplexity * 0.5);
+        // Decrease friction slightly (particles move more freely)
+        adjustedFriction = friction * (1 - reasoningComplexity * 0.2);
+    }
+    
+    // Apply noise
+    this.vx += (Math.random() - 0.5) * adjustedNoise;
+    this.vy += (Math.random() - 0.5) * adjustedNoise;
 
     // Mouse Repulsion
     if (mouseX >= 0 && mouseY >= 0) {
@@ -138,8 +151,8 @@ class Particle {
     // Integration
     this.x += this.vx;
     this.y += this.vy;
-    this.vx *= friction;
-    this.vy *= friction;
+    this.vx *= adjustedFriction;
+    this.vy *= adjustedFriction;
   }
 
   draw(ctx: CanvasRenderingContext2D, isDarkMode: boolean) {
@@ -204,7 +217,12 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
 
     const initParticles = () => {
         particlesRef.current = [];
-        const count = 4000; 
+        const baseCount = 4000;
+        // Increase particle count based on citation count (more citations = more particles)
+        const citationCount = visualStateRef.current.citationCount || 0;
+        const citationMultiplier = 1 + (citationCount * 0.1); // 10% more particles per citation, max ~2x
+        const count = Math.floor(baseCount * Math.min(citationMultiplier, 2.0));
+        
         for (let i = 0; i < count; i++) {
             particlesRef.current.push(new Particle(canvas.width, canvas.height, i, count));
         }
@@ -288,6 +306,40 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
           ctx.stroke();
       }
 
+      // Research Mode Visualization (when research is active)
+      if (currentState.researchActive && currentState.shape === 'scanner') {
+          // Draw scanning lines effect
+          const scanSpeed = time * 0.003;
+          const scanY = (cy - canvas.height * 0.3) + (Math.sin(scanSpeed) * canvas.height * 0.6);
+          
+          ctx.beginPath();
+          ctx.strokeStyle = darkMode ? 'rgba(255, 165, 0, 0.3)' : 'rgba(255, 140, 0, 0.4)';
+          ctx.lineWidth = 2;
+          ctx.moveTo(0, scanY);
+          ctx.lineTo(canvas.width, scanY);
+          ctx.stroke();
+          
+          // Draw pulsing circles at citation points
+          const citationCount = currentState.citationCount || 0;
+          if (citationCount > 0) {
+              const angleStep = (Math.PI * 2) / citationCount;
+              for (let i = 0; i < citationCount; i++) {
+                  const angle = angleStep * i + scanSpeed;
+                  const radius = 80 + Math.sin(time * 0.002 + i) * 20;
+                  const px = cx + Math.cos(angle) * radius;
+                  const py = cy + Math.sin(angle) * radius;
+                  
+                  const pulse = 0.5 + Math.sin(time * 0.005 + i) * 0.5;
+                  ctx.beginPath();
+                  ctx.fillStyle = darkMode 
+                      ? `rgba(255, 165, 0, ${0.2 * pulse})` 
+                      : `rgba(255, 140, 0, ${0.3 * pulse})`;
+                  ctx.arc(px, py, 3 + pulse * 2, 0, Math.PI * 2);
+                  ctx.fill();
+              }
+          }
+      }
+
       particlesRef.current.forEach(p => {
         p.update(
             canvas.width, 
@@ -367,6 +419,47 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
                     <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-white/80' : 'text-black/80'}`}>{visualState.mapData.title}</h3>
                     <div className={`text-[10px] font-mono tracking-[0.2em] mt-1 uppercase ${isDarkMode ? 'text-white/40' : 'text-black/40'}`}>
                         Location Pinned
+                    </div>
+                </div>
+            )}
+
+            {/* Source Badge Overlay - Shows citation/source count */}
+            {visualState.sourceCount !== undefined && visualState.sourceCount > 0 && (
+                <div className="absolute top-6 right-6 animate-fade-in-up">
+                    <div className={`flex items-center gap-2 backdrop-blur-md px-3 py-1.5 rounded-full border shadow-lg ${isDarkMode ? 'bg-black/60 border-orange-500/30 text-orange-400' : 'bg-white/80 border-orange-300 text-orange-700'}`}>
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                        <span className="text-xs font-semibold">{visualState.sourceCount}</span>
+                        <span className="text-[10px] opacity-70">{visualState.sourceCount === 1 ? 'source' : 'sources'}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Research Mode Badge - Shows when research is active */}
+            {visualState.researchActive && (
+                <div className="absolute top-6 left-6 animate-fade-in-up">
+                    <div className={`flex items-center gap-2 backdrop-blur-md px-3 py-1.5 rounded-full border shadow-lg ${isDarkMode ? 'bg-black/60 border-blue-500/30 text-blue-400' : 'bg-white/80 border-blue-300 text-blue-700'}`}>
+                        <svg className="w-3.5 h-3.5 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <span className="text-xs font-semibold">Research</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Reasoning Complexity Indicator - Subtle visual feedback */}
+            {visualState.reasoningComplexity !== undefined && visualState.reasoningComplexity > 0.3 && (
+                <div className="absolute bottom-6 right-6 animate-fade-in-up">
+                    <div className={`flex items-center gap-2 backdrop-blur-md px-3 py-1.5 rounded-full border shadow-lg ${isDarkMode ? 'bg-black/60 border-purple-500/30 text-purple-400' : 'bg-white/80 border-purple-300 text-purple-700'}`}>
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                        <span className="text-xs font-semibold">
+                            {visualState.reasoningComplexity < 0.5 ? 'Thinking' : visualState.reasoningComplexity < 0.8 ? 'Deep Analysis' : 'Complex Reasoning'}
+                        </span>
                     </div>
                 </div>
             )}

@@ -8,7 +8,7 @@ import { GEMINI_MODELS } from 'src/config/constants'
 import { isRecord, getString, getRecord } from 'src/lib/guards'
 
 export const MODELS = [
-  { id: GEMINI_MODELS.FLASH_LATEST || 'gemini-2.0-flash-exp', name: 'Gemini 2.5 Flash' },
+  { id: GEMINI_MODELS.FLASH_LATEST || GEMINI_MODELS.FLASH_2025_09, name: 'Gemini 2.5 Flash' },
   { id: 'gpt-4o', name: 'GPT-4o' },
   { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet' },
 ] as const

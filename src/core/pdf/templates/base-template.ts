@@ -3,7 +3,7 @@ import type { SummaryData, Mode } from '../utils/types'
 import { formatDate, escapeHtml, shortenText } from '../utils/formatting'
 import { generateProposalSection } from './proposal-template'
 import { generateSummarySections } from './summary-template'
-import { isValidROIData } from '../renderers/chart-renderer'
+import { generateROIChartsHTML, isValidROIData } from 'src/core/pdf-roi-charts'
 import { extractConversationInsights } from '../utils/insights'
 import { buildConversationPairs } from '../utils/conversation'
 
@@ -17,7 +17,7 @@ function translateText(text: string) {
 /**
  * Generate base HTML template with all sections
  */
-export function generateHtmlContent(summaryData: SummaryData, _mode: Mode, language: string): string {
+export async function generateHtmlContent(summaryData: SummaryData, _mode: Mode, language: string): Promise<string> {
   const leadName = summaryData.leadInfo.name || 'Valued Client'
   const leadCompany = summaryData.leadInfo.company || ''
   const leadRole = summaryData.leadInfo.role || ''
@@ -112,14 +112,20 @@ export function generateHtmlContent(summaryData: SummaryData, _mode: Mode, langu
     : ''
 
   // Detect and generate ROI charts section
-  // Note: generateROIChartsHTML is async but this function is sync
-  // For now, use placeholder - async generation should be handled at call site
+  // Note: generateROIChartsHTML is async but this function is now async too
   const roiArtifact = summaryData.artifactInsights?.find(
     a => a.type === 'Cost-Benefit Analysis' && a.payload && isValidROIData(a.payload)
   )
-  const roiSection: string = roiArtifact && isValidROIData(roiArtifact.payload!)
-    ? '<div>ROI Charts Placeholder</div>' // TODO: Handle async generateROIChartsHTML at call site
-    : ''
+  
+  let roiSection = ''
+  if (roiArtifact && isValidROIData(roiArtifact.payload!)) {
+    try {
+      roiSection = await generateROIChartsHTML(roiArtifact.payload)
+    } catch (error) {
+      console.error('Failed to generate ROI charts HTML:', error)
+      roiSection = '<div>ROI Charts Generation Failed</div>'
+    }
+  }
 
   const insights = extractConversationInsights(conversationPairs)
   const hasInsights = insights.recommendations.length > 0 || 

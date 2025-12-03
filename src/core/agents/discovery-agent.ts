@@ -7,6 +7,7 @@ import { GEMINI_MODELS } from 'src/config/constants'
 import { PHRASE_BANK } from 'src/core/chat/conversation-phrases'
 import { extractCompanySize, extractBudgetSignals, extractTimelineUrgency } from './utils'
 import { analyzeUrl } from 'src/core/intelligence/url-context-tool'
+import { extractGeminiMetadata } from 'src/lib/extract-gemini-metadata'
 
 /**
  * Discovery Agent - Systematically qualifies leads through conversation
@@ -238,6 +239,7 @@ ${conversationFlow?.shouldOfferRecap
 
   let result
   let generatedText = ''
+  let extractedMetadata: { groundingMetadata?: any; reasoning?: string } = {}
 
   try {
     result = await safeGenerateText({
@@ -247,6 +249,9 @@ ${conversationFlow?.shouldOfferRecap
     })
 
     generatedText = result.text || ''
+    
+    // Extract metadata (groundingMetadata, reasoning) from response
+    extractedMetadata = extractGeminiMetadata(result)
 
     // If empty, use fallback
     if (!generatedText || generatedText.trim() === '') {
@@ -340,7 +345,10 @@ ${conversationFlow?.shouldOfferRecap
       ...((multimodalContext?.hasRecentImages || multimodalContext?.hasRecentAudio) && {
         multimodalUsed: multimodalContext?.hasRecentImages || multimodalContext?.hasRecentAudio
       }),
-      enhancedConversationFlow: enhancedFlow // NEW
+      enhancedConversationFlow: enhancedFlow, // NEW
+      // Pass through extracted metadata
+      ...(extractedMetadata.reasoning && { reasoning: extractedMetadata.reasoning }),
+      ...(extractedMetadata.groundingMetadata && { groundingMetadata: extractedMetadata.groundingMetadata })
     }
   }
 }

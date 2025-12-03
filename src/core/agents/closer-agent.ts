@@ -1,9 +1,11 @@
-// src/core/agents/closer-agent.ts — FINAL UPGRADED VERSION
 import { safeGenerateText } from 'src/lib/gemini-safe';
 import { formatMessagesForAI } from 'src/lib/format-messages';
 import { toolExecutor } from 'src/core/tools/tool-executor';
 import { z } from 'zod';
 import type { AgentContext, ChatMessage } from './types';
+import { GEMINI_MODELS } from 'src/config/constants';
+
+// src/core/agents/closer-agent.ts — FINAL UPGRADED VERSION
 
 export async function closerAgent(
   messages: ChatMessage[],
@@ -94,7 +96,7 @@ Respond to the user's last message and close.`;
   return {
     output: result.text || '',
     agent: 'Closer Agent',
-    model: 'gemini-3-pro-preview → gemini-2.5-flash (auto-fallback)',
+    model: `${GEMINI_MODELS.GEMINI_3_PRO_PREVIEW} → ${GEMINI_MODELS.DEFAULT_RELIABLE} (auto-fallback)`,
     metadata: {
       stage: 'CLOSING' as const,
       toolsUsed: result.toolCalls?.length > 0,

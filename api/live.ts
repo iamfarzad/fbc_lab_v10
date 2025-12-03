@@ -3,11 +3,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 /**
  * WebSocket proxy endpoint for Gemini Live API
  * 
- * Security: Runs server-side with GEMINI_API_KEY
- * Handles: Real-time audio streaming, agent context injection
+ * NOTE: This endpoint is currently a placeholder. The application uses
+ * a separate Fly.io WebSocket server (server/live-server.ts) for Live API
+ * connections. This endpoint is kept for potential future Vercel WebSocket
+ * support or as a fallback proxy.
  * 
- * Note: Vercel supports WebSockets in serverless functions
- * This endpoint will upgrade HTTP to WebSocket and proxy to Gemini Live API
+ * For production, connect to: wss://fb-consulting-websocket.fly.dev
+ * See: src/config/constants.ts WEBSOCKET_CONFIG for configuration.
  */
 export default function handler(
     req: VercelRequest,

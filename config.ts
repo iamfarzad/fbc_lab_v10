@@ -1,10 +1,12 @@
+import { GEMINI_MODELS } from './src/config/constants';
+
 export const AppConfig = {
     api: {
         models: {
-            live: 'gemini-2.5-flash-native-audio-preview-09-2025',
-            default: 'gemini-3-pro-preview', // For reasoning/complex tasks
-            flash: 'gemini-2.5-flash', // For speed/maps
-            flashLite: 'gemini-2.5-flash-lite', // For quick actions
+            live: GEMINI_MODELS.DEFAULT_VOICE,
+            default: GEMINI_MODELS.DEFAULT_CHAT, // For reasoning/complex tasks
+            flash: GEMINI_MODELS.FLASH_2025_09, // For speed/maps
+            flashLite: GEMINI_MODELS.FLASH_LITE_2025_09, // For quick actions
         },
         audio: {
             inputSampleRate: 16000,

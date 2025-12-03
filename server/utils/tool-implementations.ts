@@ -1,4 +1,12 @@
 import { serverLogger } from '../utils/env-setup'
+import { searchWeb } from '../../src/core/intelligence/search.js'
+import { 
+  extractActionItems, 
+  generateSummary, 
+  draftFollowUpEmail, 
+  generateProposal 
+} from '../../src/core/intelligence/analysis.js'
+import { isAdmin } from '../rate-limiting/websocket-rate-limiter'
 
 export interface ToolResult {
     success: boolean
@@ -9,31 +17,25 @@ export interface ToolResult {
 /**
  * Search the web using Google Search API or similar
  */
-export function executeSearchWeb(args: { query: string; urls?: string[] }): Promise<ToolResult> {
+export async function executeSearchWeb(args: { query: string; urls?: string[] }): Promise<ToolResult> {
     try {
         serverLogger.info('Executing search_web', { query: args.query })
 
-        // TODO: Implement actual Google Search API integration
-        // For now, return placeholder with useful structure
-        return Promise.resolve({
+        const result = await searchWeb(args.query, args.urls)
+
+        return {
             success: true,
             data: {
                 query: args.query,
-                results: [
-                    {
-                        title: `Search results for: ${args.query}`,
-                        snippet: 'This is a placeholder implementation. Real search integration coming soon.',
-                        url: 'https://google.com/search?q=' + encodeURIComponent(args.query)
-                    }
-                ],
-                message: `Found results for "${args.query}" (placeholder - real search coming soon)`
+                results: result.results,
+                message: result.answer
             }
-        })
+        }
     } catch (error) {
-        return Promise.resolve({
+        return {
             success: false,
             error: error instanceof Error ? error.message : 'Search failed'
-        })
+        }
     }
 }
 
@@ -60,22 +62,27 @@ export async function executeExtractActionItems(_args: any, sessionId?: string):
             .map((entry: any) => `${entry.metadata?.speaker || 'user'}: ${entry.content}`)
             .join('\n')
 
-        // TODO: Use AI to analyze conversation and extract action items
-        // For now, return placeholder based on conversation length
-        const actionItems = conversationText.length > 100 ? [
-            'Review key discussion points from this conversation',
-            'Follow up on mentioned topics and questions',
-            'Schedule next steps if applicable'
-        ] : [
-            'Continue the conversation to identify action items'
-        ]
+        if (conversationText.length < 50) {
+             return {
+                success: true,
+                data: {
+                    actionItems: [],
+                    conversationLength: history.length,
+                    message: 'Conversation too short to extract action items'
+                }
+            }
+        }
+
+        const result = await extractActionItems(conversationText)
 
         return {
             success: true,
             data: {
-                actionItems,
+                actionItems: result.items,
+                priority: result.priority,
+                nextMeetingNeed: result.nextMeetingNeed,
                 conversationLength: history.length,
-                message: `Extracted ${actionItems.length} action items from conversation`
+                message: `Extracted ${result.items.length} action items`
             }
         }
     } catch (error) {
@@ -157,8 +164,12 @@ export async function executeGenerateSummaryPreview(args: any, sessionId?: strin
 
         const { multimodalContextManager } = await import('src/core/context/multimodal-context')
         const history = await multimodalContextManager.getConversationHistory(sessionId, 50)
+        
+        const conversationText = history
+            .map((entry: any) => `${entry.metadata?.speaker || 'user'}: ${entry.content}`)
+            .join('\n')
 
-        const summary = `Conversation Summary:\n- ${history.length} messages exchanged\n- Key topics discussed\n- Action items identified`
+        const summary = await generateSummary(conversationText)
 
         return {
             success: true,
@@ -180,53 +191,71 @@ export async function executeGenerateSummaryPreview(args: any, sessionId?: strin
 /**
  * Draft follow-up email
  */
-export function executeDraftFollowUpEmail(args: any, _sessionId?: string): Promise<ToolResult> {
+export async function executeDraftFollowUpEmail(args: any, sessionId?: string): Promise<ToolResult> {
     try {
-        const { recipient = 'client', tone = 'professional', includeSummary = true } = args
+         if (!sessionId) {
+            return Promise.resolve({ success: false, error: 'Session ID required' })
+        }
+        
+        const { recipient = 'client', tone = 'professional' } = args
+        
+        const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+        const history = await multimodalContextManager.getConversationHistory(sessionId, 50)
+        
+        const conversationText = history
+            .map((entry: any) => `${entry.metadata?.speaker || 'user'}: ${entry.content}`)
+            .join('\n')
 
-        const email = `Subject: Follow-up from our conversation\n\nDear ${recipient},\n\nThank you for our discussion. ${includeSummary ? 'Here\'s a summary of what we covered...' : ''}\n\nBest regards`
+        const draft = await draftFollowUpEmail(conversationText, recipient, tone)
 
-        return Promise.resolve({
+        return {
             success: true,
             data: {
-                email,
+                email: `Subject: ${draft.subject}\n\n${draft.body}`,
                 recipient,
                 tone,
                 message: `Draft email created for ${recipient} in ${tone} tone`
             }
-        })
+        }
     } catch (error) {
-        return Promise.resolve({
+        return {
             success: false,
             error: error instanceof Error ? error.message : 'Email drafting failed'
-        })
+        }
     }
 }
 
 /**
  * Generate proposal draft
  */
-export function executeGenerateProposalDraft(_args: any, sessionId?: string): Promise<ToolResult> {
+export async function executeGenerateProposalDraft(_args: any, sessionId?: string): Promise<ToolResult> {
     try {
         if (!sessionId) {
             return Promise.resolve({ success: false, error: 'Session ID required' })
         }
 
-        const proposal = `# Proposal Draft\n\n## Executive Summary\nBased on our conversation...\n\n## Scope of Work\n- Item 1\n- Item 2\n\n## Investment\nTo be discussed`
+        const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+        const history = await multimodalContextManager.getConversationHistory(sessionId, 50)
+        
+        const conversationText = history
+            .map((entry: any) => `${entry.metadata?.speaker || 'user'}: ${entry.content}`)
+            .join('\n')
 
-        return Promise.resolve({
+        const proposal = await generateProposal(conversationText)
+
+        return {
             success: true,
             data: {
                 proposal,
                 format: 'markdown',
                 message: 'Proposal draft generated'
             }
-        })
+        }
     } catch (error) {
-        return Promise.resolve({
+        return {
             success: false,
             error: error instanceof Error ? error.message : 'Proposal generation failed'
-        })
+        }
     }
 }
 
@@ -291,5 +320,75 @@ export function executeCaptureWebcamSnapshot(args: any, connectionId: string, ac
             success: false,
             error: error instanceof Error ? error.message : 'Failed to capture webcam snapshot'
         })
+    }
+}
+
+/**
+ * Get dashboard stats (Admin Only)
+ */
+export async function executeGetDashboardStats(args: any, sessionId: string): Promise<ToolResult> {
+    try {
+         if (!isAdmin(sessionId)) {
+            return {
+                success: false,
+                error: 'Dashboard stats are admin-only'
+            }
+        }
+
+        const period = args?.period || '7d'
+        const { supabaseService } = await import('../../src/core/supabase/client.js')
+        
+        const now = new Date()
+        const daysBack = period === '1d' ? 1 : period === '30d' ? 30 : period === '90d' ? 90 : 7
+        const startDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000)
+
+        const { data, error } = await (supabaseService as any)
+            .from('lead_summaries')
+            .select('lead_score, ai_capabilities_shown')
+            .gte('created_at', startDate.toISOString())
+
+        if (error) {
+            return { success: false, error: 'Failed to retrieve statistics' }
+        } 
+        
+        const leadRows = (data ?? []) as Array<{ lead_score: number | null; ai_capabilities_shown: string[] | null }>
+        const totalLeads = leadRows.length
+        const qualifiedLeads = leadRows.filter((lead) => (lead.lead_score ?? 0) >= 70).length
+        const conversionRate = totalLeads > 0 ? Math.round((qualifiedLeads / totalLeads) * 100) : 0
+        const leadsWithAI = leadRows.filter(
+            (lead) => Array.isArray(lead.ai_capabilities_shown) && lead.ai_capabilities_shown.length > 0
+        ).length
+        const engagementRate = totalLeads > 0 ? Math.round((leadsWithAI / totalLeads) * 100) : 0
+        const avgLeadScore = totalLeads > 0
+            ? Math.round((leadRows.reduce((sum, lead) => sum + (lead.lead_score ?? 0), 0) / totalLeads) * 10) / 10
+            : 0
+
+        const capabilityCounts = new Map<string, number>()
+        leadRows.forEach((lead) => {
+            lead.ai_capabilities_shown?.forEach((capability) => {
+                capabilityCounts.set(capability, (capabilityCounts.get(capability) || 0) + 1)
+            })
+        })
+        const topAICapabilities = Array.from(capabilityCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([capability]) => capability)
+
+        return {
+            success: true,
+            data: {
+                period,
+                totalLeads,
+                conversionRate,
+                avgLeadScore,
+                engagementRate,
+                topAICapabilities,
+                scheduledMeetings: 0,
+                summary: `Dashboard stats for ${period}: ${totalLeads} total leads, ${conversionRate}% conversion rate, ${avgLeadScore}/100 average lead score, ${engagementRate}% engagement rate.`
+            }
+        }
+    } catch (err) {
+        serverLogger.error('Failed to calculate dashboard stats', err instanceof Error ? err : undefined, { sessionId })
+        return { success: false, error: 'Failed to calculate dashboard stats' }
     }
 }

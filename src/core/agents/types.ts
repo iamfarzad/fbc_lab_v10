@@ -101,6 +101,14 @@ export interface AgentMetadata {
     steps: ChainOfThoughtStep[]
   }
   reasoning?: string
+  groundingMetadata?: {
+    groundingChunks?: Array<{
+      web?: { uri: string; title: string; snippet?: string }
+      maps?: { uri: string; title: string }
+    }>
+    webSearchQueries?: string[]
+    searchEntryPoint?: unknown
+  }
   tools?: ToolMetadata[]
   multimodalUsed?: boolean
   handoffReasons?: string[]

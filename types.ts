@@ -74,6 +74,11 @@ export interface VisualState {
       lng: number;
     }
   };
+  // Metadata visualizations
+  citationCount?: number; // Number of citations/sources
+  reasoningComplexity?: number; // 0.0 to 1.0 based on reasoning length/complexity
+  researchActive?: boolean; // Whether research queries are active
+  sourceCount?: number; // Number of verified sources
 }
 
 export interface LiveServiceConfig {

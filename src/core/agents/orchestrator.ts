@@ -6,6 +6,7 @@ import { summaryAgent } from './summary-agent'
 import { detectObjection } from './utils/detect-objections'
 import type { FunnelStage } from 'src/core/types/funnel-stage'
 import type { AgentResult, AgentContext, ChatMessage } from './types'
+import { GEMINI_MODELS } from 'src/config/constants'
 
 /**
  * Simplified Multi-Agent Orchestrator - Routes conversations to specialized agents
@@ -46,7 +47,7 @@ export async function routeToAgent(params: {
   }
 
   if (trigger === 'admin') {
-    return { output: 'Admin mode active', agent: 'Admin', model: 'gemini-3-pro-preview' }
+    return { output: 'Admin mode active', agent: 'Admin', model: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW }
   }
 
   // === OBJECTION OVERRIDE (highest priority) ===
@@ -69,7 +70,7 @@ export async function routeToAgent(params: {
   }
 
   // === FAST-TRACK: QUALIFIED LEADS SKIP DISCOVERY ===
-  const seniority = String(intelligenceContext.person?.seniority || '')
+  const seniority = String(intelligenceContext?.person?.seniority || '')
   const isQualified =
     intelligenceContext?.company?.size &&
     intelligenceContext.company.size !== 'unknown' &&

@@ -1,6 +1,5 @@
 import { WebSocket } from 'ws'
 import { serverLogger } from '../utils/env-setup'
-import { isAdmin } from '../rate-limiting/websocket-rate-limiter'
 import {
   executeSearchWeb,
   executeExtractActionItems,
@@ -9,7 +8,8 @@ import {
   executeDraftFollowUpEmail,
   executeGenerateProposalDraft,
   executeCaptureScreenSnapshot,
-  executeCaptureWebcamSnapshot
+  executeCaptureWebcamSnapshot,
+  executeGetDashboardStats
 } from '../utils/tool-implementations.js'
 import { recordCapabilityUsed } from 'src/core/context/capabilities'
 
@@ -93,71 +93,7 @@ export async function processToolCall(
           break
 
         case 'get_dashboard_stats':
-          // Admin-only tool - keep existing implementation
-          if (!isAdmin(client.sessionId)) {
-            result = {
-              success: false,
-              error: 'Dashboard stats are admin-only'
-            }
-            break
-          }
-
-          {
-            const period = call.args?.period || '7d'
-            const { supabaseService } = await import('../../src/core/supabase/client.js')
-            try {
-              const now = new Date()
-              const daysBack = period === '1d' ? 1 : period === '30d' ? 30 : period === '90d' ? 90 : 7
-              const startDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000)
-
-              const { data, error } = await (supabaseService as any)
-                .from('lead_summaries')
-                .select('lead_score, ai_capabilities_shown')
-                .gte('created_at', startDate.toISOString())
-
-              if (error) {
-                result = { success: false, error: 'Failed to retrieve statistics' }
-              } else {
-                const leadRows = (data ?? []) as Array<{ lead_score: number | null; ai_capabilities_shown: string[] | null }>
-                const totalLeads = leadRows.length
-                const qualifiedLeads = leadRows.filter((lead) => (lead.lead_score ?? 0) >= 70).length
-                const conversionRate = totalLeads > 0 ? Math.round((qualifiedLeads / totalLeads) * 100) : 0
-                const leadsWithAI = leadRows.filter(
-                  (lead) => Array.isArray(lead.ai_capabilities_shown) && lead.ai_capabilities_shown.length > 0
-                ).length
-                const engagementRate = totalLeads > 0 ? Math.round((leadsWithAI / totalLeads) * 100) : 0
-                const avgLeadScore = totalLeads > 0
-                  ? Math.round((leadRows.reduce((sum, lead) => sum + (lead.lead_score ?? 0), 0) / totalLeads) * 10) / 10
-                  : 0
-
-                const capabilityCounts = new Map<string, number>()
-                leadRows.forEach((lead) => {
-                  lead.ai_capabilities_shown?.forEach((capability) => {
-                    capabilityCounts.set(capability, (capabilityCounts.get(capability) || 0) + 1)
-                  })
-                })
-                const topAICapabilities = Array.from(capabilityCounts.entries())
-                  .sort((a, b) => b[1] - a[1])
-                  .slice(0, 5)
-                  .map(([capability]) => capability)
-
-                result = {
-                  success: true,
-                  period,
-                  totalLeads,
-                  conversionRate,
-                  avgLeadScore,
-                  engagementRate,
-                  topAICapabilities,
-                  scheduledMeetings: 0,
-                  summary: `Dashboard stats for ${period}: ${totalLeads} total leads, ${conversionRate}% conversion rate, ${avgLeadScore}/100 average lead score, ${engagementRate}% engagement rate.`
-                }
-              }
-            } catch (err) {
-              serverLogger.error('Failed to calculate dashboard stats', err instanceof Error ? err : undefined, { connectionId })
-              result = { success: false, error: 'Failed to calculate dashboard stats' }
-            }
-          }
+          result = await executeGetDashboardStats(call.args, client.sessionId || 'anonymous')
           break
 
         default:

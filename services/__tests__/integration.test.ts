@@ -30,6 +30,7 @@ vi.mock('@/core/live/client', () => ({
 
 // Mock src/config/env
 vi.mock('src/config/env', () => ({
+  getResolvedGeminiApiKey: () => 'test-key',
   createGoogleGenAI: () => new (require('@google/genai').GoogleGenAI)({ apiKey: 'test-key' })
 }))
 

@@ -120,8 +120,10 @@ export class GeminiLiveService {
       // Setup Output Chain
       this.outputNode = this.outputAudioContext.createGain();
       this.outputAnalyser = this.outputAudioContext.createAnalyser();
-      this.outputAnalyser.fftSize = 128;
-      this.outputAnalyser.smoothingTimeConstant = 0.05;
+      this.outputAnalyser.fftSize = 256; // Increased for better frequency resolution
+      this.outputAnalyser.smoothingTimeConstant = 0.3; // Smoother visual response
+      this.outputAnalyser.minDecibels = -90;
+      this.outputAnalyser.maxDecibels = -10;
 
       this.outputNode.connect(this.outputAnalyser);
       this.outputAnalyser.connect(this.outputAudioContext.destination);
@@ -264,12 +266,15 @@ export class GeminiLiveService {
       // Setup Input Processing & Analysis
       this.inputSource = this.inputAudioContext.createMediaStreamSource(stream);
       this.inputAnalyser = this.inputAudioContext.createAnalyser();
-      this.inputAnalyser.fftSize = 128; // Faster visual response
-      this.inputAnalyser.smoothingTimeConstant = 0.1;
+      this.inputAnalyser.fftSize = 256; // Increased for better frequency resolution
+      this.inputAnalyser.smoothingTimeConstant = 0.3; // Smoother visual response
+      this.inputAnalyser.minDecibels = -90;
+      this.inputAnalyser.maxDecibels = -10;
 
       this.processor = this.inputAudioContext.createScriptProcessor(BUFFER_SIZE, 1, 1);
 
-      this.inputSource.connect(this.inputAnalyser); // For visuals
+      // Connect audio graph: source -> analyser -> processor -> destination
+      this.inputSource.connect(this.inputAnalyser); // For visuals (must be before processor)
       this.inputAnalyser.connect(this.processor); // For processing
       this.processor.connect(this.inputAudioContext.destination);
 
@@ -484,14 +489,20 @@ export class GeminiLiveService {
   // Visual analysis
   private startAnalysisLoop() {
     const analyze = () => {
-      if (!this.isConnected) return;
+      // Continue analysis even if not fully connected (for visual feedback during connection)
+      // Only stop if explicitly disconnected
+      if (this.isConnected === false && !this.inputAnalyser && !this.outputAnalyser) {
+        return;
+      }
 
       // Input analysis
       let inputVolume = 0;
       if (this.inputAnalyser) {
         const dataArray = new Uint8Array(this.inputAnalyser.frequencyBinCount);
         this.inputAnalyser.getByteFrequencyData(dataArray);
-        inputVolume = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length / 255;
+        // Calculate RMS (Root Mean Square) for more accurate volume representation
+        const sumSquares = dataArray.reduce((sum, val) => sum + (val / 255) ** 2, 0);
+        inputVolume = Math.sqrt(sumSquares / dataArray.length);
       }
 
       // Output analysis
@@ -499,10 +510,16 @@ export class GeminiLiveService {
       if (this.outputAnalyser) {
         const dataArray = new Uint8Array(this.outputAnalyser.frequencyBinCount);
         this.outputAnalyser.getByteFrequencyData(dataArray);
-        outputVolume = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length / 255;
+        // Calculate RMS for output as well
+        const sumSquares = dataArray.reduce((sum, val) => sum + (val / 255) ** 2, 0);
+        outputVolume = Math.sqrt(sumSquares / dataArray.length);
       }
 
-      this.config.onVolumeChange(inputVolume, outputVolume);
+      // Always call onVolumeChange to keep visual state updated
+      if (this.config.onVolumeChange) {
+        this.config.onVolumeChange(inputVolume, outputVolume);
+      }
+      
       this.analysisFrameId = requestAnimationFrame(analyze);
     };
 

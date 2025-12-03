@@ -1,65 +1,197 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { LiveClientWS } from '../client'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { LiveClientWS } from '../client';
+import { WEBSOCKET_CONFIG } from 'src/config/constants';
 
 // Mock WebSocket
-vi.mock('ws', () => {
-  return {
-    WebSocket: vi.fn(() => ({
-      on: vi.fn(),
-      send: vi.fn(),
-      close: vi.fn(),
-      readyState: 1 // OPEN
-    }))
+class MockWebSocket {
+  onopen: (() => void) | null = null;
+  onclose: ((e: any) => void) | null = null;
+  onerror: ((e: any) => void) | null = null;
+  onmessage: ((e: any) => void) | null = null;
+  readyState = WebSocket.CONNECTING;
+  send = vi.fn();
+  close = vi.fn();
+  bufferedAmount = 0;
+
+  constructor(public url: string) {
+    setTimeout(() => {
+      this.readyState = WebSocket.OPEN;
+      if (this.onopen) this.onopen();
+    }, 0);
   }
-})
+}
+
+// Global WebSocket mock
+global.WebSocket = MockWebSocket as any;
+global.WebSocket.CONNECTING = 0;
+global.WebSocket.OPEN = 1;
+global.WebSocket.CLOSING = 2;
+global.WebSocket.CLOSED = 3;
 
 describe('LiveClientWS', () => {
-  let client: LiveClientWS
+  let client: LiveClientWS;
 
   beforeEach(() => {
-    vi.clearAllMocks()
-    client = new LiveClientWS()
-    // Manually trigger connection to get access to the internal WS instance if needed
-    // But since we can't easily access the private ws property, we'll test via public methods or by simulating events if possible.
-    // Actually, LiveClientWS logic is hard to test without exposing internals or using a more complex mock setup.
-    // However, we can test the `routeEvent` method if we can access it or simulate the message event.
-  })
+    vi.useFakeTimers();
+    // Reset singleton if it exists
+    if (typeof window !== 'undefined') {
+        delete (window as any).__fbc_liveClient;
+    }
+    client = new LiveClientWS();
+  });
 
-  it('should handle malformed messages without crashing', () => {
-    // We need to simulate a message event.
-    // Since `routeEvent` is private, we might need to cast to any or use a different approach.
-    // Or we can simulate the 'message' event on the WebSocket if we can get a reference to it.
+  afterEach(() => {
+    client.disconnect();
+    vi.useRealTimers();
+  });
 
-    // Let's try to spy on the emit method to verify it DOESN'T emit for malformed messages
-    const emitSpy = vi.spyOn(client as any, 'emit')
+  describe('Connection', () => {
+    it('should connect to WebSocket URL', async () => {
+      const connectSpy = vi.spyOn(global, 'WebSocket');
+      client.connect();
+      
+      expect(connectSpy).toHaveBeenCalledWith(WEBSOCKET_CONFIG.URL);
+      expect(client.isConnected()).toBe(true); // Connecting counts as connected
+    });
 
-    // Access private method for testing purposes
-    const routeEvent = (client as any).routeEvent.bind(client)
+    it('should handle connection open', () => {
+      const onOpenSpy = vi.fn();
+      client.on('open', onOpenSpy);
+      
+      client.connect();
+      
+      // Fast-forward timers to trigger mock open
+      vi.runAllTimers();
+      
+      expect(onOpenSpy).toHaveBeenCalled();
+      expect(client.getConnectionState()).toBe('open');
+    });
 
-    // Test cases for malformed payloads
+    it('should reconnect on unexpected close', () => {
+      client.connect();
+      vi.runAllTimers(); // Open connection
+      
+      // Simulate unexpected close
+      // Access private socket through casting or public methods if available
+      // For testing, we can simulate the onClose behavior directly via private method exposure or event triggering
+      // Since we can't access private methods easily, we'll simulate the effect by mocking the socket instance behavior
+      
+      // More reliable approach: Use the fact that we mocked WebSocket globally
+      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      mockWsInstance.onclose({ code: 1006, reason: 'Abnormal Closure' });
+      
+      // Should schedule reconnect
+      expect(client.isConnected()).toBe(false);
+      
+      // Reconnect timer should be active (check implicitly via timer advancement)
+      // We expect a new WebSocket connection after delay
+      const connectSpy = vi.spyOn(global, 'WebSocket');
+      vi.runAllTimers(); // Advance past reconnect delay
+      
+      // Should have tried to connect again (total 2 calls: initial + reconnect)
+      expect(connectSpy).toHaveBeenCalledTimes(2);
+    });
 
-    // 1. Input Transcript with missing payload
-    routeEvent({ type: 'input_transcript' }) // Should not throw and should not emit
-    expect(emitSpy).not.toHaveBeenCalledWith(
-      'input_transcript',
-      expect.anything(),
-      expect.anything()
-    )
+    it('should NOT reconnect on manual disconnect', () => {
+      client.connect();
+      vi.runAllTimers();
+      
+      client.disconnect();
+      const connectSpy = vi.spyOn(global, 'WebSocket');
+      
+      vi.runAllTimers();
+      
+      // Should not have tried to connect again
+      expect(connectSpy).toHaveBeenCalledTimes(1); // Only initial connection
+    });
+  });
 
-    // 2. Tool Call with missing payload
-    routeEvent({ type: 'tool_call' })
-    expect(emitSpy).not.toHaveBeenCalledWith('tool_call', expect.anything())
+  describe('Messaging', () => {
+    it('should send text message', () => {
+      client.connect();
+      vi.runAllTimers();
+      
+      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      client.sendText('Hello');
+      
+      expect(mockWsInstance.send).toHaveBeenCalledWith(expect.stringContaining('REALTIME_INPUT'));
+      expect(mockWsInstance.send).toHaveBeenCalledWith(expect.stringContaining('Hello'));
+    });
 
-    // 3. Session Started with missing payload
-    routeEvent({ type: 'session_started' })
-    // Should not set sessionActive to true (we can't check private state easily, but we can check it didn't crash)
+    it('should route received events', () => {
+      client.connect();
+      vi.runAllTimers();
+      
+      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const onTextSpy = vi.fn();
+      client.on('text', onTextSpy);
+      
+      // Simulate receiving a message
+      mockWsInstance.onmessage({
+        data: JSON.stringify({
+          type: 'text',
+          payload: { content: 'Hello from server' }
+        })
+      });
+      
+      expect(onTextSpy).toHaveBeenCalledWith('Hello from server');
+    });
 
-    // 4. Valid message should still work
-    routeEvent({
-      type: 'input_transcript',
-      payload: { text: 'Hello', isFinal: true }
-    })
-    expect(emitSpy).toHaveBeenCalledWith('input_transcript', 'Hello', true)
-  })
-})
+    it('should handle session_started event', () => {
+      client.connect();
+      vi.runAllTimers();
+      
+      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const onSessionStartedSpy = vi.fn();
+      client.on('session_started', onSessionStartedSpy);
+      
+      const payload = { connectionId: 'conn-123' };
+      mockWsInstance.onmessage({
+        data: JSON.stringify({
+          type: 'session_started',
+          payload
+        })
+      });
+      
+      expect(onSessionStartedSpy).toHaveBeenCalledWith(payload);
+      expect(client.getSessionActive()).toBe(true);
+      expect(client.getConnectionId()).toBe('conn-123');
+    });
+  });
 
+  describe('Heartbeat', () => {
+    it('should send ping at interval', () => {
+        client.connect();
+        vi.runAllTimers();
+        
+        const mockWsInstance = (WebSocket as any).mock.results[0].value;
+        mockWsInstance.send.mockClear();
+        
+        // Advance time by heartbeat interval
+        vi.advanceTimersByTime(WEBSOCKET_CONFIG.HEARTBEAT_INTERVAL + 100);
+        
+        expect(mockWsInstance.send).toHaveBeenCalledWith(expect.stringContaining('"type":"ping"'));
+    });
+    
+    it('should emit heartbeat event on receiving heartbeat', () => {
+        client.connect();
+        vi.runAllTimers();
+        
+        const mockWsInstance = (WebSocket as any).mock.results[0].value;
+        const onHeartbeatSpy = vi.fn();
+        client.on('heartbeat', onHeartbeatSpy);
+        
+        const timestamp = Date.now();
+        mockWsInstance.onmessage({
+            data: JSON.stringify({
+                type: 'heartbeat',
+                payload: { timestamp }
+            })
+        });
+        
+        expect(onHeartbeatSpy).toHaveBeenCalledWith(timestamp);
+        // Should auto-ack
+        expect(mockWsInstance.send).toHaveBeenCalledWith(expect.stringContaining('"type":"heartbeat_ack"'));
+    });
+  });
+});

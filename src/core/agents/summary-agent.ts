@@ -121,6 +121,10 @@ TONE: Professional but conversational. This is a valuable document they'll share
     temperature: 1.0 // Recommended for high thinking
   })
 
+  // Extract metadata (groundingMetadata, reasoning) from response
+  const { extractGeminiMetadata } = await import('src/lib/extract-gemini-metadata')
+  const extractedMetadata = extractGeminiMetadata(result)
+
   // Schema for summary output
   const SummarySchema = z.object({
     executiveSummary: z.string(),
@@ -195,7 +199,10 @@ TONE: Professional but conversational. This is a valuable document they'll share
         voice: multimodalData.audioContext.length > 0,
         visual: multimodalData.visualContext.length > 0,
         uploads: multimodalData.uploadContext.length > 0
-      }
+      },
+      // Pass through extracted metadata
+      ...(extractedMetadata.reasoning && { reasoning: extractedMetadata.reasoning }),
+      ...(extractedMetadata.groundingMetadata && { groundingMetadata: extractedMetadata.groundingMetadata }),
     }
   }
 }

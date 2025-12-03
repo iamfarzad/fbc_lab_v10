@@ -2,6 +2,7 @@ import { safeGenerateText } from 'src/lib/gemini-safe'
 import { GEMINI_MODELS } from 'src/config/constants'
 import { calculateRoi } from './utils/calculate-roi'
 import type { AgentContext, ChatMessage, AgentResult, FunnelStage } from './types'
+import { extractGeminiMetadata } from 'src/lib/extract-gemini-metadata'
 
 /**
  * Unified Pitch Agent - Replaces workshop-sales-agent and consulting-sales-agent
@@ -106,19 +107,25 @@ Price guidance: ${productInfo.priceRange} — only reveal if they show high inte
 
 Respond now to: "${lastUserMessage}"`
 
-  const { text } = await safeGenerateText({
+  const result = await safeGenerateText({
     system: systemPrompt,
     messages: messages.slice(-15), // short context for speed
     temperature: 0.7,
   })
 
+  // Extract metadata (groundingMetadata, reasoning) from response
+  const extractedMetadata = extractGeminiMetadata(result)
+
   return {
-    output: text,
+    output: result.text,
     agent: 'Pitch Agent',
     model: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW,
     metadata: {
       stage: ((intelligenceContext.interestLevel || 0) > 0.8 ? 'CLOSING' : 'PITCHING') as FunnelStage,
       ...(intelligenceContext.fitScore && { fitScore: intelligenceContext.fitScore }),
+      // Pass through extracted metadata
+      ...(extractedMetadata.reasoning && { reasoning: extractedMetadata.reasoning }),
+      ...(extractedMetadata.groundingMetadata && { groundingMetadata: extractedMetadata.groundingMetadata }),
     },
   }
 }

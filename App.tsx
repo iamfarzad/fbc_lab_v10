@@ -203,27 +203,6 @@ export const App: React.FC = () => {
         isWebcamActiveRef.current = isWebcamActive;
     }, [isWebcamActive]);
 
-    // Auto-connect Live API when webcam is activated (if not already connected)
-    const webcamConnectAttemptedRef = useRef(false);
-    useEffect(() => {
-        if (isWebcamActive && 
-            connectionState !== LiveConnectionState.CONNECTED && 
-            connectionState !== LiveConnectionState.CONNECTING &&
-            !webcamConnectAttemptedRef.current &&
-            liveServiceRef.current) {
-            webcamConnectAttemptedRef.current = true;
-            logger.debug('[App] Webcam activated, connecting to Live API for multimodal conversation');
-            void handleConnect().finally(() => {
-                // Reset after connection attempt completes (success or failure)
-                setTimeout(() => {
-                    webcamConnectAttemptedRef.current = false;
-                }, 2000);
-            });
-        } else if (connectionState === LiveConnectionState.CONNECTED) {
-            webcamConnectAttemptedRef.current = false;
-        }
-    }, [isWebcamActive, connectionState, handleConnect]);
-
     // Initialize Services with dynamic API Key support
     useEffect(() => {
         const storedKey = localStorage.getItem('fbc_api_key');
@@ -536,7 +515,7 @@ export const App: React.FC = () => {
 
         // 5. Default -> Flash (Speed)
         return {
-            id: 'gemini-2.5-flash',
+            id: GEMINI_MODELS.DEFAULT_CHAT,
             label: 'STANDARD',
             description: 'Standard query. Using high-speed response engine.',
             color: 'bg-gray-400'
@@ -774,14 +753,16 @@ export const App: React.FC = () => {
 
     const handleVolumeChange = useCallback((inputVol: number, outputVol: number) => {
         setVisualState(prev => {
-            const micLevel = inputVol * 3.0;
-            const speakerLevel = outputVol * 3.0;
+            // Normalize audio levels (they come in as 0-1, amplify for better visual response)
+            const micLevel = Math.min(inputVol * 3.0, 1.0);
+            const speakerLevel = Math.min(outputVol * 3.0, 1.0);
 
             let mode: 'idle' | 'listening' | 'thinking' | 'speaking' = prev.mode;
             let activeLevel = 0;
 
             if (!prev.isActive) {
                 mode = 'idle';
+                activeLevel = 0;
             } else if (speakerLevel > 0.01) {
                 mode = 'speaking';
                 activeLevel = speakerLevel;
@@ -795,16 +776,27 @@ export const App: React.FC = () => {
 
             let shape: VisualShape = semanticShapeRef.current;
 
+            // Priority: webcam > nano route > voice mode > agent shape
             if (isWebcamActiveRef.current) {
                 shape = 'face';
             } else if (activeRoute.id.includes('nano')) {
                 shape = 'shield';
             } else if (mode === 'speaking') {
-                if (shape === 'orb') {
+                // Always switch to wave when speaking (unless overridden by agent)
+                // Only override if current shape is a default/neutral shape
+                if (['orb', 'wave', 'brain', 'idle'].includes(prev.shape) || prev.shape === semanticShapeRef.current) {
                     shape = 'wave';
                 }
+            } else if (mode === 'listening') {
+                // Keep current shape or use orb
+                if (['wave', 'brain'].includes(prev.shape)) {
+                    shape = 'orb';
+                }
             } else if (mode === 'thinking') {
-                if (shape === 'orb') shape = 'brain';
+                // Switch to brain when thinking
+                if (['orb', 'wave'].includes(prev.shape)) {
+                    shape = 'brain';
+                }
             }
 
             return {
@@ -1013,7 +1005,7 @@ export const App: React.FC = () => {
             return;
         }
 
-        const liveModelId = 'gemini-2.5-flash-native-audio-preview-09-2025';
+        const liveModelId = GEMINI_MODELS.DEFAULT_VOICE;
         setActiveRoute({
             id: liveModelId,
             label: 'LIVE UPLINK',
@@ -1155,10 +1147,31 @@ export const App: React.FC = () => {
 
     }, [handleVolumeChange, handleTranscript, handleToolCall, userProfile]);
 
+    // Auto-connect Live API when webcam is activated (if not already connected)
+    const webcamConnectAttemptedRef = useRef(false);
+    useEffect(() => {
+        if (isWebcamActive && 
+            connectionState !== LiveConnectionState.CONNECTED && 
+            connectionState !== LiveConnectionState.CONNECTING &&
+            !webcamConnectAttemptedRef.current &&
+            liveServiceRef.current) {
+            webcamConnectAttemptedRef.current = true;
+            logger.debug('[App] Webcam activated, connecting to Live API for multimodal conversation');
+            void handleConnect().finally(() => {
+                // Reset after connection attempt completes (success or failure)
+                setTimeout(() => {
+                    webcamConnectAttemptedRef.current = false;
+                }, 2000);
+            });
+        } else if (connectionState === LiveConnectionState.CONNECTED) {
+            webcamConnectAttemptedRef.current = false;
+        }
+    }, [isWebcamActive, connectionState, handleConnect]);
+
     const handleDisconnect = useCallback(() => {
         void liveServiceRef.current?.disconnect();
         setActiveRoute({
-            id: 'gemini-2.5-flash',
+            id: GEMINI_MODELS.DEFAULT_CHAT,
             label: 'READY',
             description: 'System ready.',
             color: 'bg-gray-400'
@@ -1568,6 +1581,32 @@ export const App: React.FC = () => {
                     }
                 }
 
+                // Calculate metadata for visualizations
+                const citationCount = enhancedGroundingMetadata?.groundingChunks?.length || 0;
+                const sourceCount = citationCount; // Same as citations for now
+                const researchActive = !!(enhancedGroundingMetadata?.webSearchQueries && enhancedGroundingMetadata.webSearchQueries.length > 0);
+                
+                // Calculate reasoning complexity (0.0 to 1.0)
+                let reasoningComplexity = 0;
+                if (agentResponse.metadata?.reasoning) {
+                    const reasoningLength = typeof agentResponse.metadata.reasoning === 'string' 
+                        ? agentResponse.metadata.reasoning.length 
+                        : 0;
+                    // Normalize: 0-500 chars = 0.0-0.5, 500-2000 = 0.5-0.9, 2000+ = 0.9-1.0
+                    if (reasoningLength < 500) {
+                        reasoningComplexity = (reasoningLength / 500) * 0.5;
+                    } else if (reasoningLength < 2000) {
+                        reasoningComplexity = 0.5 + ((reasoningLength - 500) / 1500) * 0.4;
+                    } else {
+                        reasoningComplexity = Math.min(0.9 + ((reasoningLength - 2000) / 1000) * 0.1, 1.0);
+                    }
+                }
+
+                // Switch to research mode shape if research is active
+                if (researchActive && semanticShapeRef.current !== 'scanner') {
+                    semanticShapeRef.current = 'scanner'; // Use scanner as research mode
+                }
+
                 setVisualState(prev => ({
                     ...prev,
                     // isActive stays false for text chat (only true for voice)
@@ -1575,7 +1614,12 @@ export const App: React.FC = () => {
                     ...(textContentRef.current !== undefined && { textContent: textContentRef.current }),
                     ...(weatherDataRef.current !== undefined && { weatherData: weatherDataRef.current }),
                     ...(chartDataRef.current !== undefined && { chartData: chartDataRef.current }),
-                    ...(mapDataRef.current !== undefined && { mapData: mapDataRef.current })
+                    ...(mapDataRef.current !== undefined && { mapData: mapDataRef.current }),
+                    // Metadata visualizations
+                    ...(citationCount > 0 && { citationCount }),
+                    ...(sourceCount > 0 && { sourceCount }),
+                    ...(researchActive && { researchActive }),
+                    ...(reasoningComplexity > 0 && { reasoningComplexity })
                 }));
 
             } catch (error) {

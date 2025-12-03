@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
+import { GEMINI_MODELS } from 'src/config/constants';
 
 export const config = {
   api: {
@@ -56,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Analyze with Gemini Vision
     const result = await generateText({
-      model: google('gemini-1.5-flash'),
+      model: google(GEMINI_MODELS.DEFAULT_VISION),
       messages: [
         {
           role: 'user',

@@ -31,7 +31,7 @@ export async function generatePdfWithPuppeteer(
 
     try {
       const page = await browser.newPage()
-      const htmlContent = generateHtmlContent(summaryData, mode, language)
+      const htmlContent = await generateHtmlContent(summaryData, mode, language)
       await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 15000 })
       
       // Generate PDF buffer instead of writing to file

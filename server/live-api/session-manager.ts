@@ -100,7 +100,7 @@ export async function createLiveApiClient(connectionId: string): Promise<GoogleG
  */
 export function getLiveApiModel(): string {
   const configured = process.env.GEMINI_LIVE_MODEL
-  const defaultAudio = GEMINI_MODELS.DEFAULT_VOICE // gemini-2.5-flash-native-audio-preview-09-2025
+  const defaultAudio = GEMINI_MODELS.DEFAULT_VOICE
 
   // Guard against misconfigured non-audio models that will hang the Live connect
   const candidate = configured && configured.trim().length > 0 ? configured.trim() : defaultAudio
