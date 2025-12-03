@@ -197,7 +197,7 @@ app.post('/api/chat/persist-batch', asyncHandler(async (req, res) => {
 // Admin routes
 app.get('/api/admin/sessions', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/sessions/route')
+    const { GET: handler } = await import('./api/admin/sessions/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/sessions GET error:', error)
@@ -210,7 +210,7 @@ app.get('/api/admin/sessions', asyncHandler(async (req, res) => {
 
 app.post('/api/admin/sessions', asyncHandler(async (req, res) => {
   try {
-    const { POST: handler } = await import('./api/admin/sessions/route')
+    const { POST: handler } = await import('./api/admin/sessions/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/sessions POST error:', error)
@@ -223,7 +223,7 @@ app.post('/api/admin/sessions', asyncHandler(async (req, res) => {
 
 app.delete('/api/admin/sessions', asyncHandler(async (req, res) => {
   try {
-    const { DELETE: handler } = await import('./api/admin/sessions/route')
+    const { DELETE: handler } = await import('./api/admin/sessions/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/sessions DELETE error:', error)
@@ -236,7 +236,7 @@ app.delete('/api/admin/sessions', asyncHandler(async (req, res) => {
 
 app.get('/api/admin/token-costs', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/token-costs/route')
+    const { GET: handler } = await import('./api/admin/token-costs/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/token-costs error:', error)
@@ -250,7 +250,7 @@ app.get('/api/admin/token-costs', asyncHandler(async (req, res) => {
 // Admin authentication routes
 app.post('/api/admin/login', asyncHandler(async (req, res) => {
   try {
-    const { POST: handler } = await import('./api/admin/login/route')
+    const { POST: handler } = await import('./api/admin/login/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/login error:', error)
@@ -263,7 +263,7 @@ app.post('/api/admin/login', asyncHandler(async (req, res) => {
 
 app.post('/api/admin/logout', asyncHandler(async (req, res) => {
   try {
-    const { POST: handler } = await import('./api/admin/logout/route')
+    const { POST: handler } = await import('./api/admin/logout/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/logout error:', error)
@@ -277,7 +277,7 @@ app.post('/api/admin/logout', asyncHandler(async (req, res) => {
 // Admin analytics routes
 app.get('/api/admin/stats', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/stats/route')
+    const { GET: handler } = await import('./api/admin/stats/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/stats error:', error)
@@ -290,7 +290,7 @@ app.get('/api/admin/stats', asyncHandler(async (req, res) => {
 
 app.get('/api/admin/analytics', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/analytics/route')
+    const { GET: handler } = await import('./api/admin/analytics/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/analytics error:', error)
@@ -303,7 +303,7 @@ app.get('/api/admin/analytics', asyncHandler(async (req, res) => {
 
 app.get('/api/admin/interaction-analytics', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/interaction-analytics/route')
+    const { GET: handler } = await import('./api/admin/interaction-analytics/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/interaction-analytics error:', error)
@@ -316,7 +316,7 @@ app.get('/api/admin/interaction-analytics', asyncHandler(async (req, res) => {
 
 app.get('/api/admin/ai-performance', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/ai-performance/route')
+    const { GET: handler } = await import('./api/admin/ai-performance/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/ai-performance error:', error)
@@ -330,7 +330,7 @@ app.get('/api/admin/ai-performance', asyncHandler(async (req, res) => {
 // Admin monitoring routes
 app.get('/api/admin/system-health', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/system-health/route')
+    const { GET: handler } = await import('./api/admin/system-health/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/system-health error:', error)
@@ -343,7 +343,7 @@ app.get('/api/admin/system-health', asyncHandler(async (req, res) => {
 
 app.get('/api/admin/real-time-activity', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/real-time-activity/route')
+    const { GET: handler } = await import('./api/admin/real-time-activity/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/real-time-activity error:', error)
@@ -357,7 +357,7 @@ app.get('/api/admin/real-time-activity', asyncHandler(async (req, res) => {
 // Admin data routes
 app.get('/api/admin/conversations', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/conversations/route')
+    const { GET: handler } = await import('./api/admin/conversations/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/conversations error:', error)
@@ -371,7 +371,7 @@ app.get('/api/admin/conversations', asyncHandler(async (req, res) => {
 // Admin meetings routes (GET, POST, PATCH, DELETE)
 app.get('/api/admin/meetings', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/meetings/route')
+    const { GET: handler } = await import('./api/admin/meetings/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/meetings GET error:', error)
@@ -384,7 +384,7 @@ app.get('/api/admin/meetings', asyncHandler(async (req, res) => {
 
 app.post('/api/admin/meetings', asyncHandler(async (req, res) => {
   try {
-    const { POST: handler } = await import('./api/admin/meetings/route')
+    const { POST: handler } = await import('./api/admin/meetings/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/meetings POST error:', error)
@@ -397,7 +397,7 @@ app.post('/api/admin/meetings', asyncHandler(async (req, res) => {
 
 app.patch('/api/admin/meetings', asyncHandler(async (req, res) => {
   try {
-    const { PATCH: handler } = await import('./api/admin/meetings/route')
+    const { PATCH: handler } = await import('./api/admin/meetings/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/meetings PATCH error:', error)
@@ -410,7 +410,7 @@ app.patch('/api/admin/meetings', asyncHandler(async (req, res) => {
 
 app.delete('/api/admin/meetings', asyncHandler(async (req, res) => {
   try {
-    const { DELETE: handler } = await import('./api/admin/meetings/route')
+    const { DELETE: handler } = await import('./api/admin/meetings/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/meetings DELETE error:', error)
@@ -424,7 +424,7 @@ app.delete('/api/admin/meetings', asyncHandler(async (req, res) => {
 // Admin email campaigns routes (GET, POST, PATCH, DELETE)
 app.get('/api/admin/email-campaigns', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/email-campaigns/route')
+    const { GET: handler } = await import('./api/admin/email-campaigns/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/email-campaigns GET error:', error)
@@ -437,7 +437,7 @@ app.get('/api/admin/email-campaigns', asyncHandler(async (req, res) => {
 
 app.post('/api/admin/email-campaigns', asyncHandler(async (req, res) => {
   try {
-    const { POST: handler } = await import('./api/admin/email-campaigns/route')
+    const { POST: handler } = await import('./api/admin/email-campaigns/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/email-campaigns POST error:', error)
@@ -450,7 +450,7 @@ app.post('/api/admin/email-campaigns', asyncHandler(async (req, res) => {
 
 app.patch('/api/admin/email-campaigns', asyncHandler(async (req, res) => {
   try {
-    const { PATCH: handler } = await import('./api/admin/email-campaigns/route')
+    const { PATCH: handler } = await import('./api/admin/email-campaigns/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/email-campaigns PATCH error:', error)
@@ -463,7 +463,7 @@ app.patch('/api/admin/email-campaigns', asyncHandler(async (req, res) => {
 
 app.delete('/api/admin/email-campaigns', asyncHandler(async (req, res) => {
   try {
-    const { DELETE: handler } = await import('./api/admin/email-campaigns/route')
+    const { DELETE: handler } = await import('./api/admin/email-campaigns/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/email-campaigns DELETE error:', error)
@@ -477,7 +477,7 @@ app.delete('/api/admin/email-campaigns', asyncHandler(async (req, res) => {
 // Admin failed conversations routes (GET only)
 app.get('/api/admin/failed-conversations', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/failed-conversations/route')
+    const { GET: handler } = await import('./api/admin/failed-conversations/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/failed-conversations error:', error)
@@ -491,7 +491,7 @@ app.get('/api/admin/failed-conversations', asyncHandler(async (req, res) => {
 // Admin security routes (GET, POST)
 app.get('/api/admin/security-audit', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/security-audit/route')
+    const { GET: handler } = await import('./api/admin/security-audit/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/security-audit GET error:', error)
@@ -504,7 +504,7 @@ app.get('/api/admin/security-audit', asyncHandler(async (req, res) => {
 
 app.post('/api/admin/security-audit', asyncHandler(async (req, res) => {
   try {
-    const { POST: handler } = await import('./api/admin/security-audit/route')
+    const { POST: handler } = await import('./api/admin/security-audit/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/security-audit POST error:', error)
@@ -518,7 +518,7 @@ app.post('/api/admin/security-audit', asyncHandler(async (req, res) => {
 // Admin logs route
 app.get('/api/admin/logs', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/logs/route')
+    const { GET: handler } = await import('./api/admin/logs/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/logs error:', error)
@@ -532,7 +532,7 @@ app.get('/api/admin/logs', asyncHandler(async (req, res) => {
 // Admin Fly.io routes
 app.get('/api/admin/flyio/usage', asyncHandler(async (req, res) => {
   try {
-    const { GET: handler } = await import('./api/admin/flyio/usage/route')
+    const { GET: handler } = await import('./api/admin/flyio/usage/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/flyio/usage error:', error)
@@ -545,7 +545,7 @@ app.get('/api/admin/flyio/usage', asyncHandler(async (req, res) => {
 
 app.post('/api/admin/flyio/settings', asyncHandler(async (req, res) => {
   try {
-    const { POST: handler } = await import('./api/admin/flyio/settings/route')
+    const { POST: handler } = await import('./api/admin/flyio/settings/route.js')
     await runNextHandler(handler, req, res)
   } catch (error) {
     console.error('[Local API] /api/admin/flyio/settings error:', error)
