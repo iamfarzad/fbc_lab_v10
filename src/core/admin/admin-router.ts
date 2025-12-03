@@ -1,7 +1,24 @@
-// Admin router for consolidating all admin routes into a single function
+/**
+ * Admin Router - Consolidates 19 admin routes into a single Serverless Function
+ *
+ * IMPORTANT: This router dynamically imports handlers from the old route files
+ * (api/admin/[any]/route.ts). Those files are NOT deleted because:
+ *
+ * 1. Dynamic imports require the files to exist at runtime
+ * 2. Vercel redirects in vercel.json prevent counting them as separate functions
+ * 3. The actual handler logic lives in those files - we just route through here
+ *
+ * See: api/admin/README.md for full architecture documentation
+ */
 
 type Handler = (request: Request) => Promise<Response>
 
+/**
+ * Handler map - dynamically imports route handlers from old route files
+ *
+ * NOTE: The old route files (api/admin/[any]/route.ts) still exist and are used.
+ * They are NOT counted as separate Serverless Functions due to vercel.json redirects.
+ */
 const handlers = {
   GET: {
     'analytics': () => import('../../../api/admin/analytics/route').then(m => m.GET),

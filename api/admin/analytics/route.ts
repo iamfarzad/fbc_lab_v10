@@ -1,3 +1,13 @@
+/**
+ * Admin Analytics Route Handler
+ * 
+ * NOTE: This file is still used but NOT counted as a separate Serverless Function.
+ * It's dynamically imported by api/admin/route.ts via the admin router.
+ * 
+ * Do NOT delete this file - it's required for dynamic imports.
+ * See: api/admin/README.md for architecture details
+ */
+
 import { agentAnalytics, type SystemHealth } from 'src/core/analytics/agent-analytics'
 import { toolAnalytics } from 'src/core/analytics/tool-analytics'
 import { parseTimeRange } from 'src/lib/date-utils'

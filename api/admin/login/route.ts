@@ -1,3 +1,13 @@
+/**
+ * Admin Login Route Handler
+ * 
+ * NOTE: This file is still used but NOT counted as a separate Serverless Function.
+ * It's dynamically imported by api/admin/route.ts via the admin router.
+ * 
+ * Do NOT delete this file - it's required for dynamic imports.
+ * See: api/admin/README.md for architecture details
+ */
+
 // import { respond } from 'src/core/lib/api/response' // Not used in this route
 import { createToken } from 'src/core/security/auth'
 import { logger } from 'src/lib/logger'
