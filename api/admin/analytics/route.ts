@@ -2,6 +2,8 @@ import { agentAnalytics, type SystemHealth } from 'src/core/analytics/agent-anal
 import { toolAnalytics } from 'src/core/analytics/tool-analytics'
 import { parseTimeRange } from 'src/lib/date-utils'
 import { logger } from 'src/lib/logger'
+import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
+import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
 
 function generateRequestId() {
   return crypto.randomUUID()
@@ -39,6 +41,21 @@ function calculateSystemHealth(
  * Returns analytics data for agent performance, tool usage, funnel progression, and system health
  */
 export async function GET(request: Request) {
+  const hasSupabaseEnv = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+  if (!hasSupabaseEnv) {
+    return Response.json({ disabled: true, message: 'Admin features require Supabase configuration' })
+  }
+
+  const rateLimitResult = adminRateLimit(request)
+  if (rateLimitResult) {
+    return rateLimitResult
+  }
+
+  const authResult = await adminAuthMiddleware(request)
+  if (authResult) {
+    return authResult
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const range = searchParams.get('range') || '7d'

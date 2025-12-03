@@ -28,15 +28,15 @@ export function createToken(payload: Omit<JWTPayload, 'exp'>): Promise<string> {
 }
 
 export function verifyToken(token: string): Promise<JWTPayload | null> {
-  if (!token) return null
+  if (!token) return Promise.resolve(null)
   const normalized = token.startsWith(TOKEN_PREFIX) ? token.slice(TOKEN_PREFIX.length) : token
   const payload = decode(normalized)
-  if (!payload) return null
+  if (!payload) return Promise.resolve(null)
   const { userId, email, role, exp } = payload as Partial<JWTPayload>
-  if (!userId || !email || !role || typeof exp !== 'number') return null
+  if (!userId || !email || !role || typeof exp !== 'number') return Promise.resolve(null)
   const now = Math.floor(Date.now() / 1000)
-  if (exp < now) return null
-  return { userId, email, role, exp }
+  if (exp < now) return Promise.resolve(null)
+  return Promise.resolve({ userId, email, role, exp })
 }
 
 export function getCurrentUser(request: Request): JWTPayload | null {

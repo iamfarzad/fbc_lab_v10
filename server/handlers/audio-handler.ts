@@ -130,7 +130,9 @@ export async function handleUserMessage(
         } : {})
       } as TurnCompletionClient
       resetTurnCompletionTimer(connectionId, turnClient)
-      client.turnCompletionTimer = turnClient.turnCompletionTimer
+      if (turnClient.turnCompletionTimer) {
+        client.turnCompletionTimer = turnClient.turnCompletionTimer
+      }
       
       // Only log session methods in debug mode (too verbose)
       if (DEBUG_MODE) {

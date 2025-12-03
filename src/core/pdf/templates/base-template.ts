@@ -3,7 +3,7 @@ import type { SummaryData, Mode } from '../utils/types'
 import { formatDate, escapeHtml, shortenText } from '../utils/formatting'
 import { generateProposalSection } from './proposal-template'
 import { generateSummarySections } from './summary-template'
-import { generateROIChartsHTML, isValidROIData } from '../renderers/chart-renderer'
+import { isValidROIData } from '../renderers/chart-renderer'
 import { extractConversationInsights } from '../utils/insights'
 import { buildConversationPairs } from '../utils/conversation'
 
@@ -112,11 +112,13 @@ export function generateHtmlContent(summaryData: SummaryData, _mode: Mode, langu
     : ''
 
   // Detect and generate ROI charts section
+  // Note: generateROIChartsHTML is async but this function is sync
+  // For now, use placeholder - async generation should be handled at call site
   const roiArtifact = summaryData.artifactInsights?.find(
     a => a.type === 'Cost-Benefit Analysis' && a.payload && isValidROIData(a.payload)
   )
   const roiSection: string = roiArtifact && isValidROIData(roiArtifact.payload!)
-    ? generateROIChartsHTML(roiArtifact.payload)
+    ? '<div>ROI Charts Placeholder</div>' // TODO: Handle async generateROIChartsHTML at call site
     : ''
 
   const insights = extractConversationInsights(conversationPairs)

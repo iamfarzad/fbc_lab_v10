@@ -61,15 +61,19 @@ YOUR TOOLS IN VOICE MODE:
       const sessionContext = await storage.get(sessionId)
 
       if (sessionContext) {
-        const companyCtx = sessionContext.company_context as Record<string, unknown>
+        const companyCtx = sessionContext.company_context as Record<string, unknown> | undefined
+        const companyName = companyCtx?.name && typeof companyCtx.name === 'string' ? String(companyCtx.name) : undefined
+        const companyIndustry = companyCtx?.industry && typeof companyCtx.industry === 'string' ? String(companyCtx.industry) : undefined
+        const companySize = companyCtx?.size && typeof companyCtx.size === 'string' ? String(companyCtx.size) : undefined
+        
         const personalizedContext = buildPersonalizationContext({
           ...(sessionContext.name && { name: String(sessionContext.name) }),
           ...(sessionContext.email && { email: String(sessionContext.email) }),
-          ...(companyCtx?.name && {
+          ...(companyName && {
             company: {
-              name: String(companyCtx.name),
-              ...(companyCtx.industry && { industry: String(companyCtx.industry) }),
-              ...(companyCtx.size && { size: String(companyCtx.size) })
+              name: companyName,
+              ...(companyIndustry && { industry: companyIndustry }),
+              ...(companySize && { size: companySize })
             }
           }),
           ...(sessionContext.role && {
@@ -158,7 +162,6 @@ YOUR TOOLS IN VOICE MODE:
     ],
     generationConfig: {
       temperature: 1.0, // Recommended for Gemini 3.0 with high thinking
-      // @ts-expect-error - thinking field might not be in types yet
       candidateCount: 1
     }
   }

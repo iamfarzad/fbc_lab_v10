@@ -334,6 +334,7 @@ export function startQueueProcessor(): Promise<void> {
   globalWithInterval.__queueProcessorInterval = interval
 
   logger.debug('✅ Queue processor started (background mode)')
+  return Promise.resolve()
 }
 
 /**

@@ -110,7 +110,9 @@ URL ANALYSIS (${primaryUrlStr}):
         intelligenceContext.company = { domain: '' }
       }
       intelligenceContext.company.size = companySize.size
-      intelligenceContext.company.employeeCount = companySize.employeeCount
+      if (companySize.employeeCount !== undefined) {
+        intelligenceContext.company.employeeCount = companySize.employeeCount
+      }
 
       ;(intelligenceContext).budget = {
         ...((intelligenceContext).budget || {}),

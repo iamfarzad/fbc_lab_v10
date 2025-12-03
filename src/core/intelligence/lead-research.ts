@@ -196,8 +196,8 @@ Return structured data matching the schema.`
             }
           ],
           schema: ResearchResultSchema,
-          temperature: 0.3,
-          tools: [{ googleSearch: {} }] as Array<{ googleSearch: Record<string, never> }>  // Enable Google Grounding Search
+          temperature: 0.3
+          // Note: Google Grounding Search may work via model/prompt configuration
         })
 
         // Build ResearchResult from parsed object

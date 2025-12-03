@@ -130,7 +130,7 @@ export default async function handler(
         )
 
         // Persist stage so reloads don't reset (safe fallback if table/column missing)
-        if (sessionId) {
+        if (sessionId && supabaseService && typeof (supabaseService as { from?: (table: string) => unknown })?.from === 'function') {
           try {
             const { error } = await supabaseService
               .from('conversations')

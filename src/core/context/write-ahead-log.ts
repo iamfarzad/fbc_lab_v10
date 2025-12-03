@@ -8,7 +8,7 @@ export const walLog = {
   flush() {
     return;
   },
-  logOperation(_sessionId: string, _operation: string, _data: unknown) {
-    return;
+  logOperation(_sessionId: string, _operation: string, _data: unknown): Promise<void> {
+    return Promise.resolve();
   }
 };

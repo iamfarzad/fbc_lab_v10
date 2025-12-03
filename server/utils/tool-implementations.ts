@@ -152,7 +152,7 @@ export function executeCalculateROI(args: any): Promise<ToolResult> {
 export async function executeGenerateSummaryPreview(args: any, sessionId?: string): Promise<ToolResult> {
     try {
         if (!sessionId) {
-            return { success: false, error: 'Session ID required' }
+            return Promise.resolve({ success: false, error: 'Session ID required' })
         }
 
         const { multimodalContextManager } = await import('src/core/context/multimodal-context')
@@ -209,7 +209,7 @@ export function executeDraftFollowUpEmail(args: any, _sessionId?: string): Promi
 export function executeGenerateProposalDraft(_args: any, sessionId?: string): Promise<ToolResult> {
     try {
         if (!sessionId) {
-            return { success: false, error: 'Session ID required' }
+            return Promise.resolve({ success: false, error: 'Session ID required' })
         }
 
         const proposal = `# Proposal Draft\n\n## Executive Summary\nBased on our conversation...\n\n## Scope of Work\n- Item 1\n- Item 2\n\n## Investment\nTo be discussed`

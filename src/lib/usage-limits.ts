@@ -85,33 +85,33 @@ export class UsageLimiter {
     // Check session duration
     const sessionMinutes = (Date.now() - usage.started_at) / 60000;
     if (sessionMinutes > usage.max_session_duration) {
-      return { allowed: false, reason: 'Session time limit reached (30 min)' };
+      return Promise.resolve({ allowed: false, reason: 'Session time limit reached (30 min)' });
     }
     
     switch (type) {
       case 'message':
         if (usage.messages_sent >= usage.max_messages) {
-          return { allowed: false, reason: 'Message limit reached (50 messages)' };
+          return Promise.resolve({ allowed: false, reason: 'Message limit reached (50 messages)' });
         }
         break;
       case 'voice':
         if (usage.voice_minutes_used >= usage.max_voice_minutes) {
-          return { allowed: false, reason: 'Voice time limit reached (10 min)' };
+          return Promise.resolve({ allowed: false, reason: 'Voice time limit reached (10 min)' });
         }
         break;
       case 'screen':
         if (usage.screen_minutes_used >= usage.max_screen_minutes) {
-          return { allowed: false, reason: 'Screen share limit reached (5 min)' };
+          return Promise.resolve({ allowed: false, reason: 'Screen share limit reached (5 min)' });
         }
         break;
       case 'webcam':
         if (usage.webcam_minutes_used >= usage.max_webcam_minutes) {
-          return { allowed: false, reason: 'Webcam limit reached (3 min)' };
+          return Promise.resolve({ allowed: false, reason: 'Webcam limit reached (3 min)' });
         }
         break;
       case 'research':
         if (usage.research_calls_used >= usage.max_research_calls) {
-          return { allowed: false, reason: 'Research limit reached (3 calls)' };
+          return Promise.resolve({ allowed: false, reason: 'Research limit reached (3 calls)' });
         }
         break;
     }

@@ -12,14 +12,12 @@ interface LogContext {
 
 class ClientLogger {
   private isDevelopment: boolean
-  private isProduction: boolean
 
   constructor() {
     // Always use process.env in Node.js (server-side)
     // import.meta.env is only available in Vite/browser builds
     if (typeof process !== 'undefined' && process.env) {
       this.isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV
-      this.isProduction = process.env.NODE_ENV === 'production'
     } else {
       // Browser environment - safely access import.meta.env
       let metaEnv: any = null
@@ -33,11 +31,9 @@ class ClientLogger {
       
       if (metaEnv) {
         this.isDevelopment = metaEnv.DEV === true
-        this.isProduction = metaEnv.PROD === true
       } else {
         // Fallback
         this.isDevelopment = false
-        this.isProduction = false
       }
     }
   }
