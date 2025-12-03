@@ -50,7 +50,7 @@ export function MeetingCalendarSection() {
       const startOfMonthStr = startOfMonth(currentMonth).toISOString()
       const endOfMonthStr = endOfMonth(currentMonth).toISOString()
       const response = await fetch(
-        `/api/admin/meetings?start_date=${startOfMonthStr}&end_date=${endOfMonthStr}`
+        `/api/admin?path=meetings&start_date=${startOfMonthStr}&end_date=${endOfMonthStr}`
       )
       if (response.ok) {
         const data: unknown = await response.json()
@@ -71,7 +71,7 @@ export function MeetingCalendarSection() {
 
   const handleCreate = async () => {
     try {
-      const response = await fetch('/api/admin/meetings', {
+      const response = await fetch('/api/admin?path=meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,7 +112,7 @@ export function MeetingCalendarSection() {
     if (!confirm('Are you sure you want to delete this meeting?')) return
 
     try {
-      const response = await fetch(`/api/admin/meetings?id=${id}`, {
+      const response = await fetch(`/api/admin?path=meetings&id=${id}`, {
         method: 'DELETE',
       })
 

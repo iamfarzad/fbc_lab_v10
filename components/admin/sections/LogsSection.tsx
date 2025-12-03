@@ -27,12 +27,13 @@ export function LogsSection() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      params.set('path', 'logs')
       params.set('source', source)
       if (level !== 'all') {
         params.set('level', level)
       }
 
-      const response = await fetch(`/api/admin/logs?${params.toString()}`)
+      const response = await fetch(`/api/admin?${params.toString()}`)
       if (response.ok) {
         const data: unknown = await response.json()
         const logs = (data && typeof data === 'object' && 'logs' in data && Array.isArray(data.logs)) ? data.logs : []

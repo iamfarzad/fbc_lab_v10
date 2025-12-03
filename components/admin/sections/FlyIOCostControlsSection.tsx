@@ -38,7 +38,7 @@ export function FlyIOCostControlsSection() {
   const fetchUsage = useEvent(async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/admin/flyio/usage')
+      const response = await fetch('/api/admin?path=flyio-usage')
       if (response.ok) {
         const dataRaw = (await response.json()) as unknown
         // Parse inputs with guards
@@ -71,7 +71,7 @@ export function FlyIOCostControlsSection() {
   const handleSaveSettings = useEvent(async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/admin/flyio/settings', {
+      const response = await fetch('/api/admin?path=flyio-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

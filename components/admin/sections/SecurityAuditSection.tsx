@@ -57,7 +57,7 @@ export function SecurityAuditSection() {
   const runSecurityAudit = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/admin/security-audit')
+      const response = await fetch('/api/admin?path=security-audit')
       if (response.ok) {
         const data: unknown = await response.json()
         if (data && typeof data === 'object' && 'security_checks' in data) {
@@ -74,7 +74,7 @@ export function SecurityAuditSection() {
   const testPublicAccess = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/admin/security-audit', {
+      const response = await fetch('/api/admin?path=security-audit', {
         method: 'POST'
       })
       if (response.ok) {

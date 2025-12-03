@@ -53,12 +53,13 @@ export function TokenCostAnalyticsSection() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      params.set('path', 'token-costs')
       params.set('period', period)
       if (selectedModel !== 'all') {
         params.set('model', selectedModel)
       }
 
-      const response = await fetch(`/api/admin/token-costs?${params.toString()}`)
+      const response = await fetch(`/api/admin?${params.toString()}`)
       if (response.ok) {
         const result: unknown = await response.json()
         // Type guard to ensure result matches TokenCostsData structure

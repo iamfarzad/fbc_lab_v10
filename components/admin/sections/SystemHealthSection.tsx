@@ -40,7 +40,7 @@ export function SystemHealthSection() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/admin/system-health', { cache: 'no-store' })
+      const res = await fetch('/api/admin?path=system-health', { cache: 'no-store' })
       if (!res.ok) {
         const text = await res.text()
         throw new Error(text || `Status ${res.status}`)

@@ -61,7 +61,7 @@ export function InteractionAnalyticsSection() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/admin/interaction-analytics?period=${period}`)
+      const response = await fetch(`/api/admin?path=interaction-analytics&period=${period}`)
       if (response.ok) {
         const result: unknown = await response.json()
         if (result && typeof result === 'object') {

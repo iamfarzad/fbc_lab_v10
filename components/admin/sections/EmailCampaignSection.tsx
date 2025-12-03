@@ -43,7 +43,7 @@ export function EmailCampaignSection() {
   const fetchCampaigns = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/admin/email-campaigns')
+      const response = await fetch('/api/admin?path=email-campaigns')
       if (response.ok) {
         const data: unknown = await response.json()
         if (Array.isArray(data)) {
@@ -63,7 +63,7 @@ export function EmailCampaignSection() {
 
   const handleCreate = async () => {
     try {
-      const response = await fetch('/api/admin/email-campaigns', {
+      const response = await fetch('/api/admin?path=email-campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,7 +89,7 @@ export function EmailCampaignSection() {
     if (!selectedCampaign) return
 
     try {
-      const response = await fetch('/api/admin/email-campaigns', {
+      const response = await fetch('/api/admin?path=email-campaigns', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,7 +112,7 @@ export function EmailCampaignSection() {
     if (!confirm('Are you sure you want to delete this campaign?')) return
 
     try {
-      const response = await fetch(`/api/admin/email-campaigns?id=${id}`, {
+      const response = await fetch(`/api/admin?path=email-campaigns&id=${id}`, {
         method: 'DELETE',
       })
 

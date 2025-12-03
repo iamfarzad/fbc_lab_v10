@@ -65,11 +65,12 @@ export function FailedConversationsSection() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      params.set('path', 'failed-conversations')
       if (minScoreFilter !== null) {
         params.set('minScore', minScoreFilter.toString())
       }
 
-      const response = await fetch(`/api/admin/failed-conversations?${params.toString()}`)
+      const response = await fetch(`/api/admin?${params.toString()}`)
       if (response.ok) {
         const data: unknown = await response.json()
         if (Array.isArray(data)) {

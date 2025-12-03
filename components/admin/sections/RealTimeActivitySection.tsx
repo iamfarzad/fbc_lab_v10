@@ -41,7 +41,7 @@ export function RealTimeActivitySection() {
     setError(null)
     setIsConnected(true)
 
-    const eventSource = new EventSource('/api/admin/real-time-activity', {
+    const eventSource = new EventSource('/api/admin?path=real-time-activity', {
       withCredentials: true,
     })
 
@@ -122,7 +122,7 @@ export function RealTimeActivitySection() {
   // Fetch initial activities - convert handlers to useEvent
   const fetchInitialActivities = useEvent(async () => {
     try {
-      const response = await fetch('/api/admin/real-time-activity?limit=50')
+      const response = await fetch('/api/admin?path=real-time-activity&limit=50')
       if (response.ok) {
         const dataRaw = (await response.json()) as unknown
         // Guard WS payloads

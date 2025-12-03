@@ -52,7 +52,7 @@ export function AgentAnalyticsPanel() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`/api/admin/analytics?range=${range}`, {
+      const response = await fetch(`/api/admin?path=analytics&range=${range}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'

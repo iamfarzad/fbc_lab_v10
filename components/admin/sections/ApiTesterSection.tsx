@@ -23,11 +23,11 @@ const API_ENDPOINTS: ApiCategory[] = [
   {
     category: 'Admin',
     endpoints: [
-      { name: 'Stats', method: 'GET', path: '/api/admin/stats', params: ['period'] },
-      { name: 'Sessions', method: 'GET', path: '/api/admin/sessions', params: ['adminId'] },
-      { name: 'Conversations', method: 'GET', path: '/api/admin/conversations', params: ['search', 'period'] },
-      { name: 'Fly.io Usage', method: 'GET', path: '/api/admin/flyio/usage', params: [] },
-      { name: 'Fly.io Settings', method: 'POST', path: '/api/admin/flyio/settings', params: ['monthlyBudget'] }
+      { name: 'Stats', method: 'GET', path: '/api/admin?path=stats', params: ['period'] },
+      { name: 'Sessions', method: 'GET', path: '/api/admin?path=sessions', params: ['adminId'] },
+      { name: 'Conversations', method: 'GET', path: '/api/admin?path=conversations', params: ['search', 'period'] },
+      { name: 'Fly.io Usage', method: 'GET', path: '/api/admin?path=flyio-usage', params: [] },
+      { name: 'Fly.io Settings', method: 'POST', path: '/api/admin?path=flyio-settings', params: ['monthlyBudget'] }
     ]
   },
   {

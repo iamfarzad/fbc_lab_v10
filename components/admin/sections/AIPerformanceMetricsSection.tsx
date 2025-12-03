@@ -64,7 +64,7 @@ export function AIPerformanceMetricsSection() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/admin/ai-performance?period=${period}`)
+      const response = await fetch(`/api/admin?path=ai-performance&period=${period}`)
       if (response.ok) {
         const result: unknown = await response.json()
         if (result && typeof result === 'object') {

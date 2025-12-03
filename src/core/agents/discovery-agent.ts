@@ -111,7 +111,7 @@ URL ANALYSIS (${primaryUrlStr}):
       }
       intelligenceContext.company.size = companySize.size
       if (companySize.employeeCount !== undefined) {
-        intelligenceContext.company.employeeCount = companySize.employeeCount
+      intelligenceContext.company.employeeCount = companySize.employeeCount
       }
 
       ;(intelligenceContext).budget = {
