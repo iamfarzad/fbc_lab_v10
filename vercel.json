@@ -3,26 +3,12 @@
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install",
   "framework": "vite",
-  "regions": ["iad1"],
   "rewrites": [
     {
-      "source": "/api/admin/(.*)",
-      "destination": "/api/admin?path=$1"
-    }
-  ],
-  "functions": {
-    "api/**/*.ts": {
-      "maxDuration": 30
-    }
-  },
-  "redirects": [
-    {
       "source": "/api/(.*)",
-      "destination": "/app/api/$1"
+      "destination": "/api/$1"
     }
   ],
-  "cleanUrls": true,
-  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",
@@ -43,4 +29,3 @@
     }
   ]
 }
-
