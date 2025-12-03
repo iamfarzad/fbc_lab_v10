@@ -176,21 +176,15 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
                                 <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Real-time audio</div>
                             </div>
                         </div>
-                        <div className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={permissions.voice}
-                                onChange={(e) => setPermissions(prev => ({ ...prev, voice: e.target.checked }))}
-                                className="sr-only peer"
-                            />
-                            <div className={`w-9 h-5 rounded-full transition-all peer-checked:bg-white peer-focus:outline-none ${
-                                isDarkMode 
-                                    ? 'bg-white/10 peer-checked:bg-white' 
-                                    : 'bg-slate-200 peer-checked:bg-slate-900'
-                            }`}>
-                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all peer-checked:translate-x-4 shadow-sm`}></div>
-                            </div>
+                        <div className={`relative w-10 h-5 rounded-full transition-colors ${permissions.voice ? (isDarkMode ? 'bg-orange-500' : 'bg-orange-500') : (isDarkMode ? 'bg-white/10' : 'bg-slate-300')}`}>
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${permissions.voice ? 'translate-x-5' : 'translate-x-0'}`} />
                         </div>
+                        <input
+                            type="checkbox"
+                            checked={permissions.voice}
+                            onChange={(e) => setPermissions(prev => ({ ...prev, voice: e.target.checked }))}
+                            className="sr-only"
+                        />
                     </label>
 
                     {/* Webcam Toggle */}
@@ -202,24 +196,18 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
                             </svg>
                             <div>
                                 <div className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Webcam</div>
-                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Video sharing</div>
+                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Visual context</div>
                             </div>
                         </div>
-                        <div className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={permissions.webcam}
-                                onChange={(e) => setPermissions(prev => ({ ...prev, webcam: e.target.checked }))}
-                                className="sr-only peer"
-                            />
-                            <div className={`w-9 h-5 rounded-full transition-all peer-checked:bg-white peer-focus:outline-none ${
-                                isDarkMode 
-                                    ? 'bg-white/10 peer-checked:bg-white' 
-                                    : 'bg-slate-200 peer-checked:bg-slate-900'
-                            }`}>
-                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all peer-checked:translate-x-4 shadow-sm`}></div>
-                            </div>
+                        <div className={`relative w-10 h-5 rounded-full transition-colors ${permissions.webcam ? (isDarkMode ? 'bg-orange-500' : 'bg-orange-500') : (isDarkMode ? 'bg-white/10' : 'bg-slate-300')}`}>
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${permissions.webcam ? 'translate-x-5' : 'translate-x-0'}`} />
                         </div>
+                        <input
+                            type="checkbox"
+                            checked={permissions.webcam}
+                            onChange={(e) => setPermissions(prev => ({ ...prev, webcam: e.target.checked }))}
+                            className="sr-only"
+                        />
                     </label>
 
                     {/* Location Toggle */}
@@ -231,88 +219,55 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
                             </svg>
                             <div>
                                 <div className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Location</div>
-                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Geographic context</div>
+                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Geographic data</div>
                             </div>
                         </div>
-                        <div className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={permissions.location}
-                                onChange={(e) => setPermissions(prev => ({ ...prev, location: e.target.checked }))}
-                                className="sr-only peer"
-                            />
-                            <div className={`w-9 h-5 rounded-full transition-all peer-checked:bg-white peer-focus:outline-none ${
-                                isDarkMode 
-                                    ? 'bg-white/10 peer-checked:bg-white' 
-                                    : 'bg-slate-200 peer-checked:bg-slate-900'
-                            }`}>
-                                <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all peer-checked:translate-x-4 shadow-sm`}></div>
-                            </div>
+                        <div className={`relative w-10 h-5 rounded-full transition-colors ${permissions.location ? (isDarkMode ? 'bg-orange-500' : 'bg-orange-500') : (isDarkMode ? 'bg-white/10' : 'bg-slate-300')}`}>
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${permissions.location ? 'translate-x-5' : 'translate-x-0'}`} />
                         </div>
+                        <input
+                            type="checkbox"
+                            checked={permissions.location}
+                            onChange={(e) => setPermissions(prev => ({ ...prev, location: e.target.checked }))}
+                            className="sr-only"
+                        />
                     </label>
                 </div>
-            </div>
 
-            {/* Terms Checkbox - Minimal */}
-            <div className={`flex items-start gap-3 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200/40'}`}>
-                <div className="relative flex items-center mt-0.5 flex-shrink-0">
+                {/* Terms Agreement */}
+                <div className="flex items-start gap-2.5 pt-2">
                     <input
                         type="checkbox"
-                        id="terms"
+                        id="terms-agree"
                         checked={agreed}
                         onChange={(e) => setAgreed(e.target.checked)}
-                        className={`peer h-4 w-4 cursor-pointer appearance-none rounded border transition-all ${
-                            isDarkMode
-                                ? 'border-white/20 bg-white/5 checked:border-white checked:bg-white'
-                                : 'border-slate-300 bg-white checked:border-slate-900 checked:bg-slate-900'
+                        className={`mt-0.5 w-4 h-4 rounded border-2 cursor-pointer transition-all ${
+                            isDarkMode 
+                                ? 'border-white/20 bg-white/5 checked:bg-orange-500 checked:border-orange-500' 
+                                : 'border-slate-300 bg-white checked:bg-orange-500 checked:border-orange-500'
                         }`}
                     />
-                    <svg className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 opacity-0 peer-checked:opacity-100 transition-opacity ${
-                        isDarkMode ? 'text-slate-900' : 'text-white'
-                    }`} viewBox="0 0 14 14" fill="none">
-                        <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <label htmlFor="terms-agree" className={`text-[10px] leading-relaxed cursor-pointer flex-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                        I agree to the <a href="/terms" target="_blank" className={`underline hover:opacity-80 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>Terms of Service</a> and <a href="/privacy" target="_blank" className={`underline hover:opacity-80 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>Privacy Policy</a>
+                    </label>
                 </div>
-                <label htmlFor="terms" className={`text-xs leading-relaxed cursor-pointer select-none flex-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                    I agree to the <span className="underline decoration-dotted underline-offset-2 hover:opacity-70 transition-opacity">Terms & Conditions</span> and <span className="underline decoration-dotted underline-offset-2 hover:opacity-70 transition-opacity">Privacy Policy</span>.
-                    <span className={`block mt-1.5 text-[10px] leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                        Your data will be processed according to GDPR regulations. Voice transcripts and visual captures are automatically deleted after 7 days.
-                    </span>
-                </label>
-            </div>
 
-            {/* Submit Button - Minimal */}
-            <button
-                type="submit"
-                disabled={!agreed || !name || !email || isSubmitting}
-                title={!agreed || !name || !email ? "Please fill all fields and agree to terms" : "Start Session"}
-                className={`
-                    w-full py-3 rounded-lg font-medium tracking-wide transition-all text-xs
-                    flex items-center justify-center gap-2 mt-2
-                    ${!agreed || !name || !email || isSubmitting
-                        ? isDarkMode
-                            ? 'bg-white/5 text-slate-500 cursor-not-allowed border border-white/10'
-                            : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                        : isDarkMode 
-                            ? 'bg-white text-slate-900 hover:bg-slate-100 border border-white/20 shadow-lg hover:shadow-xl hover:-translate-y-0.5' 
-                            : 'bg-slate-900 text-white hover:bg-slate-800 border border-slate-900 shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-                    }
-                `}
-            >
-                {isSubmitting ? (
-                    <>
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-                        <span>INITIALIZING...</span>
-                    </>
-                ) : (
-                    <>
-                        <span>INITIALIZE SESSION</span>
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    </>
-                )}
-            </button>
+                {/* Submit Button */}
+                <button
+                    type="submit"
+                    disabled={!agreed || !name || !isValidEmail(email) || isSubmitting}
+                    className={`w-full py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        !agreed || !name || !isValidEmail(email) || isSubmitting
+                            ? (isDarkMode ? 'bg-white/5 text-slate-500 cursor-not-allowed' : 'bg-slate-100 text-slate-400 cursor-not-allowed')
+                            : (isDarkMode 
+                                ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/20' 
+                                : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg')
+                    }`}
+                >
+                    {isSubmitting ? 'Starting Session...' : 'Start Session'}
+                </button>
+            </div>
         </form>
-      </div>
     </div>
   );
 };
