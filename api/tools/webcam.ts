@@ -32,6 +32,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Check API key before processing
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+    if (!apiKey || apiKey.includes('INSERT_API_KEY')) {
+      return res.status(500).json({ 
+        error: 'API key not configured. Please set GEMINI_API_KEY in Vercel environment variables.',
+        success: false
+      });
+    }
+
     // Rate limiting (simple in-memory for demo)
     const now = Date.now()
     if (now - lastRequestTime < 2000) {
@@ -40,10 +49,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     lastRequestTime = now
 
     // Manually parse JSON body since bodyParser is disabled
-    let body;
+    let body: { image?: string; prompt?: string };
     try {
-      body = JSON.parse(req.body as string);
-    } catch (e) {
+      body = JSON.parse(req.body as string) as { image?: string; prompt?: string };
+    } catch {
       return res.status(400).json({ error: 'Invalid JSON body' });
     }
     const { image, prompt } = body || {};

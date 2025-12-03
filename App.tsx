@@ -20,6 +20,7 @@ import { GEMINI_MODELS } from "src/config/constants";
 import { generatePDF } from './utils/pdfUtils';
 import { Tool, Type } from '@google/genai';
 import { logger } from 'src/lib/logger-client'
+import { useToast } from './context/ToastContext';
 
 // Routing Logic Types
 interface ModelRoute {
@@ -83,6 +84,7 @@ function resolveAgentShape(agent?: string | null, stage?: string | null): Visual
 export const App: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { showToast } = useToast();
     
     // View State: 'landing' | 'chat' | 'admin'
     // Sync with URL pathname
@@ -1000,7 +1002,7 @@ export const App: React.FC = () => {
         const apiKey = storedKey || process.env.API_KEY;
 
         if (!apiKey || apiKey.includes('INSERT_API_KEY')) {
-            alert("Invalid API Key. Please configure process.env.API_KEY or set it in Admin Dashboard.");
+            showToast("API Key not configured. Please set it in Admin Dashboard or configure GEMINI_API_KEY in Vercel.", 'error');
             setConnectionState(LiveConnectionState.ERROR);
             return;
         }
@@ -1142,7 +1144,12 @@ export const App: React.FC = () => {
         } catch (err) {
             console.error("Failed to connect to Live API", err);
             setConnectionState(LiveConnectionState.ERROR);
-            alert("Network Error: Could not connect to Gemini Live API. Please check your API key and connection.");
+            const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            if (errorMsg.includes('API key') || errorMsg.includes('authentication') || errorMsg.includes('401')) {
+                showToast("API Key authentication failed. Please check your API key configuration.", 'error');
+            } else {
+                showToast("Network Error: Could not connect to Gemini Live API. Please check your connection.", 'error');
+            }
         }
 
     }, [handleVolumeChange, handleTranscript, handleToolCall, userProfile]);
@@ -1268,6 +1275,22 @@ export const App: React.FC = () => {
                 liveServiceRef.current?.sendText(text);
             }
         } else if (aiBrainRef.current) { // Use AIBrainService instead of StandardChatService
+            // Check API key before making API calls
+            const storedKey = localStorage.getItem('fbc_api_key');
+            const apiKey = storedKey || process.env.API_KEY;
+            if (!apiKey || apiKey.includes('INSERT_API_KEY')) {
+                showToast("API Key not configured. Please set it in Admin Dashboard or configure GEMINI_API_KEY in Vercel.", 'error');
+                setTranscript(prev => [...prev, {
+                    id: Date.now().toString(),
+                    role: 'model',
+                    text: "I need an API key to function. Please configure your Gemini API key in the Admin Dashboard (click 'Admin Access' in the footer) or set GEMINI_API_KEY in your Vercel environment variables.",
+                    timestamp: new Date(),
+                    isFinal: true,
+                    status: 'complete'
+                }]);
+                return;
+            }
+
             try {
                 abortControllerRef.current = new AbortController();
                 setBackendStatus({
@@ -1625,25 +1648,41 @@ export const App: React.FC = () => {
             } catch (error) {
                 if ((error as Error).name !== 'AbortError') {
                     console.error("Chat failed", error);
+                    const errorMsg = error instanceof Error ? error.message : String(error);
                     setBackendStatus({
                         mode: 'fallback',
-                        message: `Chat failed: ${(error as Error).message}`,
+                        message: `Chat failed: ${errorMsg}`,
                         severity: 'error'
                     });
-                    setTranscript(prev => prev.map(item =>
-                        !item.isFinal ? {
-                            ...item,
-                            text: "I encountered a network error. Please check your API key and connection.",
-                            isFinal: true,
-                            status: 'complete'
-                        } : item
-                    ));
+                    
+                    // Show appropriate error message based on error type
+                    if (errorMsg.includes('API key') || errorMsg.includes('authentication') || errorMsg.includes('401') || errorMsg.includes('403')) {
+                        showToast("API Key authentication failed. Please check your API key configuration.", 'error');
+                        setTranscript(prev => prev.map(item =>
+                            !item.isFinal ? {
+                                ...item,
+                                text: "I need a valid API key to function. Please configure your Gemini API key in the Admin Dashboard or set GEMINI_API_KEY in your Vercel environment variables.",
+                                isFinal: true,
+                                status: 'complete'
+                            } : item
+                        ));
+                    } else {
+                        showToast("Network error. Please check your connection and try again.", 'error');
+                        setTranscript(prev => prev.map(item =>
+                            !item.isFinal ? {
+                                ...item,
+                                text: "I encountered a network error. Please check your connection and try again.",
+                                isFinal: true,
+                                status: 'complete'
+                            } : item
+                        ));
+                    }
                 }
             } finally {
                 abortControllerRef.current = null;
             }
         }
-    }, [connectionState, handleToolCall, sessionId, detectVisualIntent, persistMessageToServer, performResearch, smartRouteModel]);
+    }, [connectionState, handleToolCall, sessionId, detectVisualIntent, persistMessageToServer, performResearch, smartRouteModel, showToast]);
 
     const handleSendVideoFrame = useCallback((base64: string) => {
         // Store latest frame for chat mode (agents) - will be attached to next message

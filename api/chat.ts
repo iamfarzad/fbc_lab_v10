@@ -68,6 +68,17 @@ export default async function handler(
     }
 
     try {
+        // Check API key before processing
+        const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+        if (!apiKey || apiKey.includes('INSERT_API_KEY')) {
+            logger.error('[API /chat] API key not configured');
+            return res.status(500).json({
+                success: false,
+                error: 'API key not configured. Please set GEMINI_API_KEY in Vercel environment variables.',
+                output: "I'm unable to process requests because the API key is not configured. Please contact the administrator."
+            });
+        }
+
         const { messages, sessionId, intelligenceContext, trigger, multimodalContext } = req.body;
 
         // Rate limiting - check before processing
