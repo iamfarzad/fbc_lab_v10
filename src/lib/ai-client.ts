@@ -26,26 +26,20 @@ const ensureGeminiConfigured = () => {
 }
 
 // Create a callable wrapper that uses the provider with resolved API key
-// Make it lazy - don't call ensureGeminiConfigured at module load time
 const googleWrapper = ((modelId: string, settings?: unknown) => {
   const provider = ensureGeminiConfigured()
   // Cast to any to bypass strict type check if the installed SDK version doesn't explicitly support settings yet
   return (provider as any)(modelId, settings)
 }) as GoogleGenerativeAIProvider
 
-// Lazy initialization - only copy properties when first accessed
+// Lazy initialization - only copy properties when first accessed, not at module load
 // This prevents errors at module load time if API key is missing
 let propertiesCopied = false
 const ensurePropertiesCopied = () => {
   if (!propertiesCopied) {
-    try {
-      const provider = ensureGeminiConfigured()
-      Object.assign(googleWrapper, provider)
-      propertiesCopied = true
-    } catch (error) {
-      // If API key is missing, properties will be copied when first used (which will throw then)
-      // This allows the app to load
-    }
+    const provider = ensureGeminiConfigured()
+    Object.assign(googleWrapper, provider)
+    propertiesCopied = true
   }
 }
 
