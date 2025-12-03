@@ -3,6 +3,17 @@
 	"devCommand": "pnpm dev",
 	"installCommand": "pnpm install",
 	"framework": "vite",
+	"functions": {
+		"api/admin/route.ts": {
+			"maxDuration": 30
+		},
+		"api/chat.ts": {
+			"maxDuration": 30
+		},
+		"api/send-pdf-summary/route.ts": {
+			"maxDuration": 30
+		}
+	},
 	"rewrites": [
 		{
 			"source": "/api/admin/(.*)",
