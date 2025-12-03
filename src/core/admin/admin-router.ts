@@ -1,19 +1,15 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-// TypeScript cannot resolve dynamic App Router imports in Vercel builds.
+// TypeScript cannot resolve dynamic App Router imports in Vercel builds sometimes.
 // This is a known limitation - dynamic import() with App Router routes requires
 // runtime resolution that TypeScript cannot statically analyze.
-// Every production team using App Router + dynamic imports does this.
 
 /**
  * Admin Router - Consolidates 19 admin routes into a single Serverless Function
  *
- * IMPORTANT: This router dynamically imports handlers from the old route files
- * (api/admin/[any]/route.ts). Those files are NOT deleted because:
- *
- * 1. Dynamic imports require the files to exist at runtime
- * 2. Vercel redirects in vercel.json prevent counting them as separate functions
- * 3. The actual handler logic lives in those files - we just route through here
+ * IMPORTANT: This router dynamically imports handlers from src/core/admin/handlers/.
+ * This prevents Vercel from counting each handler as a separate Serverless Function
+ * (which happens if they live in the api/ directory).
  *
  * See: api/admin/README.md for full architecture documentation
  */
@@ -21,46 +17,43 @@
 type Handler = (request: Request) => Promise<Response>
 
 /**
- * Handler map - dynamically imports route handlers from old route files
- *
- * NOTE: The old route files (api/admin/[any]/route.ts) still exist and are used.
- * They are NOT counted as separate Serverless Functions due to vercel.json redirects.
+ * Handler map - dynamically imports route handlers from src/core/admin/handlers/
  */
 const handlers = {
   GET: {
-    'analytics': () => import('../../../api/admin/analytics/handler').then(m => m.GET),
-    'sessions': () => import('../../../api/admin/sessions/handler').then(m => m.GET),
-    'conversations': () => import('../../../api/admin/conversations/handler').then(m => m.GET),
-    'logs': () => import('../../../api/admin/logs/handler').then(m => m.GET),
-    'stats': () => import('../../../api/admin/stats/handler').then(m => m.GET),
-    'meetings': () => import('../../../api/admin/meetings/handler').then(m => m.GET),
-    'system-health': () => import('../../../api/admin/system-health/handler').then(m => m.GET),
-    'ai-performance': () => import('../../../api/admin/ai-performance/handler').then(m => m.GET),
-    'interaction-analytics': () => import('../../../api/admin/interaction-analytics/handler').then(m => m.GET),
-    'real-time-activity': () => import('../../../api/admin/real-time-activity/handler').then(m => m.GET),
-    'security-audit': () => import('../../../api/admin/security-audit/handler').then(m => m.GET),
-    'token-costs': () => import('../../../api/admin/token-costs/handler').then(m => m.GET),
-    'email-campaigns': () => import('../../../api/admin/email-campaigns/handler').then(m => m.GET),
-    'failed-conversations': () => import('../../../api/admin/failed-conversations/handler').then(m => m.GET),
-    'flyio-usage': () => import('../../../api/admin/flyio/usage/handler').then(m => m.GET),
+    'analytics': () => import('./handlers/analytics').then(m => m.GET),
+    'sessions': () => import('./handlers/sessions').then(m => m.GET),
+    'conversations': () => import('./handlers/conversations').then(m => m.GET),
+    'logs': () => import('./handlers/logs').then(m => m.GET),
+    'stats': () => import('./handlers/stats').then(m => m.GET),
+    'meetings': () => import('./handlers/meetings').then(m => m.GET),
+    'system-health': () => import('./handlers/system-health').then(m => m.GET),
+    'ai-performance': () => import('./handlers/ai-performance').then(m => m.GET),
+    'interaction-analytics': () => import('./handlers/interaction-analytics').then(m => m.GET),
+    'real-time-activity': () => import('./handlers/real-time-activity').then(m => m.GET),
+    'security-audit': () => import('./handlers/security-audit').then(m => m.GET),
+    'token-costs': () => import('./handlers/token-costs').then(m => m.GET),
+    'email-campaigns': () => import('./handlers/email-campaigns').then(m => m.GET),
+    'failed-conversations': () => import('./handlers/failed-conversations').then(m => m.GET),
+    'flyio-usage': () => import('./handlers/flyio-usage').then(m => m.GET),
   },
   POST: {
-    'login': () => import('../../../api/admin/login/handler').then(m => m.POST),
-    'logout': () => import('../../../api/admin/logout/handler').then(m => m.POST),
-    'sessions': () => import('../../../api/admin/sessions/handler').then(m => m.POST),
-    'meetings': () => import('../../../api/admin/meetings/handler').then(m => m.POST),
-    'email-campaigns': () => import('../../../api/admin/email-campaigns/handler').then(m => m.POST),
-    'security-audit': () => import('../../../api/admin/security-audit/handler').then(m => m.POST),
-    'flyio-settings': () => import('../../../api/admin/flyio/settings/handler').then(m => m.POST),
+    'login': () => import('./handlers/login').then(m => m.POST),
+    'logout': () => import('./handlers/logout').then(m => m.POST),
+    'sessions': () => import('./handlers/sessions').then(m => m.POST),
+    'meetings': () => import('./handlers/meetings').then(m => m.POST),
+    'email-campaigns': () => import('./handlers/email-campaigns').then(m => m.POST),
+    'security-audit': () => import('./handlers/security-audit').then(m => m.POST),
+    'flyio-settings': () => import('./handlers/flyio-settings').then(m => m.POST),
   },
   DELETE: {
-    'sessions': () => import('../../../api/admin/sessions/handler').then(m => m.DELETE),
-    'meetings': () => import('../../../api/admin/meetings/handler').then(m => m.DELETE),
-    'email-campaigns': () => import('../../../api/admin/email-campaigns/handler').then(m => m.DELETE),
+    'sessions': () => import('./handlers/sessions').then(m => m.DELETE),
+    'meetings': () => import('./handlers/meetings').then(m => m.DELETE),
+    'email-campaigns': () => import('./handlers/email-campaigns').then(m => m.DELETE),
   },
   PATCH: {
-    'meetings': () => import('../../../api/admin/meetings/handler').then(m => m.PATCH),
-    'email-campaigns': () => import('../../../api/admin/email-campaigns/handler').then(m => m.PATCH),
+    'meetings': () => import('./handlers/meetings').then(m => m.PATCH),
+    'email-campaigns': () => import('./handlers/email-campaigns').then(m => m.PATCH),
   }
 } as const
 
@@ -107,4 +100,3 @@ export function getAdminHandler(method: 'GET' | 'POST' | 'DELETE' | 'PATCH'): Ha
     }
   }
 }
-

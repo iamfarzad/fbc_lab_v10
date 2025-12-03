@@ -104,6 +104,16 @@ export async function handleRealtimeInput(
     }
 
     const mimeType = chunk.mimeType || ''
+    
+    // CRITICAL: Validate mimeType is present - Live API requires it
+    if (!mimeType) {
+      serverLogger.warn('REALTIME_INPUT chunk missing mimeType - rejecting to prevent session closure', { 
+        connectionId,
+        chunkKeys: Object.keys(chunk)
+      })
+      return
+    }
+    
     const isImage = mimeType.startsWith('image/')
 
     if (isImage) {

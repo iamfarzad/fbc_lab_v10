@@ -203,6 +203,27 @@ export const App: React.FC = () => {
         isWebcamActiveRef.current = isWebcamActive;
     }, [isWebcamActive]);
 
+    // Auto-connect Live API when webcam is activated (if not already connected)
+    const webcamConnectAttemptedRef = useRef(false);
+    useEffect(() => {
+        if (isWebcamActive && 
+            connectionState !== LiveConnectionState.CONNECTED && 
+            connectionState !== LiveConnectionState.CONNECTING &&
+            !webcamConnectAttemptedRef.current &&
+            liveServiceRef.current) {
+            webcamConnectAttemptedRef.current = true;
+            logger.debug('[App] Webcam activated, connecting to Live API for multimodal conversation');
+            void handleConnect().finally(() => {
+                // Reset after connection attempt completes (success or failure)
+                setTimeout(() => {
+                    webcamConnectAttemptedRef.current = false;
+                }, 2000);
+            });
+        } else if (connectionState === LiveConnectionState.CONNECTED) {
+            webcamConnectAttemptedRef.current = false;
+        }
+    }, [isWebcamActive, connectionState, handleConnect]);
+
     // Initialize Services with dynamic API Key support
     useEffect(() => {
         const storedKey = localStorage.getItem('fbc_api_key');
@@ -1581,15 +1602,24 @@ export const App: React.FC = () => {
     }, [connectionState, handleToolCall, sessionId, detectVisualIntent, persistMessageToServer, performResearch, smartRouteModel]);
 
     const handleSendVideoFrame = useCallback((base64: string) => {
-        // Send video frames to Live API when voice is connected
-        if (liveServiceRef.current && connectionState === LiveConnectionState.CONNECTED) {
-            liveServiceRef.current.sendRealtimeMedia({ mimeType: 'image/jpeg', data: base64 });
-        }
-
         // Store latest frame for chat mode (agents) - will be attached to next message
         // This ensures AI can see webcam in both voice and chat modes
         latestWebcamFrameRef.current = base64;
-    }, [connectionState]);
+
+        // Send video frames to Live API when connected (for real-time multimodal conversation)
+        if (liveServiceRef.current && connectionState === LiveConnectionState.CONNECTED) {
+            try {
+                liveServiceRef.current.sendRealtimeMedia({ mimeType: 'image/jpeg', data: base64 });
+                logger.debug('[App] Webcam frame sent to Live API', { size: base64.length });
+            } catch (err) {
+                console.error('[App] Failed to send webcam frame to Live API:', err);
+            }
+        } else if (isWebcamActive && connectionState === LiveConnectionState.DISCONNECTED) {
+            // If webcam is active but Live API not connected, try to connect
+            logger.debug('[App] Webcam active but Live API disconnected, attempting connection');
+            void handleConnect();
+        }
+    }, [connectionState, isWebcamActive]);
 
     // Clear stale webcam frames when webcam is disabled
     useEffect(() => {

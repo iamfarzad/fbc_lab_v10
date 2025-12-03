@@ -776,7 +776,8 @@ export class LiveClientWS {
 
   sendText(text: string) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return
-    this.send({ type: 'REALTIME_INPUT', payload: { chunks: [{ text }] } })
+    // CRITICAL: Live API requires mimeType for all chunks
+    this.send({ type: 'REALTIME_INPUT', payload: { chunks: [{ text, mimeType: 'text/plain' }] } })
   }
 
   sendAudioBase64PCM16(base64: string, mimeType = 'audio/pcm;rate=24000') {
