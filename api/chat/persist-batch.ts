@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { multimodalContextManager } from 'src/core/context/multimodal-context';
+import { multimodalContextManager } from '../../src/core/context/multimodal-context';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
-import { GEMINI_MODELS } from 'src/config/constants';
+import { GEMINI_MODELS } from '../../src/config/constants';
 
 export const config = {
   api: {
