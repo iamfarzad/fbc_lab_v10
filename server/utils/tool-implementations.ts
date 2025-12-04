@@ -324,6 +324,104 @@ export function executeCaptureWebcamSnapshot(args: any, connectionId: string, ac
 }
 
 /**
+ * Capture webcam snapshot by sessionId (for chat agents)
+ */
+export async function executeCaptureWebcamSnapshotBySession(args: any, sessionId: string): Promise<ToolResult> {
+    try {
+        const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
+        const context = await multimodalContextManager.getContext(sessionId)
+        
+        if (!context || !context.visualContext || context.visualContext.length === 0) {
+            return {
+                success: true,
+                data: { message: 'No webcam snapshot available' }
+            }
+        }
+
+        // Find latest webcam entry
+        const webcamEntries = context.visualContext.filter(v => v.type === 'webcam')
+        if (webcamEntries.length === 0) {
+            return {
+                success: true,
+                data: { message: 'No webcam snapshot available' }
+            }
+        }
+
+        const latest = webcamEntries[webcamEntries.length - 1]
+        if (!latest) {
+            return {
+                success: true,
+                data: { message: 'No webcam snapshot available' }
+            }
+        }
+
+        return {
+            success: true,
+            data: {
+                analysis: latest.analysis,
+                capturedAt: new Date(latest.timestamp).getTime(),
+                hasImage: !!latest.imageData && !args.summaryOnly,
+                message: 'Webcam snapshot retrieved'
+            }
+        }
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to capture webcam snapshot'
+        }
+    }
+}
+
+/**
+ * Capture screen snapshot by sessionId (for chat agents)
+ */
+export async function executeCaptureScreenSnapshotBySession(args: any, sessionId: string): Promise<ToolResult> {
+    try {
+        const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
+        const context = await multimodalContextManager.getContext(sessionId)
+        
+        if (!context || !context.visualContext || context.visualContext.length === 0) {
+            return {
+                success: true,
+                data: { message: 'No screen snapshot available' }
+            }
+        }
+
+        // Find latest screen entry
+        const screenEntries = context.visualContext.filter(v => v.type === 'screen')
+        if (screenEntries.length === 0) {
+            return {
+                success: true,
+                data: { message: 'No screen snapshot available' }
+            }
+        }
+
+        const latest = screenEntries[screenEntries.length - 1]
+        if (!latest) {
+            return {
+                success: true,
+                data: { message: 'No screen snapshot available' }
+            }
+        }
+
+        return {
+            success: true,
+            data: {
+                analysis: latest.analysis,
+                capturedAt: new Date(latest.timestamp).getTime(),
+                hasImage: !!latest.imageData && !args.summaryOnly,
+                message: 'Screen snapshot retrieved'
+            }
+        }
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to capture screen snapshot'
+        }
+    }
+}
+
+/**
  * Get dashboard stats (Admin Only)
  */
 export async function executeGetDashboardStats(args: any, sessionId: string): Promise<ToolResult> {

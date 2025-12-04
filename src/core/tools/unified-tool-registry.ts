@@ -188,6 +188,8 @@ export async function executeUnifiedTool(
     executeGenerateProposalDraft,
     executeCaptureScreenSnapshot,
     executeCaptureWebcamSnapshot,
+    executeCaptureScreenSnapshotBySession,
+    executeCaptureWebcamSnapshotBySession,
     executeGetDashboardStats
   } = await import('../../../server/utils/tool-implementations.js')
 
@@ -213,16 +215,20 @@ export async function executeUnifiedTool(
       return await executeGenerateProposalDraft(args, sessionId)
 
     case 'capture_screen_snapshot':
-      if (!connectionId || !activeSessions) {
-        return { success: false, error: 'Connection context required for screen snapshot' }
+      // Try connection-based lookup first (voice), then session-based (chat)
+      if (connectionId && activeSessions) {
+        return await executeCaptureScreenSnapshot(args, connectionId, activeSessions)
       }
-      return await executeCaptureScreenSnapshot(args, connectionId, activeSessions)
+      // Fallback to session-based lookup via multimodal context (chat)
+      return await executeCaptureScreenSnapshotBySession(args, sessionId)
 
     case 'capture_webcam_snapshot':
-      if (!connectionId || !activeSessions) {
-        return { success: false, error: 'Connection context required for webcam snapshot' }
+      // Try connection-based lookup first (voice), then session-based (chat)
+      if (connectionId && activeSessions) {
+        return await executeCaptureWebcamSnapshot(args, connectionId, activeSessions)
       }
-      return await executeCaptureWebcamSnapshot(args, connectionId, activeSessions)
+      // Fallback to session-based lookup via multimodal context (chat)
+      return await executeCaptureWebcamSnapshotBySession(args, sessionId)
 
     case 'get_dashboard_stats':
       return await executeGetDashboardStats(args, sessionId)
@@ -315,9 +321,18 @@ export function getChatToolDefinitions(sessionId: string, agentName: string = 'C
       description: 'Generate a proposal based on the conversation. Returns markdown proposal text that can be displayed or saved.',
       parameters: ToolSchemas.generate_proposal_draft,
       execute: createToolExecute('generate_proposal_draft')
+    },
+    capture_webcam_snapshot: {
+      description: 'Retrieve the latest analyzed webcam context for this session.',
+      parameters: ToolSchemas.capture_webcam_snapshot,
+      execute: createToolExecute('capture_webcam_snapshot')
+    },
+    capture_screen_snapshot: {
+      description: 'Retrieve the latest analyzed screen-share context for this session.',
+      parameters: ToolSchemas.capture_screen_snapshot,
+      execute: createToolExecute('capture_screen_snapshot')
     }
-    // Note: capture_screen_snapshot, capture_webcam_snapshot, and get_dashboard_stats
-    // are voice/admin-only tools and not included in chat tool definitions
+    // Note: get_dashboard_stats is admin-only and not included in chat tool definitions
   }
 }
 
