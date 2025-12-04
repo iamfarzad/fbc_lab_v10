@@ -1,5 +1,5 @@
-import { EMBEDDING_MODELS } from 'src/config/constants'
-import { createGoogleGenAI } from 'src/config/env'
+import { EMBEDDING_MODELS } from '../../config/constants.js'
+import { createGoogleGenAI } from '../../config/env.js'
 
 export async function embedTexts(texts: string[], dims: 768 | 1536 = 1536): Promise<number[][]> {
   const ai = createGoogleGenAI()

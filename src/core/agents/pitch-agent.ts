@@ -1,8 +1,8 @@
-import { safeGenerateText } from 'src/lib/gemini-safe'
-import { GEMINI_MODELS } from 'src/config/constants'
-import { calculateRoi } from './utils/calculate-roi'
-import type { AgentContext, ChatMessage, AgentResult, FunnelStage } from './types'
-import { extractGeminiMetadata } from 'src/lib/extract-gemini-metadata'
+import { safeGenerateText } from '../../lib/gemini-safe.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
+import { calculateRoi } from './utils/calculate-roi.js'
+import type { AgentContext, ChatMessage, AgentResult, FunnelStage } from './types.js'
+import { extractGeminiMetadata } from '../../lib/extract-gemini-metadata.js'
 
 /**
  * Unified Pitch Agent - Replaces workshop-sales-agent and consulting-sales-agent

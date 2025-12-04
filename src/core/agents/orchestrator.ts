@@ -1,11 +1,11 @@
-import { discoveryAgent } from './discovery-agent'
-import { pitchAgent } from './pitch-agent'
-import { objectionAgent } from './objection-agent'
-import { closerAgent } from './closer-agent'
-import { summaryAgent } from './summary-agent'
-import { detectObjection } from './utils/detect-objections'
+import { discoveryAgent } from './discovery-agent.js'
+import { pitchAgent } from './pitch-agent.js'
+import { objectionAgent } from './objection-agent.js'
+import { closerAgent } from './closer-agent.js'
+import { summaryAgent } from './summary-agent.js'
+import { detectObjection } from './utils/detect-objections.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
-import type { AgentResult, AgentContext, ChatMessage } from './types'
+import type { AgentResult, AgentContext, ChatMessage } from './types.js'
 import { GEMINI_MODELS } from '../../config/constants.js'
 
 /**

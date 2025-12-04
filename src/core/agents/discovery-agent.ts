@@ -1,13 +1,13 @@
-import { safeGenerateText } from 'src/lib/gemini-safe'
-import { formatMessagesForAI } from 'src/lib/format-messages'
-import { detectExitIntent } from 'src/lib/exit-detection'
-import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult, FunnelStage } from './types'
-import type { ConversationFlowState, ConversationCategory } from 'src/types/conversation-flow-types'
-import { GEMINI_MODELS } from 'src/config/constants'
-import { PHRASE_BANK } from 'src/core/chat/conversation-phrases'
-import { extractCompanySize, extractBudgetSignals, extractTimelineUrgency } from './utils'
-import { analyzeUrl } from 'src/core/intelligence/url-context-tool'
-import { extractGeminiMetadata } from 'src/lib/extract-gemini-metadata'
+import { safeGenerateText } from '../../lib/gemini-safe.js'
+import { formatMessagesForAI } from '../../lib/format-messages.js'
+import { detectExitIntent } from '../../lib/exit-detection.js'
+import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult, FunnelStage } from './types.js'
+import type { ConversationFlowState, ConversationCategory } from '../../types/conversation-flow-types.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
+import { PHRASE_BANK } from '../chat/conversation-phrases.js'
+import { extractCompanySize, extractBudgetSignals, extractTimelineUrgency } from './utils/index.js'
+import { analyzeUrl } from '../intelligence/url-context-tool.js'
+import { extractGeminiMetadata } from '../../lib/extract-gemini-metadata.js'
 
 /**
  * Discovery Agent - Systematically qualifies leads through conversation

@@ -1,9 +1,9 @@
-import { getSupabaseService } from 'src/lib/supabase'
-import { DatabaseConversationContext } from 'src/core/context/context-types'
-import { asContexts } from 'src/lib/supabase-parsers'
-import type { Database, Json } from 'src/core/database.types'
-import { toJson } from 'src/types/json-guards'
-import { calculateBackoffDelay, DEFAULT_BACKOFF_MULTIPLIER } from 'src/lib/ai/retry-config'
+import { getSupabaseService } from '../../lib/supabase.js'
+import { DatabaseConversationContext } from './context-types.js'
+import { asContexts } from '../../lib/supabase-parsers.js'
+import type { Database, Json } from '../database.types.js'
+import { toJson } from '../../types/json-guards.js'
+import { calculateBackoffDelay, DEFAULT_BACKOFF_MULTIPLIER } from '../../lib/ai/retry-config.js'
 
 type ConversationContextExtendedFields = {
   metadata?: Json | null

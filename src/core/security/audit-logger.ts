@@ -1,7 +1,7 @@
-import { getSupabaseService } from 'src/lib/supabase'
-import { toJson } from 'src/types/json-guards'
-import type { Json } from 'src/core/database.types'
-import { logger } from 'src/lib/logger'
+import { getSupabaseService } from '../../lib/supabase.js'
+import { toJson } from '../../types/json-guards.js'
+import type { Json } from '../database.types.js'
+import { logger } from '../../lib/logger.js'
 
 export interface AuditEvent {
   actorId?: string

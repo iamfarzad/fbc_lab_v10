@@ -1,7 +1,7 @@
-import { google, generateText } from 'src/lib/ai-client'
-import type { AgentContext, ChatMessage, ChainOfThoughtStep } from './types'
-import { GEMINI_MODELS } from 'src/config/constants'
-import { multimodalContextManager } from 'src/core/context/multimodal-context'
+import { google, generateText } from '../../lib/ai-client.js'
+import type { AgentContext, ChatMessage, ChainOfThoughtStep } from './types.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
+import { multimodalContextManager } from '../context/multimodal-context.js'
 import { z } from 'zod'
 
 /**

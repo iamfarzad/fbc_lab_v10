@@ -1,4 +1,4 @@
-import { getSupabaseService } from 'src/lib/supabase'
+import { getSupabaseService } from '../../lib/supabase.js'
 
 // Cache validation result to avoid repeated checks
 let setupValidated: boolean | null = null

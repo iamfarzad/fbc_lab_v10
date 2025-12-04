@@ -1,4 +1,4 @@
-import type { ChatMessage } from 'src/core/agents/types'
+import type { ChatMessage } from '../core/agents/types.js'
 
 /**
  * Formats messages for AI SDK, handling multimodal content (text + attachments)

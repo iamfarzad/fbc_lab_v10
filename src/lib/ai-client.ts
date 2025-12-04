@@ -5,8 +5,8 @@
 import { generateText as baseGenerateText, streamText as baseStreamText, generateObject as baseGenerateObject } from 'ai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import type { GoogleGenerativeAIProvider } from '@ai-sdk/google'
-import { createRetryableGemini as baseCreateRetryableGemini, createRetryableGeminiStream as baseCreateRetryableGeminiStream, createRetryableGeminiReliable as baseCreateRetryableGeminiReliable } from 'src/lib/ai/retry-model'
-import { getResolvedGeminiApiKey } from 'src/config/env'
+import { createRetryableGemini as baseCreateRetryableGemini, createRetryableGeminiStream as baseCreateRetryableGeminiStream, createRetryableGeminiReliable as baseCreateRetryableGeminiReliable } from './ai/retry-model.js'
+import { getResolvedGeminiApiKey } from '../config/env.js'
 
 let isGeminiConfigured = false
 let googleProvider: GoogleGenerativeAIProvider | null = null

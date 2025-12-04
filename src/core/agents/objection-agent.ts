@@ -1,6 +1,6 @@
-import { detectObjection } from './utils/detect-objections'
-import type { AgentContext, ChatMessage, AgentResult } from './types'
-import { GEMINI_MODELS } from 'src/config/constants'
+import { detectObjection } from './utils/detect-objections.js'
+import type { AgentContext, ChatMessage, AgentResult } from './types.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
 
 /**
  * Objection Agent - Micro-agent that activates only when objection detected

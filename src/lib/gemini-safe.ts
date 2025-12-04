@@ -1,6 +1,6 @@
 import { generateText, type GenerateTextResult } from 'ai';
-import { google } from 'src/lib/ai-client';
-import { GEMINI_MODELS } from 'src/config/constants';
+import { google } from './ai-client.js';
+import { GEMINI_MODELS } from '../config/constants.js';
 
 export async function safeGenerateText(params: {
   system: string;

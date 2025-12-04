@@ -6,7 +6,17 @@
 
 ## 🎯 Current Objective
 
-🔧 **FIXING:** Vercel build error - "unmatched function pattern" for `api/admin/route.ts`
+🔧 **FIXING:** Vercel API endpoint crash - `FUNCTION_INVOCATION_FAILED` on `/api/chat`
+
+**Root Cause:** Missing Supabase environment variables in Vercel production environment.
+
+**Required Env Vars:**
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `GEMINI_API_KEY`
+
+**See:** `docs/VERCEL_ENV_VARS_REQUIRED.md` for details.
 
 ## 🔧 Vercel Configuration Fix (2025-12-04)
 
@@ -354,10 +364,12 @@
 
 ## 🚧 In Progress
 
-**Current Task:** Testing and Documentation
+**Current Task:** Backend & AI Function Verification
 
-**Active Plan:** [Unified Tool Integration](./docs/TOOL_INTEGRATION_MASTER_PLAN.md)
-- Status: Implementation complete, validation in progress
+**Active Plan:** [Backend & AI Function Verification Plan](./docs/BACKEND_AI_FUNCTION_VERIFICATION_PLAN.md)
+- Status: Plan created, ready to start Phase 1 (Foundation)
+- Focus: Systematic verification of all backend services and AI functions
+- Approach: Bottom-up (foundation → infrastructure → tools → agents → APIs → WebSocket → integration → production)
 
 **Previous Task:** Phase 3: Admin Service Restoration - Hooks Porting Complete ✅
 - ✅ Port AdminChatService implementation from v8

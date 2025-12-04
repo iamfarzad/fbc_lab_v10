@@ -1,4 +1,4 @@
-import type { Json } from 'src/core/database.types';
+import type { Json } from '../database.types.js';
 
 /** Basic lead/person/company context used across chat + intelligence layers. */
 export interface LeadContext {

@@ -3,10 +3,10 @@
  * Type-safe extraction and detection utilities using generateObject
  */
 
-export { extractCompanySize, type ExtractCompanySizeResult } from './extract-company-size'
-export { extractBudgetSignals, type ExtractBudgetSignalsResult } from './extract-budget-signals'
-export { detectObjection, type DetectObjectionResult } from './detect-objections'
-export { detectInterestLevel, type DetectInterestLevelResult } from './detect-interest-level'
-export { calculateRoi, type CalculateRoiResult, type CalculateRoiInput } from './calculate-roi'
-export { extractTimelineUrgency, type ExtractTimelineUrgencyResult } from './extract-timeline-urgency'
+export { extractCompanySize, type ExtractCompanySizeResult } from './extract-company-size.js'
+export { extractBudgetSignals, type ExtractBudgetSignalsResult } from './extract-budget-signals.js'
+export { detectObjection, type DetectObjectionResult } from './detect-objections.js'
+export { detectInterestLevel, type DetectInterestLevelResult } from './detect-interest-level.js'
+export { calculateRoi, type CalculateRoiResult, type CalculateRoiInput } from './calculate-roi.js'
+export { extractTimelineUrgency, type ExtractTimelineUrgencyResult } from './extract-timeline-urgency.js'
 

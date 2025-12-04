@@ -1,11 +1,11 @@
-import { ContextStorage } from 'src/core/context/context-storage'
-import { MultimodalContext, ConversationEntry, VisualEntry, LeadContext, UploadEntry, AudioEntry, ConversationTurn } from 'src/core/context/context-types'
-import { vercelCache } from 'src/lib/vercel-cache'
-import { CONTEXT_CONFIG, SECURITY_CONFIG, GEMINI_CONFIG } from 'src/config/constants'
-import { walLog } from 'src/core/context/write-ahead-log'
-import { summarizeConversationWindow, shouldSummarize, extractSummaries } from 'src/core/context/context-summarizer'
-import { detectPII, shouldRedact, redactPII } from 'src/core/security/pii-detector'
-import { auditLog } from 'src/core/security/audit-logger'
+import { ContextStorage } from './context-storage.js'
+import { MultimodalContext, ConversationEntry, VisualEntry, LeadContext, UploadEntry, AudioEntry, ConversationTurn } from './context-types.js'
+import { vercelCache } from '../../lib/vercel-cache.js'
+import { CONTEXT_CONFIG, SECURITY_CONFIG, GEMINI_CONFIG } from '../../config/constants.js'
+import { walLog } from './write-ahead-log.js'
+import { summarizeConversationWindow, shouldSummarize, extractSummaries } from './context-summarizer.js'
+import { detectPII, shouldRedact, redactPII } from '../security/pii-detector.js'
+import { auditLog } from '../security/audit-logger.js'
 import {
   extractEntities,
   extractTopics,
@@ -21,10 +21,10 @@ import {
   type Priority,
   type Complexity,
   type BusinessValue
-} from 'src/core/context/context-intelligence'
-import { embedTexts } from 'src/core/embeddings/gemini'
-import { queryTopK, upsertEmbeddings } from 'src/core/embeddings/query'
-import { logger } from 'src/lib/logger-client'
+} from './context-intelligence.js'
+import { embedTexts } from '../embeddings/gemini.js'
+import { queryTopK, upsertEmbeddings } from '../embeddings/query.js'
+import { logger } from '../../lib/logger-client.js'
 
 const WAL_ENABLED = false;
 

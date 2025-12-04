@@ -1,5 +1,5 @@
-import type { ConversationFlowState } from 'src/types/conversation-flow-types'
-import type { FunnelStage } from 'src/core/types/funnel-stage'
+import type { ConversationFlowState } from '../../types/conversation-flow-types.js'
+import type { FunnelStage } from '../types/funnel-stage.js'
 
 export interface AgentContext {
   sessionId: string

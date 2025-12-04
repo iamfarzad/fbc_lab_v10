@@ -1,7 +1,7 @@
-import { google, generateText } from 'src/lib/ai-client'
-import { GEMINI_MODELS, CONTEXT_CONFIG } from 'src/config/constants'
-import type { ConversationEntry } from 'src/core/context/context-types'
-import { logger } from 'src/lib/logger-client'
+import { google, generateText } from '../../lib/ai-client.js'
+import { GEMINI_MODELS, CONTEXT_CONFIG } from '../../config/constants.js'
+import type { ConversationEntry } from './context-types.js'
+import { logger } from '../../lib/logger-client.js'
 
 /**
  * Summarize a window of conversation entries to reduce token usage

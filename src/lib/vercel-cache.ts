@@ -1,5 +1,5 @@
 import { kv } from '@vercel/kv';
-import { logger } from 'src/lib/logger'
+import { logger } from './logger.js'
 
 // Cache configuration
 export interface CacheConfig {
