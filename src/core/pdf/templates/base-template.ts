@@ -1,11 +1,11 @@
-import { PDF_DESIGN_TOKENS, getHslColor } from 'src/core/pdf-design-tokens'
-import type { SummaryData, Mode } from '../utils/types'
-import { formatDate, escapeHtml, shortenText } from '../utils/formatting'
-import { generateProposalSection } from './proposal-template'
-import { generateSummarySections } from './summary-template'
-import { generateROIChartsHTML, isValidROIData } from 'src/core/pdf-roi-charts'
-import { extractConversationInsights } from '../utils/insights'
-import { buildConversationPairs } from '../utils/conversation'
+import { PDF_DESIGN_TOKENS, getHslColor } from '../../pdf-design-tokens.js'
+import type { SummaryData, Mode } from '../utils/types.js'
+import { formatDate, escapeHtml, shortenText } from '../utils/formatting.js'
+import { generateProposalSection } from './proposal-template.js'
+import { generateSummarySections } from './summary-template.js'
+import { generateROIChartsHTML, isValidROIData } from '../../pdf-roi-charts.js'
+import { extractConversationInsights } from '../utils/insights.js'
+import { buildConversationPairs } from '../utils/conversation.js'
 
 /**
  * Lightweight text helper until the Gemini translator is migrated.

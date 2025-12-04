@@ -1,8 +1,8 @@
 import { generateObject, generateText } from 'ai'
 import { google } from '@ai-sdk/google'
 import { z } from 'zod'
-import { GEMINI_MODELS } from '../../config/constants'
-import { logger } from '../../lib/logger'
+import { GEMINI_MODELS } from '../../config/constants.js'
+import { logger } from '../../lib/logger.js'
 
 // Schemas
 const ActionItemsSchema = z.object({

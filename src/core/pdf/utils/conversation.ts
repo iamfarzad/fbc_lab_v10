@@ -1,4 +1,4 @@
-import type { SummaryData, ConversationPair } from './types'
+import type { SummaryData, ConversationPair } from './types.js'
 
 /**
  * Build conversation pairs from history

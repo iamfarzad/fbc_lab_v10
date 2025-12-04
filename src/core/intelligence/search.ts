@@ -1,7 +1,7 @@
 import { generateText } from 'ai'
 import { google } from '@ai-sdk/google'
-import { GEMINI_MODELS } from '../../config/constants'
-import { logger } from '../../lib/logger'
+import { GEMINI_MODELS } from '../../config/constants.js'
+import { logger } from '../../lib/logger.js'
 
 export interface SearchResult {
   query: string

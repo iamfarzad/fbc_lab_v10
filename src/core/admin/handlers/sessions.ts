@@ -14,13 +14,13 @@ import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
 import { adminChatService } from '../admin-chat-service.js'
 import { supabaseService } from '../../supabase/client.js'
 // TODO: Import parseJsonRequest when available
-// import { parseJsonRequest } from '../../../lib/json'
+// import { parseJsonRequest } from '../../../lib/json.js'
 import { z } from 'zod'
 // TODO: Import asAdminSession when supabase-parsers is available
-// import { asAdminSession } from '../../../lib/supabase-parsers'
+// import { asAdminSession } from '../../../lib/supabase-parsers.js'
 // TODO: Import schemas when available
-// import type { AdminSessionRow } from '../../../schemas/supabase'
-// import { SessionsQuerySchema, SessionsPostBodySchema } from '../../../schemas/admin'
+// import type { AdminSessionRow } from '../../../schemas/supabase.js'
+// import { SessionsQuerySchema, SessionsPostBodySchema } from '../../../schemas/admin.js'
 import { logger } from '../../../lib/logger.js'
 import type { Database } from '../../database.types.js'
 

@@ -1,4 +1,4 @@
-import { GEMINI_MODELS, GEMINI_ENDPOINTS, WEBSOCKET_CONFIG } from 'src/config/constants'
+import { GEMINI_MODELS, GEMINI_ENDPOINTS, WEBSOCKET_CONFIG } from '../../../config/constants.js'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'

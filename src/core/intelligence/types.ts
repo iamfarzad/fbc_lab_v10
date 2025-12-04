@@ -1,5 +1,5 @@
 // Types for intelligence system
-import type { ContextSnapshot } from '../context/context-schema'
+import type { ContextSnapshot } from '../context/context-schema.js'
 
 export interface IntentResult {
   type: 'consulting' | 'workshop' | 'other'

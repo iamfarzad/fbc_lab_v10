@@ -1,7 +1,7 @@
-import { getSupabaseService } from 'src/lib/supabase'
-import { toJson } from 'src/types/json-guards'
-import type { Json } from 'src/core/database.types'
-import { contextStorage } from './context-storage'
+import { getSupabaseService } from '../../lib/supabase.js'
+import { toJson } from '../../types/json-guards.js'
+import type { Json } from '../database.types.js'
+import { contextStorage } from './context-storage.js'
 
 /**
  * Records first-time capability usage for a session by calling the DB RPC

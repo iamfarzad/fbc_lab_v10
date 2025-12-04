@@ -4,7 +4,7 @@
  * TypeScript type guards, error handling patterns, and coding standards
  */
 
-import { truncateText as truncateTextUtil } from './text-utils'
+import { truncateText as truncateTextUtil } from './text-utils.js'
 import { safeParseJson } from './json.js'
 import { AppError } from './errors.js'
 import { logger } from './logger.js'

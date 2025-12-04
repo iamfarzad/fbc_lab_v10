@@ -1,5 +1,5 @@
-import { supabaseService } from 'src/core/supabase/client'
-import type { ConversationRecord } from 'src/types/conversations'
+import { supabaseService } from '../supabase/client.js'
+import type { ConversationRecord } from '../../types/conversations.js'
 
 // Type definitions for database operations
 interface ConversationInsertData {

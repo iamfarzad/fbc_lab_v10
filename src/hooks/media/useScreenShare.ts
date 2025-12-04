@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
-import { blobToBase64 } from 'src/lib/utils'
-import { parseJsonResponse } from 'src/lib/json'
-import type { VoiceContextUpdate } from 'src/types/voice'
-import { logger } from 'src/lib/logger'
+import { blobToBase64 } from '../../lib/utils.js'
+import { parseJsonResponse } from '../../lib/json.js'
+import type { VoiceContextUpdate } from '../../types/voice.js'
+import { logger } from '../../lib/logger.js'
 
 
 export interface UseScreenShareOptions {

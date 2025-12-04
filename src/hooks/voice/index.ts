@@ -1,6 +1,6 @@
-export { useVoice, useVoiceProviderValue } from './useVoice'
-export type * from './useVoice'
-export { useRealtimeVoice } from './useRealtimeVoice'
-export type * from './useRealtimeVoice'
-export { useVoiceContext } from './voice-context'
+export { useVoice, useVoiceProviderValue } from './useVoice.js'
+export type * from './useVoice.js'
+export { useRealtimeVoice } from './useRealtimeVoice.js'
+export type * from './useRealtimeVoice.js'
+export { useVoiceContext } from './voice-context.js'
 

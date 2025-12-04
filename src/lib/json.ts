@@ -6,7 +6,7 @@
 import { z } from 'zod'
 // NextRequest removed - not needed in Vite project
 // import type { NextRequest } from 'next/server'
-import { AppError } from './errors'
+import { AppError } from './errors.js'
 
 export interface ParseOptions {
   onError?: (error: AppError) => void

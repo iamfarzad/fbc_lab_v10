@@ -4,8 +4,8 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { LiveClientWS } from 'src/core/live/client'
-import { logger } from 'src/lib/logger'
+import type { LiveClientWS } from '../../core/live/client.js'
+import { logger } from '../../lib/logger.js'
 
 export type VoiceContextUpdate = {
   sessionId?: string | null

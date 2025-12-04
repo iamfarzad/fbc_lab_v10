@@ -1,8 +1,8 @@
-import { generateObject, google } from 'src/lib/ai-client'
-import { GEMINI_MODELS } from 'src/config/constants'
-import { createCachedFunction, CACHE_TTL } from 'src/lib/ai-cache'
+import { generateObject, google } from '../../lib/ai-client.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
+import { createCachedFunction, CACHE_TTL } from '../../lib/ai-cache.js'
 import { z } from 'zod'
-import { logger } from 'src/lib/logger'
+import { logger } from '../../lib/logger.js'
 
 export interface CompanyContext {
   name: string

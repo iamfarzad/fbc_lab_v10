@@ -7,12 +7,12 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
-import { blobToBase64 } from 'src/lib/utils'
-import { getLiveClientSingleton } from 'src/core/live/client'
-import { WEBSOCKET_CONFIG, RATE_LIMITS } from 'src/config/constants'
-import type { LiveClient } from 'src/types/media-analysis'
-import { parseJsonResponse } from 'src/lib/json'
-import { logger } from 'src/lib/logger'
+import { blobToBase64 } from '../../lib/utils.js'
+import { getLiveClientSingleton } from '../../core/live/client.js'
+import { WEBSOCKET_CONFIG, RATE_LIMITS } from '../../config/constants.js'
+import type { LiveClient } from '../../types/media-analysis.js'
+import { parseJsonResponse } from '../../lib/json.js'
+import { logger } from '../../lib/logger.js'
 
 export interface UseCameraOptions {
   onCapture?: (blob: Blob, imageData?: string) => void

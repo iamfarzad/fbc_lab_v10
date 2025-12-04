@@ -4,11 +4,11 @@
  * Generates a proposal based on conversation (wraps /api/generate-proposal logic).
  */
 
-import { generateText, google } from 'src/lib/ai-client'
-import { CONTACT_CONFIG, GEMINI_MODELS } from 'src/config/constants'
-import { ContextStorage } from 'src/core/context/context-storage'
-import { usageLimiter } from 'src/lib/usage-limits'
-import { logger } from 'src/lib/logger'
+import { generateText, google } from '../../lib/ai-client.js'
+import { CONTACT_CONFIG, GEMINI_MODELS } from '../../config/constants.js'
+import { ContextStorage } from '../context/context-storage.js'
+import { usageLimiter } from '../../lib/usage-limits.js'
+import { logger } from '../../lib/logger.js'
 
 const contextStorage = new ContextStorage()
 

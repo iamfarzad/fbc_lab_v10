@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react'
-import type { Message, MessageMetadata } from 'src/types/core'
-import { adminChatService } from 'src/core/admin/admin-chat-service'
-import { ADMIN_CONFIG } from 'src/config/constants'
-import { createPrefixedId } from 'src/lib/id'
+import type { Message, MessageMetadata } from '../../types/core.js'
+import { adminChatService } from '../../core/admin/admin-chat-service.js'
+import { ADMIN_CONFIG } from '../../config/constants.js'
+import { createPrefixedId } from '../../lib/id.js'
 
 interface UseAdminChatOptions {
   sessionId?: string

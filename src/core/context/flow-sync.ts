@@ -1,5 +1,5 @@
-import { CONVERSATION_CATEGORIES, type CategoryInsight, type ConversationCategory, type ConversationFlowState } from 'src/types/conversation-flow-types'
-import type { ConversationFlowSnapshot } from 'src/types/conversation-flow'
+import { CONVERSATION_CATEGORIES, type CategoryInsight, type ConversationCategory, type ConversationFlowState } from '../../types/conversation-flow-types.js'
+import type { ConversationFlowSnapshot } from '../../types/conversation-flow.js'
 
 type FlowInput = ConversationFlowSnapshot | ConversationFlowState | Record<string, unknown> | null | undefined
 

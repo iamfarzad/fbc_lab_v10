@@ -1,6 +1,6 @@
-import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
-import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
-import { supabaseService } from 'src/core/supabase/client'
+import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
+import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
+import { supabaseService } from '../../supabase/client.js'
 
 interface LogRow {
   id: string

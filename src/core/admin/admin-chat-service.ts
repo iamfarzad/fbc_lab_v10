@@ -1,8 +1,8 @@
-import { supabaseService } from 'src/core/supabase/client'
-import { asAdminSession, asAdminConversations, asConversations } from 'src/lib/supabase-parsers'
-import type { AdminSessionRow, AdminConversationRow } from 'src/schemas/supabase'
-import type { Database } from 'src/core/database.types'
-import { logger } from 'src/lib/logger'
+import { supabaseService } from '../supabase/client.js'
+import { asAdminSession, asAdminConversations, asConversations } from '../../lib/supabase-parsers.js'
+import type { AdminSessionRow, AdminConversationRow } from '../../schemas/supabase.js'
+import type { Database } from '../database.types.js'
+import { logger } from '../../lib/logger.js'
 
 type AdminMessageType = 'user' | 'assistant' | 'system'
 

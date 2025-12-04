@@ -3,7 +3,7 @@
  * Provides convenience functions for common routing scenarios
  */
 
-import type { MediaAnalysisResult } from 'src/types/media-analysis'
+import type { MediaAnalysisResult } from '../../types/media-analysis.js'
 
 /**
  * Route an image analysis request intelligently

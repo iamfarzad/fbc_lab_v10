@@ -1,5 +1,5 @@
-import { logger } from 'src/lib/logger'
-import { generateRequestId } from 'src/core/lib/api-middleware'
+import { logger } from '../../../lib/logger.js'
+import { generateRequestId } from '../../lib/api-middleware.js'
 
 export function POST(request: Request) {
   try {

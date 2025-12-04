@@ -1,14 +1,14 @@
 import fs from 'fs'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import { PDF_DESIGN_TOKENS, getRgbColor } from 'src/core/pdf-design-tokens'
-import { CONTACT_CONFIG } from 'src/config/constants'
-import { FALLBACK_PRICING } from '../utils/constants'
-import { formatDate, shortenText, toPrintable } from '../utils/formatting'
-import { generateApproveMailtoLink } from '../templates/proposal-template'
-import { generateROIChartsImages, isValidROIData } from './chart-renderer'
-import { buildConversationPairs } from '../utils/conversation'
-import { extractConversationInsights } from '../utils/insights'
-import type { SummaryData } from '../utils/types'
+import { PDF_DESIGN_TOKENS, getRgbColor } from '../../pdf-design-tokens.js'
+import { CONTACT_CONFIG } from '../../../config/constants.js'
+import { FALLBACK_PRICING } from '../utils/constants.js'
+import { formatDate, shortenText, toPrintable } from '../utils/formatting.js'
+import { generateApproveMailtoLink } from '../templates/proposal-template.js'
+import { generateROIChartsImages, isValidROIData } from './chart-renderer.js'
+import { buildConversationPairs } from '../utils/conversation.js'
+import { extractConversationInsights } from '../utils/insights.js'
+import type { SummaryData } from '../utils/types.js'
 
 /**
  * Lightweight text helper until the Gemini translator is migrated.

@@ -4,8 +4,8 @@
  * This file can safely import Node.js dependencies since it's server-side only
  */
 
-import { supabaseService } from 'src/core/supabase/client'
-import { LeadResearchService, type ResearchResult } from './lead-research'
+import { supabaseService } from '../supabase/client.js'
+import { LeadResearchService, type ResearchResult } from './lead-research.js'
 
 export interface AdminIntelligenceContext {
   leadResearch: ResearchResult[]

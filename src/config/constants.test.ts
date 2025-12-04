@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { WEBSOCKET_CONFIG, GEMINI_MODELS } from './constants'
+import { WEBSOCKET_CONFIG, GEMINI_MODELS } from './constants.js'
 
 describe('constants', () => {
   describe('WEBSOCKET_CONFIG', () => {

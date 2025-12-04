@@ -1,6 +1,6 @@
-import { logger } from 'src/lib/logger'
-import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
-import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
+import { logger } from '../../../lib/logger.js'
+import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
+import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
 
 function generateRequestId() {
   return crypto.randomUUID()

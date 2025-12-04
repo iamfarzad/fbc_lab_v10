@@ -4,9 +4,9 @@
  * Calculates ROI from investment/savings parameters or extracts from existing artifact.
  */
 
-import type { ROICalculationResult } from './tool-types'
-import { isValidROIData, type ROIData } from 'src/core/pdf-roi-charts'
-import { ContextStorage } from 'src/core/context/context-storage'
+import type { ROICalculationResult } from './tool-types.js'
+import { isValidROIData, type ROIData } from '../pdf-roi-charts.js'
+import { ContextStorage } from '../context/context-storage.js'
 
 const contextStorage = new ContextStorage()
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { AppError, isAppError } from './errors'
+import { AppError, isAppError } from './errors.js'
 
 describe('AppError', () => {
   it('should create an error with default values', () => {

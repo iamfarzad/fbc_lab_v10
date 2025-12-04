@@ -3,17 +3,17 @@
  * Extracted from route.ts for better separation of concerns
  */
 
-import { ContextStorage } from './context-storage'
-import { multimodalContextManager } from './multimodal-context'
-import type { AgentContext, IntelligenceContext as AgentIntelligenceContext } from '../agents/types'
-import type { ConversationFlowState } from 'src/types/conversation-flow-types'
-import type { ChatContext } from 'src/types/core'
-import { logger } from 'src/lib/logger'
-import { normalizeFlow } from './flow-sync'
-import { ContextSnapshotSchema, CompanySchema, PersonSchema, type ContextSnapshot } from './context-schema'
-import { getSupabaseService } from 'src/lib/supabase'
-import { asJsonObject } from 'src/types/json-guards'
-import type { Json } from 'src/core/database.types'
+import { ContextStorage } from './context-storage.js'
+import { multimodalContextManager } from './multimodal-context.js'
+import type { AgentContext, IntelligenceContext as AgentIntelligenceContext } from '../agents/types.js'
+import type { ConversationFlowState } from '../../types/conversation-flow-types.js'
+import type { ChatContext } from '../../types/core.js'
+import { logger } from '../../lib/logger.js'
+import { normalizeFlow } from './flow-sync.js'
+import { ContextSnapshotSchema, CompanySchema, PersonSchema, type ContextSnapshot } from './context-schema.js'
+import { getSupabaseService } from '../../lib/supabase.js'
+import { asJsonObject } from '../../types/json-guards.js'
+import type { Json } from '../database.types.js'
 
 const contextStorage = new ContextStorage()
 

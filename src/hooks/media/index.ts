@@ -1,5 +1,5 @@
-export { useCamera } from './useCamera'
-export type * from './useCamera'
-export { useScreenShare } from './useScreenShare'
-export type * from './useScreenShare'
+export { useCamera } from './useCamera.js'
+export type * from './useCamera.js'
+export { useScreenShare } from './useScreenShare.js'
+export type * from './useScreenShare.js'
 

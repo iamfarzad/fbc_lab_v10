@@ -1,9 +1,9 @@
-import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
-import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
-import { supabaseService } from 'src/core/supabase/client'
-import { parseJsonRequest } from 'src/lib/json'
-import { EmailCampaignList, EmailCampaignPostBody, EmailCampaignPatchBody } from 'src/schemas/admin'
-import { logger } from 'src/lib/logger'
+import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
+import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
+import { supabaseService } from '../../supabase/client.js'
+import { parseJsonRequest } from '../../../lib/json.js'
+import { EmailCampaignList, EmailCampaignPostBody, EmailCampaignPatchBody } from '../../../schemas/admin.js'
+import { logger } from '../../../lib/logger.js'
 
 function ensureSupabase() {
   const supabase = supabaseService

@@ -1,10 +1,10 @@
-import { ContextStorage } from 'src/core/context/context-storage'
-import { vercelCache } from 'src/lib/vercel-cache'
+import { ContextStorage } from '../context/context-storage.js'
+import { vercelCache } from '../../lib/vercel-cache.js'
 import type { AgentResult, AgentContext } from './types.js'
-import type { ConversationFlowState } from 'src/types/conversation-flow-types'
-import { AgentMetadata, IntelligenceContext as SchemaIntelligenceContext } from 'src/schemas/agents'
-import { generateHash } from 'src/lib/hash-utils'
-import { logger } from 'src/lib/logger'
+import type { ConversationFlowState } from '../../types/conversation-flow-types.js'
+import { AgentMetadata, IntelligenceContext as SchemaIntelligenceContext } from '../../schemas/agents.js'
+import { generateHash } from '../../lib/hash-utils.js'
+import { logger } from '../../lib/logger.js'
 
 const MAX_METADATA_SIZE = 50_000 // 50KB limit
 const REDIS_FALLBACK_TTL = 86400 // 24 hours

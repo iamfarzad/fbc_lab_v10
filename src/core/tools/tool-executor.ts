@@ -1,7 +1,7 @@
 import { vercelCache } from '../../lib/vercel-cache.js'
 import { auditLog } from '../security/audit-logger.js'
 import { retry } from '../../lib/code-quality.js'
-import type { ToolExecutionResult } from './types'
+import type { ToolExecutionResult } from './types.js'
 
 /**
  * Tool Executor - Unified tool execution layer with logging, retry, and caching

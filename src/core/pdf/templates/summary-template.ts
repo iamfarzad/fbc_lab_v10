@@ -1,4 +1,4 @@
-import { escapeHtml } from '../utils/formatting'
+import { escapeHtml } from '../utils/formatting.js'
 
 interface SummarySectionsParams {
   translatedSummary: string

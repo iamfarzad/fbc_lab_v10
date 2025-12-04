@@ -1,7 +1,7 @@
 import fs from 'fs'
 import puppeteer from 'puppeteer'
-import type { SummaryData, Mode } from '../utils/types'
-import { generateHtmlContent } from '../templates/base-template'
+import type { SummaryData, Mode } from '../utils/types.js'
+import { generateHtmlContent } from '../templates/base-template.js'
 
 /**
  * Generate PDF using Puppeteer (browser-based rendering)

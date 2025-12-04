@@ -1,5 +1,5 @@
-import { google, generateText } from 'src/lib/ai-client'
-import { GEMINI_MODELS } from 'src/config/constants'
+import { google, generateText } from '../../lib/ai-client.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
 
 /**
  * Retargeting Agent - Automated follow-up email generation

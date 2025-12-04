@@ -5,12 +5,12 @@
  * using the retargetingAgent pattern adapted for mid-session use.
  */
 
-import { google, generateText } from 'src/lib/ai-client'
-import { GEMINI_MODELS } from 'src/config/constants'
-import { multimodalContextManager } from 'src/core/context/multimodal-context'
-import { ContextStorage } from 'src/core/context/context-storage'
-import type { EmailDraftResult } from './tool-types'
-import { extractConversationInsights, buildConversationPairs } from 'src/core/pdf-generator-puppeteer'
+import { google, generateText } from '../../lib/ai-client.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
+import { multimodalContextManager } from '../context/multimodal-context.js'
+import { ContextStorage } from '../context/context-storage.js'
+import type { EmailDraftResult } from './tool-types.js'
+import { extractConversationInsights, buildConversationPairs } from '../pdf-generator-puppeteer.js'
 
 const contextStorage = new ContextStorage()
 

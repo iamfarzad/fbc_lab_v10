@@ -1,9 +1,9 @@
-import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
-import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
-import { supabaseService } from 'src/core/supabase/client'
+import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
+import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
+import { supabaseService } from '../../supabase/client.js'
 import { createClient } from '@supabase/supabase-js'
-import { logger } from 'src/lib/logger'
-import type { Database } from 'src/core/database.types'
+import { logger } from '../../../lib/logger.js'
+import type { Database } from '../../database.types.js'
 
 // Type guard for record
 function isRecord(value: unknown): value is Record<string, unknown> {

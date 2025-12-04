@@ -1,6 +1,6 @@
-import { LeadResearchService } from 'src/core/intelligence/lead-research'
+import { LeadResearchService } from '../intelligence/lead-research.js'
 import type { ChainOfThoughtStep } from './types.js'
-import { logger } from 'src/lib/logger'
+import { logger } from '../../lib/logger.js'
 
 /**
  * Lead Intelligence Agent - Background research worker

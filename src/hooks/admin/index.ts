@@ -1,3 +1,3 @@
-export { useAdminChat } from './useAdminChat'
-export type * from './useAdminChat'
+export { useAdminChat } from './useAdminChat.js'
+export type * from './useAdminChat.js'
 

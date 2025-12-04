@@ -1,4 +1,4 @@
-import type { Message as ChatMessage } from 'src/types/core'
+import type { Message as ChatMessage } from '../../types/core.js'
 
 export type IntentSignal = 'BOOKING' | 'EXIT' | 'CONTINUE'
 

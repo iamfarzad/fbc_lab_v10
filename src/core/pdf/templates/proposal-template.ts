@@ -1,8 +1,8 @@
-import { PDF_DESIGN_TOKENS, getHslColor } from 'src/core/pdf-design-tokens'
-import { CONTACT_CONFIG } from 'src/config/constants'
-import { FALLBACK_PRICING } from '../utils/constants'
-import { escapeHtml } from '../utils/formatting'
-import type { SummaryData } from '../utils/types'
+import { PDF_DESIGN_TOKENS, getHslColor } from '../../pdf-design-tokens.js'
+import { CONTACT_CONFIG } from '../../../config/constants.js'
+import { FALLBACK_PRICING } from '../utils/constants.js'
+import { escapeHtml } from '../utils/formatting.js'
+import type { SummaryData } from '../utils/types.js'
 
 /**
  * Generate approve mailto link

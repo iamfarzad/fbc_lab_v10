@@ -1,11 +1,11 @@
 import { z } from 'zod'
 
-import { SHARED_TOOL_NAMES, type SharedToolName } from './shared-tools'
-import { extractActionItems } from './extract-action-items'
-import { generateSummaryPreview } from './generate-summary-preview'
-import { calculateROI } from './calculate-roi'
-import { draftFollowUpEmail } from './draft-follow-up-email'
-import { generateProposal } from './generate-proposal'
+import { SHARED_TOOL_NAMES, type SharedToolName } from './shared-tools.js'
+import { extractActionItems } from './extract-action-items.js'
+import { generateSummaryPreview } from './generate-summary-preview.js'
+import { calculateROI } from './calculate-roi.js'
+import { draftFollowUpEmail } from './draft-follow-up-email.js'
+import { generateProposal } from './generate-proposal.js'
 
 type ToolSchema = z.ZodTypeAny
 

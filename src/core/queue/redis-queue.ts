@@ -1,7 +1,7 @@
-import { vercelCache } from 'src/lib/vercel-cache'
-import { Job, JobOptions, JobPriority, JobHandler } from './job-types'
-import { DEFAULT_BASE_RETRY_DELAY, DEFAULT_MAX_ATTEMPTS, calculateBackoffDelay } from 'src/lib/ai/retry-config'
-import { logger } from 'src/lib/logger'
+import { vercelCache } from '../../lib/vercel-cache.js'
+import { Job, JobOptions, JobPriority, JobHandler } from './job-types.js'
+import { DEFAULT_BASE_RETRY_DELAY, DEFAULT_MAX_ATTEMPTS, calculateBackoffDelay } from '../../lib/ai/retry-config.js'
+import { logger } from '../../lib/logger.js'
 
 const QUEUE_PREFIX = 'queue'
 

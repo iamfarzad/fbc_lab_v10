@@ -1,9 +1,9 @@
-import { asConversations, asMeetings } from 'src/lib/supabase-parsers'
-import type { ConversationRow } from 'src/schemas/supabase'
-import { logger } from 'src/lib/logger'
-import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
-import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
-import { supabaseService } from 'src/core/supabase/client'
+import { asConversations, asMeetings } from '../../../lib/supabase-parsers.js'
+import type { ConversationRow } from '../../../schemas/supabase.js'
+import { logger } from '../../../lib/logger.js'
+import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
+import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
+import { supabaseService } from '../../supabase/client.js'
 
 function ensureSupabase() {
   const supabase = supabaseService

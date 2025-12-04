@@ -1,12 +1,12 @@
 import { useCallback } from 'react'
-import { useRealtimeVoice, type UseRealtimeVoiceOptions } from './useRealtimeVoice'
-import type { VoiceContextUpdate } from 'src/types/voice'
-import type { LiveClientWS } from 'src/core/live/client'
-import type { AttachmentUploadResponse } from 'src/types/api-responses'
-import type { ScreenAnalysisResponse, WebcamAnalysisResponse } from 'src/types/api-responses'
+import { useRealtimeVoice, type UseRealtimeVoiceOptions } from './useRealtimeVoice.js'
+import type { VoiceContextUpdate } from '../../types/voice.js'
+import type { LiveClientWS } from '../../core/live/client.js'
+import type { AttachmentUploadResponse } from '../../types/api-responses.js'
+import type { ScreenAnalysisResponse, WebcamAnalysisResponse } from '../../types/api-responses.js'
 
-import { useVoiceContext } from './voice-context'
-import { parseJsonResponse } from 'src/lib/json'
+import { useVoiceContext } from './voice-context.js'
+import { parseJsonResponse } from '../../lib/json.js'
 
 export type UseVoiceOptions = UseRealtimeVoiceOptions & {
   liveClient?: LiveClientWS

@@ -1,4 +1,4 @@
-import { supabaseService } from 'src/core/supabase/client'
+import { supabaseService } from './supabase/client.js'
 
 export interface TokenUsageEntry {
   timestamp: string

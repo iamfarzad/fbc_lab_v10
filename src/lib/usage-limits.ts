@@ -1,4 +1,4 @@
-import { logger } from 'src/lib/logger'
+import { logger } from './logger.js'
 
 export interface SessionUsage {
   sessionId: string;

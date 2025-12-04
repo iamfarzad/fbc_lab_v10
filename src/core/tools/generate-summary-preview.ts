@@ -5,9 +5,9 @@
  * without actually generating the PDF file.
  */
 
-import { extractConversationInsights, buildConversationPairs } from 'src/core/pdf-generator-puppeteer'
-import { multimodalContextManager } from 'src/core/context/multimodal-context'
-import { ContextStorage } from 'src/core/context/context-storage'
+import { extractConversationInsights, buildConversationPairs } from '../pdf-generator-puppeteer.js'
+import { multimodalContextManager } from '../context/multimodal-context.js'
+import { ContextStorage } from '../context/context-storage.js'
 
 const contextStorage = new ContextStorage()
 

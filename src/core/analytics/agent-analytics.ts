@@ -1,6 +1,6 @@
-import { getSupabaseService } from 'src/lib/supabase'
-import { asJsonObject } from 'src/types/json-guards'
-import type { Json } from 'src/core/database.types'
+import { getSupabaseService } from '../../lib/supabase.js'
+import { asJsonObject } from '../../types/json-guards.js'
+import type { Json } from '../database.types.js'
 
 interface AuditLogDetails {
   agent?: string

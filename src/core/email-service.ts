@@ -1,6 +1,6 @@
-import { logger } from 'src/lib/logger'
-import { CONTACT_CONFIG, EXTERNAL_ENDPOINTS } from 'src/config/constants'
-import { parseJsonSafe, parseJsonResponse } from 'src/lib/json'
+import { logger } from '../lib/logger.js'
+import { CONTACT_CONFIG, EXTERNAL_ENDPOINTS } from '../config/constants.js'
+import { parseJsonSafe, parseJsonResponse } from '../lib/json.js'
 import { z } from 'zod'
 
 export interface EmailAttachment {

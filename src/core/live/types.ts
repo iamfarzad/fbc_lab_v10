@@ -1,6 +1,6 @@
 // TODO: Import when hooks are imported (Phase 4+)
-// import type { VoiceToolCall, ToolResult } from 'src/hooks/voice/voice-tool-types'
-import type { ConversationFlowSnapshot } from 'src/types/conversation-flow'
+// import type { VoiceToolCall, ToolResult } from '../../hooks/voice/voice-tool-types.js'
+import type { ConversationFlowSnapshot } from '../../types/conversation-flow.js'
 
 // Temporary types until hooks are imported
 export type VoiceToolCall = any

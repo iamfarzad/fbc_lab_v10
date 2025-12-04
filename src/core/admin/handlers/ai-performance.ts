@@ -1,10 +1,10 @@
-// import { respond } from 'src/core/lib/api/response' // Not used in this route
-import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
-import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
-import { supabaseService } from 'src/core/supabase/client'
-import type { Database } from 'src/core/database.types'
-import { logger } from 'src/lib/logger'
-import { generateRequestId } from 'src/core/lib/api-middleware'
+// import { respond } from '../../lib/api/response.js' // Not used in this route
+import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
+import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
+import { supabaseService } from '../../supabase/client.js'
+import type { Database } from '../../database.types.js'
+import { logger } from '../../../lib/logger.js'
+import { generateRequestId } from '../../lib/api-middleware.js'
 
 type TokenUsageLogRow = Database['public']['Tables']['token_usage_log']['Row']
 type AuditLogRow = Database['public']['Tables']['audit_log']['Row']

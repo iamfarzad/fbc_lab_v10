@@ -1,4 +1,4 @@
-import { verifyToken } from 'src/core/security/auth'
+import { verifyToken } from '../../security/auth.js'
 
 /**
  * Admin authentication middleware

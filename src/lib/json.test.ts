@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { safeParseJson, safeParseJsonObject, parseJsonSafe } from './json'
+import { safeParseJson, safeParseJsonObject, parseJsonSafe } from './json.js'
 
 describe('JSON utilities', () => {
   describe('safeParseJson', () => {
