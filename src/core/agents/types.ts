@@ -65,6 +65,13 @@ export interface IntelligenceContext {
   interestLevel?: number // 0-1
   currentObjection?: ObjectionType
   researchConfidence?: number // 0-1 from lead research
+  // Location data from geolocation
+  location?: {
+    latitude: number
+    longitude: number
+    city?: string
+    country?: string
+  }
 }
 
 export interface MultimodalContextData {

@@ -1960,7 +1960,7 @@ export const App: React.FC = () => {
                                             email: userProfile.email,
                                             name: userProfile.name,
                                             pdfData: pdfDataUrl,
-                                            sessionId: sessionIdRef.current
+                                            sessionId
                                         })
                                     });
                                     if (response.ok) {

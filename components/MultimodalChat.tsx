@@ -23,7 +23,7 @@ interface MultimodalChatProps {
   onToggleTheme?: () => void;
   onGeneratePDF?: () => void;
   onEmailPDF?: () => void;
-  userEmail?: string;
+  userEmail?: string | undefined;
 }
 
 const MultimodalChat: React.FC<MultimodalChatProps> = ({ 
