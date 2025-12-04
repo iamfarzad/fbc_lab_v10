@@ -395,6 +395,30 @@
 - ✅ Port missing admin UI components (29+ components)
 - ✅ Port all hooks from v8 (useAdminChat, useCamera, useScreenShare, useVoice)
 
+## 🚨 GAPS TO ADDRESS (from version analysis)
+
+### Critical (from v8)
+- [ ] **SSE Streaming** - v2-v8 had progressive responses, v10 returns full JSON
+- [ ] **Intent Detection** - `preProcessIntent()` exists but not wired up in orchestrator
+- [ ] **Exit Detection** - Port `exit-detector.ts` from v8 (BOOKING, WRAP_UP, FRUSTRATION, FORCE_EXIT)
+
+### Important (Missing Agents from v8)
+- [ ] **Scoring Agent** - Calculate workshop vs consulting fit scores
+- [ ] **Proposal Agent** - Generate structured proposals with ROI
+- [ ] **Retargeting Agent** - Re-engage cold leads
+- [ ] **Lead Intelligence Agent** - Enhanced lead research
+
+### Nice to Have (from v5/v7)
+- [ ] **Stage Context Provider** - Visual progress tracking UI
+- [ ] **Capability Registry API** - `/api/capabilities` for tool discovery
+- [ ] **Advanced Intent Classifier** - Sentiment, urgency, complexity analysis
+
+### Documentation
+- See `docs/FULL_VERSION_COMPARISON.md` for complete analysis
+- See `docs/V2_VS_V10_COMPARISON.md` for v2 comparison
+
+---
+
 ## 📋 Next Steps
 
 ### Immediate (Post-Deployment Verification)
