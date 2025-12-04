@@ -1,11 +1,13 @@
 import { safeGenerateText } from 'src/lib/gemini-safe';
 import { formatMessagesForAI } from 'src/lib/format-messages';
 import { toolExecutor } from 'src/core/tools/tool-executor';
+import { getChatToolDefinitions } from 'src/core/tools/unified-tool-registry';
 import { z } from 'zod';
 import type { AgentContext, ChatMessage } from './types';
 import { GEMINI_MODELS } from 'src/config/constants';
 
 // src/core/agents/closer-agent.ts — FINAL UPGRADED VERSION
+// Uses unified tool registry + agent-specific tools
 
 export async function closerAgent(
   messages: ChatMessage[],
@@ -24,6 +26,12 @@ MULTIMODAL PROOF (use this as social proof):
 - Documents uploaded: ${multimodalContext?.hasRecentUploads ? 'Yes' : 'No'}
 
 TOOLS AVAILABLE:
+- search_web: Search for current information
+- calculate_roi: Calculate ROI based on investment and savings
+- extract_action_items: Extract key outcomes from the conversation
+- generate_summary_preview: Generate conversation summary preview
+- draft_follow_up_email: Draft follow-up email
+- generate_proposal_draft: Generate proposal draft
 - create_chart: Show ROI breakdown
 - create_calendar_widget: Final booking CTA
 
@@ -31,11 +39,15 @@ CLOSING RULES:
 - Reference the multimodal experience: "You've already seen what our AI can do live"
 - Create urgency: "Slots are filling fast"
 - Remove friction: "Free call, no commitment"
-- Use tools when appropriate
+- Use tools when appropriate (calculate_roi for ROI discussions, create_chart for visualization)
 
 Respond to the user's last message and close.`;
 
-  const tools = {
+  // Get unified tools from registry (includes retry, caching, logging)
+  const unifiedTools = getChatToolDefinitions(sessionId, 'Closer Agent');
+
+  // Agent-specific tools (not in unified registry)
+  const agentTools = {
     create_chart: {
       description: 'Show cost/benefit analysis',
       parameters: z.object({
@@ -84,6 +96,12 @@ Respond to the user's last message and close.`;
         return result.data;
       }
     }
+  };
+
+  // Merge unified tools with agent-specific tools
+  const tools = {
+    ...unifiedTools,
+    ...agentTools
   };
 
   const result = await safeGenerateText({

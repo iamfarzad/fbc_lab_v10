@@ -8,6 +8,7 @@ import { GEMINI_MODELS } from 'src/config/constants'
 import { agentAnalytics } from 'src/core/analytics/agent-analytics'
 import { toolAnalytics } from 'src/core/analytics/tool-analytics'
 import { toolExecutor } from 'src/core/tools/tool-executor'
+import { getChatToolDefinitions } from 'src/core/tools/unified-tool-registry'
 import { asConversations, asLeadSummaries } from 'src/lib/supabase-parsers'
 import { AnalyticsData } from 'src/schemas/admin'
 import type { LeadSummaryRow, ConversationRow } from 'src/schemas/supabase'
@@ -16,6 +17,7 @@ import type { LeadSummaryRow, ConversationRow } from 'src/schemas/supabase'
  * Admin AI Agent - Farzad's business intelligence assistant
  * 
  * Has access to: All conversations, analytics, system health, and dashboard stats
+ * Uses unified tool registry + admin-specific tools
  */
 export async function adminAgent(
   messages: ChatMessage[],
@@ -210,14 +212,23 @@ RESPONSE FORMAT:
 - Research: Cite sources and provide grounded answers
 
 TOOLS AVAILABLE:
+- search_web: Search the web for current information (unified tool)
+- calculate_roi: Calculate ROI based on investment and savings (unified tool)
+- extract_action_items: Extract key outcomes from conversations (unified tool)
+- generate_summary_preview: Generate conversation summary preview (unified tool)
+- draft_follow_up_email: Draft follow-up email (unified tool)
+- generate_proposal_draft: Generate proposal draft (unified tool)
 - search_leads: Query leads by industry, score, date range, multimodal usage
 - draft_email: Generate personalized follow-up email for a lead
 - query_conversations: Get specific conversation details
 - analyze_performance: Deep dive into agent/tool performance metrics
 - Research tools: Google grounding search and URL context (available when needed)`
 
-  // Define admin tools
-  const tools = {
+  // Get unified tools from registry (includes retry, caching, logging)
+  const unifiedTools = getChatToolDefinitions(_context.sessionId, 'Admin AI Agent')
+
+  // Define admin-specific tools
+  const adminTools = {
     search_leads: {
       description: 'Search leads by industry, score, date range, or multimodal usage',
       parameters: z.object({
@@ -441,6 +452,12 @@ TOOLS AVAILABLE:
         return result.data
       }
     }
+  }
+
+  // Merge unified tools with admin-specific tools
+  const tools = {
+    ...unifiedTools,
+    ...adminTools
   }
 
   const result = await safeGenerateText({
