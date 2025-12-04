@@ -13,6 +13,10 @@
 		{
 			"source": "/api/admin/(.*)",
 			"destination": "/api/admin?path=$1"
+		},
+		{
+			"source": "/((?!api/).*)",
+			"destination": "/index.html"
 		}
 	],
 	"headers": [
