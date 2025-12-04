@@ -96,8 +96,8 @@ const ConnectionQuality: React.FC<ConnectionQualityProps> = ({
   return (
     <div 
       className={`
-        inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
-        ${config.bgColor} ${config.color}
+        inline-flex items-center gap-2 px-3 py-1.5 rounded-full
+        ${config.bgColor} ${config.color} border
         transition-all duration-300
         ${className}
       `}

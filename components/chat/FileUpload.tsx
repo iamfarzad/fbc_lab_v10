@@ -173,7 +173,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           transition-all duration-200
           ${isDragging 
             ? 'border-orange-400 bg-orange-50' 
-            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
           }
         `}
       >
@@ -189,15 +189,15 @@ const FileUpload: React.FC<FileUploadProps> = ({
         <div className="flex flex-col items-center gap-2">
           <div className={`
             w-12 h-12 rounded-xl flex items-center justify-center
-            ${isDragging ? 'bg-orange-100 text-orange-500' : 'bg-gray-100 text-gray-400'}
+            ${isDragging ? 'bg-orange-100 text-orange-500' : 'bg-slate-100 text-slate-400'}
           `}>
             <FileUp className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-slate-700">
               {isDragging ? 'Drop files here' : 'Click or drag files to upload'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Max {formatFileSize(maxSize)} per file • Up to {maxFiles} files
             </p>
           </div>
@@ -214,30 +214,30 @@ const FileUpload: React.FC<FileUploadProps> = ({
               <div 
                 key={file.id}
                 className={`
-                  flex items-center gap-3 p-3 rounded-lg border
-                  ${file.status === 'error' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}
+                  flex items-center gap-3 p-3 rounded-xl border
+                  ${file.status === 'error' ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}
                 `}
               >
                 {/* Icon */}
                 <div className={`
-                  w-10 h-10 rounded-lg flex items-center justify-center
-                  ${file.status === 'error' ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-500'}
+                  w-10 h-10 rounded-xl flex items-center justify-center
+                  ${file.status === 'error' ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-500'}
                 `}>
                   <Icon className="w-5 h-5" />
                 </div>
 
                 {/* File Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-700 truncate">
+                  <p className="text-sm font-medium text-slate-700 truncate">
                     {file.file.name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     {formatFileSize(file.file.size)}
                   </p>
                   
                   {/* Progress Bar */}
                   {file.status === 'uploading' && (
-                    <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="mt-2 h-1 bg-slate-200 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-orange-500 transition-all duration-300"
                         style={{ width: `${file.progress}%` }}
@@ -254,7 +254,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 {/* Status/Actions */}
                 <div className="flex items-center gap-2">
                   {file.status === 'uploading' && (
-                    <span className="text-xs text-gray-500">{Math.round(file.progress)}%</span>
+                    <span className="text-xs text-slate-500">{Math.round(file.progress)}%</span>
                   )}
                   {file.status === 'complete' && (
                     <Check className="w-4 h-4 text-green-500" />
@@ -264,9 +264,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   )}
                   <button
                     onClick={() => removeFile(file.id)}
-                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                    className="p-1 hover:bg-slate-100 rounded-full transition-colors"
                   >
-                    <X className="w-4 h-4 text-gray-400" />
+                    <X className="w-4 h-4 text-slate-400" />
                   </button>
                 </div>
               </div>
@@ -294,8 +294,8 @@ export const UploadButton: React.FC<{
       <button
         onClick={() => inputRef.current?.click()}
         className={`
-          inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-          bg-gray-100 text-gray-600 hover:bg-gray-200
+          inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+          bg-white/60 text-slate-600 hover:bg-white/80 border border-white/40
           transition-colors text-sm
           ${className}
         `}

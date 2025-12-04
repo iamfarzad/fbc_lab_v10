@@ -128,7 +128,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
     return (
       <div 
         className={`
-          inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs
+          inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs
           ${config.color} border
           ${className}
         `}
@@ -139,7 +139,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
           <button 
             onClick={handleRetry}
             disabled={retrying}
-            className="ml-1 p-0.5 hover:bg-black/5 rounded transition-colors"
+            className="ml-1 p-0.5 hover:bg-black/5 rounded-full transition-colors"
           >
             <RefreshCw className={`w-3 h-3 ${retrying ? 'animate-spin' : ''}`} />
           </button>
@@ -151,7 +151,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
   return (
     <div 
       className={`
-        rounded-lg border p-4 space-y-3
+        rounded-xl border p-4 space-y-3
         ${config.color}
         ${className}
       `}
@@ -191,7 +191,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
             onClick={handleRetry}
             disabled={retrying || countdown > 0}
             className={`
-              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+              inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
               bg-white border border-current/20 hover:bg-black/5
               transition-colors
               disabled:opacity-50 disabled:cursor-not-allowed
@@ -215,7 +215,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
 
       {/* Details (collapsible) */}
       {showDetails && error.details && (
-        <div className="mt-2 p-2 bg-black/5 rounded text-xs font-mono overflow-x-auto">
+        <div className="mt-2 p-3 bg-black/5 rounded-xl text-xs font-mono overflow-x-auto">
           {error.details}
         </div>
       )}
