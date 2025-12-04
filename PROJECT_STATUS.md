@@ -52,20 +52,20 @@
 
 **Issue:** `ERR_MODULE_NOT_FOUND: Cannot find package 'src'` in serverless functions (`/api/chat`, `/api/chat/persist-message`)
 
-**Root Cause:** With `"type": "module"` in package.json, Node.js ESM treats `'src/...'` imports as bare module specifiers (package names), not file paths. Even though `includeFiles: "src/**"` bundles the files, Node.js can't resolve the import paths.
+**Root Cause:** With `"type": "module"` in package.json, Node.js ESM treats `'src/...'` imports as bare module specifiers (package names), not file paths. TypeScript path mapping (`baseUrl`, `paths`) only works at compile time, not at runtime. Even though `includeFiles: "src/**"` bundles the files, Node.js ESM can't resolve the import paths at runtime.
 
-**Fix Applied:**
-- ✅ Added `exports` field to `package.json` to map `src/*` paths
-- ✅ This tells Node.js how to resolve `src/...` imports in ESM mode
-- ✅ Works alongside `includeFiles` - files are bundled AND paths are resolved
+**Best Practice Solution:**
+- ✅ Removed invalid `exports` field (can't mix keys with/without ".")
+- ⏳ **Next Step:** Convert absolute imports to relative imports in API routes
+- The `exports` field is for published packages, not internal module resolution
+- Relative imports are the most reliable solution for Vercel serverless functions
 
 **Files Changed:**
-- `package.json` - Added exports field for src/* path mapping
+- `package.json` - Removed invalid exports field
 
-**Expected Result:**
-- Serverless functions should be able to import from `src/` directory
-- `/api/chat` and `/api/chat/persist-message` should work correctly
-- All API routes using `src/` imports should resolve properly
+**Next Steps:**
+- Convert `import ... from 'src/...'` to `import ... from '../src/...'` in all API route files
+- This is the recommended approach per Node.js ESM and Vercel best practices
 
 ## ✅ Vercel Deployment Complete (2025-12-04)
 
