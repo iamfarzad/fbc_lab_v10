@@ -76,7 +76,7 @@ export interface MultimodalContextData {
 }
 
 // Re-export FunnelStage from centralized location
-export type { FunnelStage } from 'src/core/types/funnel-stage'
+export type { FunnelStage } from '../types/funnel-stage.js'
 
 export interface ChainOfThoughtStep {
   label: string
@@ -176,4 +176,4 @@ export interface AgentResult {
 }
 
 // Use canonical Message type from src/types/core
-export type { Message as ChatMessage } from 'src/types/core'
+export type { Message as ChatMessage } from '../../types/core.js'

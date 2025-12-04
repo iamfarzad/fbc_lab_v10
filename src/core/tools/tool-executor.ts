@@ -1,6 +1,6 @@
-import { vercelCache } from 'src/lib/vercel-cache'
-import { auditLog } from 'src/core/security/audit-logger'
-import { retry } from 'src/lib/code-quality'
+import { vercelCache } from '../../lib/vercel-cache.js'
+import { auditLog } from '../security/audit-logger.js'
+import { retry } from '../../lib/code-quality.js'
 import type { ToolExecutionResult } from './types'
 
 /**
