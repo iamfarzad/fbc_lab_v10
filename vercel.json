@@ -7,34 +7,6 @@
 		"api/**/*.ts": {
 			"maxDuration": 30,
 			"includeFiles": "src/**"
-		},
-		"api/admin/route.ts": {
-			"maxDuration": 30,
-			"includeFiles": "src/**"
-		},
-		"api/chat.ts": {
-			"maxDuration": 30,
-			"includeFiles": "src/**"
-		},
-		"api/chat/persist-message.ts": {
-			"maxDuration": 30,
-			"includeFiles": "src/**"
-		},
-		"api/chat/persist-batch.ts": {
-			"maxDuration": 30,
-			"includeFiles": "src/**"
-		},
-		"api/live.ts": {
-			"maxDuration": 30,
-			"includeFiles": "src/**"
-		},
-		"api/send-pdf-summary/route.ts": {
-			"maxDuration": 30,
-			"includeFiles": "src/**"
-		},
-		"api/tools/webcam.ts": {
-			"maxDuration": 30,
-			"includeFiles": "src/**"
 		}
 	},
 	"rewrites": [
