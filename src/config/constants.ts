@@ -181,17 +181,18 @@ export const GEMINI_MODELS = {
   FLASH_EXP: 'gemini-2.0-flash-exp',                // Old experimental
 
   // DEFAULTS: What each use case should use
-  DEFAULT_CHAT: 'gemini-3-pro-preview',               // Standard Chat
-  DEFAULT_LIVE: 'gemini-3-pro-preview',               // Live sessions
+  // Note: gemini-3-pro-preview has quota limits, using gemini-2.5-flash as primary
+  DEFAULT_CHAT: 'gemini-2.5-flash',                   // Standard Chat (was gemini-3-pro-preview)
+  DEFAULT_LIVE: 'gemini-2.5-flash',                   // Live sessions
   DEFAULT_VISION: 'gemini-2.5-flash',                 // Vision/Webcam analysis
   DEFAULT_AUDIO: 'gemini-2.5-flash',                  // Audio processing
   DEFAULT_VOICE: 'gemini-2.5-flash-native-audio-preview-09-2025', // Live Voice
-  DEFAULT_MULTIMODAL: 'gemini-3-pro-preview',         // Vision
-  DEFAULT_WEBCAM: 'gemini-3-pro-preview',             // Webcam analysis
+  DEFAULT_MULTIMODAL: 'gemini-2.5-flash',             // Vision (was gemini-3-pro-preview)
+  DEFAULT_WEBCAM: 'gemini-2.5-flash',                 // Webcam analysis (was gemini-3-pro-preview)
   FALLBACK: 'gemini-2.5-flash',                       // Fallback model
-  DEFAULT_SCREEN: 'gemini-3-pro-preview',             // Screen capture
-  DEFAULT_FAST: 'gemini-2.5-flash-lite',          // Quick Edit
-  DEFAULT_RELIABLE: 'gemini-2.5-flash', // Research
+  DEFAULT_SCREEN: 'gemini-2.5-flash',                 // Screen capture (was gemini-3-pro-preview)
+  DEFAULT_FAST: 'gemini-2.5-flash-lite',              // Quick Edit
+  DEFAULT_RELIABLE: 'gemini-2.5-flash',               // Research
 } as const
 
 // Gemini API Endpoints

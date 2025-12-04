@@ -18,7 +18,7 @@ export interface ExtractTimelineUrgencyResult {
  */
 export async function extractTimelineUrgency(text: string): Promise<ExtractTimelineUrgencyResult> {
   const { object } = await generateObject({
-    model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+    model: google(GEMINI_MODELS.DEFAULT_CHAT),
     messages: [
       {
         role: 'system',

@@ -13,7 +13,7 @@ export async function safeGenerateText(params: {
 
   try {
     return await generateText({
-      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+      model: google(GEMINI_MODELS.DEFAULT_CHAT),
       system,
       messages: messages.slice(-20),
       temperature,

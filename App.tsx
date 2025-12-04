@@ -1132,14 +1132,18 @@ export const App: React.FC = () => {
             await liveServiceRef.current.connect();
 
             if (transcriptRef.current.length > 0) {
-                // Wait for session to be ready
-                await new Promise(resolve => setTimeout(resolve, 500));
-                const unifiedSnapshot = unifiedContext.getSnapshot();
-                void liveServiceRef.current.sendContext(transcriptRef.current, {
-                    ...(unifiedSnapshot.location ? { location: unifiedSnapshot.location } : {}),
-                    ...(unifiedSnapshot.researchContext ? { research: unifiedSnapshot.researchContext } : {}),
-                    ...(unifiedSnapshot.intelligenceContext ? { intelligenceContext: unifiedSnapshot.intelligenceContext } : {})
-                });
+                // Wait for session to actually be ready (not just connecting)
+                const isReady = await liveServiceRef.current.waitForSessionReady(5000);
+                if (isReady) {
+                    const unifiedSnapshot = unifiedContext.getSnapshot();
+                    void liveServiceRef.current.sendContext(transcriptRef.current, {
+                        ...(unifiedSnapshot.location ? { location: unifiedSnapshot.location } : {}),
+                        ...(unifiedSnapshot.researchContext ? { research: unifiedSnapshot.researchContext } : {}),
+                        ...(unifiedSnapshot.intelligenceContext ? { intelligenceContext: unifiedSnapshot.intelligenceContext } : {})
+                    });
+                } else {
+                    logger.warn('[App] Session not ready after 5s, skipping context send');
+                }
             }
         } catch (err) {
             console.error("Failed to connect to Live API", err);

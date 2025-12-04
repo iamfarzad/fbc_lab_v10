@@ -33,7 +33,7 @@ export type UrlContextResult = z.infer<typeof UrlContextSchema>
 export async function analyzeUrl(url: string): Promise<UrlContextResult> {
   try {
     const { object } = await generateObject({
-      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+      model: google(GEMINI_MODELS.DEFAULT_CHAT),
       messages: [
         {
           role: 'user',

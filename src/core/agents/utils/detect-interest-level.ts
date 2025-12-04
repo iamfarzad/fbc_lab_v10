@@ -16,7 +16,7 @@ export interface DetectInterestLevelResult {
  */
 export async function detectInterestLevel(conversation: string): Promise<DetectInterestLevelResult> {
   const { object } = await generateObject({
-    model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+    model: google(GEMINI_MODELS.DEFAULT_CHAT),
     messages: [
       {
         role: 'system',

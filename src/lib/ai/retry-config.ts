@@ -19,7 +19,7 @@ export const RETRY_CONFIG = {
     // Primary models (auto-update to latest)
     primary: GEMINI_MODELS.FLASH_LATEST,
     primaryStream: GEMINI_MODELS.FLASH_LATEST,
-    primaryReliable: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW,
+    primaryReliable: GEMINI_MODELS.DEFAULT_CHAT,
 
     // Fallback models (faster/more available)
     fallback: GEMINI_MODELS.FLASH_LATEST,

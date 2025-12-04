@@ -19,7 +19,7 @@ export interface ExtractCompanySizeResult {
  */
 export async function extractCompanySize(conversationText: string): Promise<ExtractCompanySizeResult> {
   const { object } = await generateObject({
-    model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+    model: google(GEMINI_MODELS.DEFAULT_CHAT),
     messages: [
       {
         role: 'system',

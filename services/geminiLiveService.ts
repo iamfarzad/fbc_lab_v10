@@ -63,6 +63,7 @@ export class GeminiLiveService {
   private sessionId: string = '';
   private sessionStartTimeout: NodeJS.Timeout | null = null;
   private rateLimiter = new RateLimiter(); // Initialize rate limiter
+  private pendingMediaQueue: Array<{ mimeType: string; data: string }> = []; // Queue media until session ready
 
   constructor(config: LiveServiceConfig & { wsUrl?: string }) {
     this.config = config;
@@ -191,6 +192,10 @@ export class GeminiLiveService {
         }
         this.isConnected = true;
         this.isSessionReady = true; // Mark session as ready
+        
+        // Flush any queued media that was sent before session was ready
+        this.flushPendingMedia();
+        
         this.config.onStateChange('CONNECTED');
       });
 
@@ -385,7 +390,8 @@ export class GeminiLiveService {
   public sendRealtimeMedia(media: { mimeType: string; data: string }) {
     if (!this.liveClient || !this.isConnected) return;
     if (!this.isSessionReady) {
-        // console.warn('[GeminiLiveService] Media blocked: Session not ready'); // Too noisy for realtime
+        // Queue media until session is ready
+        this.pendingMediaQueue.push(media);
         return;
     }
     // LOGGING: Verify media streaming
@@ -394,6 +400,58 @@ export class GeminiLiveService {
       mimeType: media.mimeType,
       data: media.data
     }]);
+  }
+
+  /**
+   * Check if session is ready for sending data
+   */
+  public getIsSessionReady(): boolean {
+    return this.isSessionReady;
+  }
+
+  /**
+   * Wait for the session to be ready (with timeout)
+   * @param timeoutMs Maximum time to wait (default 10 seconds)
+   */
+  public async waitForSessionReady(timeoutMs: number = 10000): Promise<boolean> {
+    if (this.isSessionReady) return true;
+    
+    const startTime = Date.now();
+    return new Promise((resolve) => {
+      const checkReady = () => {
+        if (this.isSessionReady) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() - startTime > timeoutMs) {
+          console.warn('[GeminiLiveService] Timeout waiting for session ready');
+          resolve(false);
+          return;
+        }
+        setTimeout(checkReady, 100);
+      };
+      checkReady();
+    });
+  }
+
+  /**
+   * Flush any media that was queued before session was ready
+   */
+  private flushPendingMedia(): void {
+    if (this.pendingMediaQueue.length === 0) return;
+    
+    logger.debug(`[GeminiLiveService] Flushing ${this.pendingMediaQueue.length} queued media items`);
+    
+    // Send only the most recent frame to avoid flooding
+    const latestMedia = this.pendingMediaQueue[this.pendingMediaQueue.length - 1];
+    this.pendingMediaQueue = [];
+    
+    if (latestMedia && this.liveClient) {
+      this.liveClient.sendRealtimeInput([{
+        mimeType: latestMedia.mimeType,
+        data: latestMedia.data
+      }]);
+    }
   }
 
   public setSessionId(sessionId: string) {

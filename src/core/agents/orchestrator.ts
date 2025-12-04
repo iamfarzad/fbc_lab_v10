@@ -47,7 +47,7 @@ export async function routeToAgent(params: {
   }
 
   if (trigger === 'admin') {
-    return { output: 'Admin mode active', agent: 'Admin', model: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW }
+    return { output: 'Admin mode active', agent: 'Admin', model: GEMINI_MODELS.DEFAULT_CHAT }
   }
 
   // === OBJECTION OVERRIDE (highest priority) ===

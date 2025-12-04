@@ -23,7 +23,7 @@ export async function searchWeb(query: string, urls?: string[]): Promise<SearchR
     // Use Gemini 3.0 Pro
     // Note: Search grounding configuration depends on specific SDK version capabilities
     const { text, toolResults } = await generateText({
-      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+      model: google(GEMINI_MODELS.DEFAULT_CHAT),
       system: 'You are a helpful research assistant. Provide specific details and citations.',
       prompt: `Search for information about: ${query}. ${urls ? `Prioritize these URLs: ${urls.join(', ')}` : ''}. Return a summary of findings.`,
       tools: {

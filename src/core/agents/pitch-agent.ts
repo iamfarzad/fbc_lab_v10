@@ -119,7 +119,7 @@ Respond now to: "${lastUserMessage}"`
   return {
     output: result.text,
     agent: 'Pitch Agent',
-    model: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW,
+    model: GEMINI_MODELS.DEFAULT_CHAT,
     metadata: {
       stage: ((intelligenceContext.interestLevel || 0) > 0.8 ? 'CLOSING' : 'PITCHING') as FunnelStage,
       ...(intelligenceContext.fitScore && { fitScore: intelligenceContext.fitScore }),

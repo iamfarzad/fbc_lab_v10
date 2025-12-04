@@ -23,7 +23,7 @@ const EmailDraftSchema = z.object({
 export async function extractActionItems(transcript: string): Promise<z.infer<typeof ActionItemsSchema>> {
   try {
     const { object } = await generateObject({
-      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+      model: google(GEMINI_MODELS.DEFAULT_CHAT),
       system: 'You are an expert project manager. Extract clear, actionable tasks from the conversation.',
       prompt: `Analyze this transcript and extract action items:\n\n${transcript}`,
       schema: ActionItemsSchema
@@ -41,7 +41,7 @@ export async function extractActionItems(transcript: string): Promise<z.infer<ty
 export async function generateSummary(transcript: string): Promise<string> {
   try {
     const { text } = await generateText({
-      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+      model: google(GEMINI_MODELS.DEFAULT_CHAT),
       system: 'You are an expert executive assistant. Summarize the conversation concisely.',
       prompt: `Summarize this conversation, highlighting key decisions and topics:\n\n${transcript}`
     })
@@ -62,7 +62,7 @@ export async function draftFollowUpEmail(
 ): Promise<z.infer<typeof EmailDraftSchema>> {
   try {
     const { object } = await generateObject({
-      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+      model: google(GEMINI_MODELS.DEFAULT_CHAT),
       system: `You are an expert communicator. Draft a ${tone} follow-up email.`,
       prompt: `Draft a follow-up email to ${recipient} based on this conversation:\n\n${transcript}`,
       schema: EmailDraftSchema
@@ -80,7 +80,7 @@ export async function draftFollowUpEmail(
 export async function generateProposal(transcript: string): Promise<string> {
   try {
     const { text } = await generateText({
-      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+      model: google(GEMINI_MODELS.DEFAULT_CHAT),
       system: 'You are an expert sales consultant. Create a proposal structure.',
       prompt: `Create a markdown proposal draft based on the requirements discussed in this transcript:\n\n${transcript}`,
     })

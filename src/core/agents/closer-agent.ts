@@ -114,7 +114,7 @@ Respond to the user's last message and close.`;
   return {
     output: result.text || '',
     agent: 'Closer Agent',
-    model: `${GEMINI_MODELS.GEMINI_3_PRO_PREVIEW} → ${GEMINI_MODELS.DEFAULT_RELIABLE} (auto-fallback)`,
+    model: `${GEMINI_MODELS.DEFAULT_CHAT} → ${GEMINI_MODELS.FALLBACK} (auto-fallback)`,
     metadata: {
       stage: 'CLOSING' as const,
       toolsUsed: result.toolCalls?.length > 0,

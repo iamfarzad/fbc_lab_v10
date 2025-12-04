@@ -113,7 +113,7 @@ TONE: Professional but conversational. This is a valuable document they'll share
   })
 
   const result = await generateText({
-    model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, { thinking: 'high' }), // Use Gemini 3.0 for reasoning
+    model: google(GEMINI_MODELS.DEFAULT_CHAT), // Use DEFAULT_CHAT model
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: 'Generate the conversation summary based on all provided context.' }
@@ -190,7 +190,7 @@ TONE: Professional but conversational. This is a valuable document they'll share
   return {
     output: JSON.stringify(summary, null, 2),
     agent: 'Summary Agent',
-    model: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW,
+    model: GEMINI_MODELS.DEFAULT_CHAT,
     metadata: {
       stage: 'SUMMARY' as const,
       chainOfThought: { steps },

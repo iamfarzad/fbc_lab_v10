@@ -26,7 +26,7 @@ export interface CalculateRoiInput {
  */
 export async function calculateRoi(context: CalculateRoiInput): Promise<CalculateRoiResult> {
   const { object } = await generateObject({
-    model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW),
+    model: google(GEMINI_MODELS.DEFAULT_CHAT),
     messages: [
       {
         role: 'system',

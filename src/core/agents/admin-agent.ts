@@ -470,7 +470,7 @@ TOOLS AVAILABLE:
   return {
     output: result.text,
     agent: 'Admin AI Agent',
-    model: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW,
+    model: GEMINI_MODELS.DEFAULT_CHAT,
     metadata: {
       stage: 'ADMIN' as const,
       conversationsAnalyzed: recentConversations.length,
