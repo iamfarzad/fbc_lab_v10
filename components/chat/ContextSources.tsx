@@ -1,0 +1,278 @@
+/**
+ * Context Sources Indicator
+ * 
+ * Shows what context the AI is using beyond grounding:
+ * - Research context (company/person info)
+ * - Location data
+ * - Previous conversation
+ * - Uploaded files
+ * - Screen/webcam analysis
+ */
+
+import React, { useState } from 'react'
+import { 
+  Building, 
+  User, 
+  MapPin, 
+  MessageSquare, 
+  FileText, 
+  Camera, 
+  Monitor,
+  ChevronDown,
+  ChevronUp,
+  Globe,
+  ExternalLink,
+  Info
+} from 'lucide-react'
+
+export interface ContextSource {
+  type: 'company' | 'person' | 'location' | 'conversation' | 'file' | 'webcam' | 'screen' | 'web'
+  label: string
+  value?: string
+  url?: string
+  confidence?: number
+  timestamp?: number
+}
+
+interface ContextSourcesProps {
+  sources: ContextSource[]
+  compact?: boolean
+  className?: string
+}
+
+const SOURCE_ICONS: Record<ContextSource['type'], React.ReactNode> = {
+  company: <Building className="w-3 h-3" />,
+  person: <User className="w-3 h-3" />,
+  location: <MapPin className="w-3 h-3" />,
+  conversation: <MessageSquare className="w-3 h-3" />,
+  file: <FileText className="w-3 h-3" />,
+  webcam: <Camera className="w-3 h-3" />,
+  screen: <Monitor className="w-3 h-3" />,
+  web: <Globe className="w-3 h-3" />,
+}
+
+const SOURCE_COLORS: Record<ContextSource['type'], string> = {
+  company: 'bg-blue-50 text-blue-600 border-blue-200',
+  person: 'bg-purple-50 text-purple-600 border-purple-200',
+  location: 'bg-green-50 text-green-600 border-green-200',
+  conversation: 'bg-gray-50 text-gray-600 border-gray-200',
+  file: 'bg-amber-50 text-amber-600 border-amber-200',
+  webcam: 'bg-cyan-50 text-cyan-600 border-cyan-200',
+  screen: 'bg-indigo-50 text-indigo-600 border-indigo-200',
+  web: 'bg-orange-50 text-orange-600 border-orange-200',
+}
+
+const ContextSources: React.FC<ContextSourcesProps> = ({
+  sources,
+  compact = false,
+  className = ''
+}) => {
+  const [expanded, setExpanded] = useState(false)
+
+  if (!sources.length) return null
+
+  if (compact) {
+    // Just show icons
+    return (
+      <div className={`flex items-center gap-1 ${className}`}>
+        <Info className="w-3 h-3 text-gray-400" />
+        {sources.slice(0, 4).map((source, i) => (
+          <div 
+            key={i}
+            className={`p-1 rounded ${SOURCE_COLORS[source.type]} border`}
+            title={`${source.label}: ${source.value || 'Active'}`}
+          >
+            {SOURCE_ICONS[source.type]}
+          </div>
+        ))}
+        {sources.length > 4 && (
+          <span className="text-xs text-gray-400">+{sources.length - 4}</span>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className={`rounded-lg border border-gray-200 bg-white overflow-hidden ${className}`}>
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-gray-400" />
+          <span className="text-xs font-medium text-gray-700">
+            Context Sources ({sources.length})
+          </span>
+        </div>
+        {expanded ? (
+          <ChevronUp className="w-4 h-4 text-gray-400" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-gray-400" />
+        )}
+      </button>
+
+      {/* Source List */}
+      {expanded && (
+        <div className="border-t border-gray-100 divide-y divide-gray-100">
+          {sources.map((source, index) => (
+            <div 
+              key={index}
+              className="flex items-start gap-3 px-3 py-2"
+            >
+              {/* Icon */}
+              <div className={`p-1.5 rounded ${SOURCE_COLORS[source.type]} border mt-0.5`}>
+                {SOURCE_ICONS[source.type]}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-700">
+                    {source.label}
+                  </span>
+                  {source.confidence && (
+                    <span className="text-[10px] text-gray-400">
+                      {Math.round(source.confidence * 100)}% confidence
+                    </span>
+                  )}
+                </div>
+                {source.value && (
+                  <p className="text-xs text-gray-500 truncate">
+                    {source.value}
+                  </p>
+                )}
+              </div>
+
+              {/* Link */}
+              {source.url && (
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3 text-gray-400" />
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Inline context badge
+ */
+export const ContextBadge: React.FC<{
+  type: ContextSource['type']
+  label: string
+  className?: string
+}> = ({ type, label, className = '' }) => (
+  <span 
+    className={`
+      inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] border
+      ${SOURCE_COLORS[type]}
+      ${className}
+    `}
+  >
+    {SOURCE_ICONS[type]}
+    {label}
+  </span>
+)
+
+/**
+ * Build context sources from intelligence context
+ */
+export function buildContextSources(context: {
+  company?: { name?: string; domain?: string }
+  person?: { fullName?: string; role?: string }
+  location?: { city?: string; country?: string }
+  hasConversation?: boolean
+  uploadedFiles?: string[]
+  hasWebcam?: boolean
+  hasScreen?: boolean
+  webSources?: Array<{ title: string; url: string }>
+}): ContextSource[] {
+  const sources: ContextSource[] = []
+
+  if (context.company?.name) {
+    const companySource: ContextSource = {
+      type: 'company',
+      label: 'Company',
+      value: context.company.name,
+    }
+    if (context.company.domain) {
+      companySource.url = `https://${context.company.domain}`
+    }
+    sources.push(companySource)
+  }
+
+  if (context.person?.fullName) {
+    sources.push({
+      type: 'person',
+      label: 'Contact',
+      value: `${context.person.fullName}${context.person.role ? ` (${context.person.role})` : ''}`
+    })
+  }
+
+  if (context.location?.city) {
+    sources.push({
+      type: 'location',
+      label: 'Location',
+      value: `${context.location.city}${context.location.country ? `, ${context.location.country}` : ''}`
+    })
+  }
+
+  if (context.hasConversation) {
+    sources.push({
+      type: 'conversation',
+      label: 'Previous Messages',
+      value: 'Using conversation history'
+    })
+  }
+
+  if (context.uploadedFiles?.length) {
+    context.uploadedFiles.forEach(file => {
+      sources.push({
+        type: 'file',
+        label: 'File',
+        value: file
+      })
+    })
+  }
+
+  if (context.hasWebcam) {
+    sources.push({
+      type: 'webcam',
+      label: 'Webcam',
+      value: 'Analyzing visual input'
+    })
+  }
+
+  if (context.hasScreen) {
+    sources.push({
+      type: 'screen',
+      label: 'Screen Share',
+      value: 'Analyzing screen content'
+    })
+  }
+
+  if (context.webSources?.length) {
+    context.webSources.forEach(source => {
+      sources.push({
+        type: 'web',
+        label: 'Web',
+        value: source.title,
+        url: source.url
+      })
+    })
+  }
+
+  return sources
+}
+
+export default ContextSources
+

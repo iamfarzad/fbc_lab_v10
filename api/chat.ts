@@ -31,7 +31,7 @@ function determineCurrentStage(
   // Bonus: if we have URL context or multimodal proof, fast-track even harder
   const hasStrongSignal = isQualified || intelligenceContext?.company?.website
 
-  return hasStrongSignal ? 'QUALIFIED' : 'DISCOVERY'
+  return hasStrongSignal ? 'SCORING' : 'DISCOVERY'
 }
 
 /**

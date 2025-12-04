@@ -293,7 +293,7 @@ export const generatePDF = ({ transcript, userProfile, researchContext }: PDFOpt
     doc.setFontSize(8);
     doc.setTextColor(...colors.accent);
     doc.setFont("helvetica", "bold");
-    doc.text("Book your follow-up: https://calendly.com/fbcdiscoveryai", margin + 5, offerY + 42);
+    doc.text("Book your follow-up: https://cal.com/farzad-bayat/30min", margin + 5, offerY + 42);
 
     y += 65;
 

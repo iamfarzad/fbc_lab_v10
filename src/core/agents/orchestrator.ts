@@ -87,7 +87,7 @@ export async function routeToAgent(params: {
     case 'DISCOVERY':
       return discoveryAgent(messages, { intelligenceContext, multimodalContext, sessionId })
 
-    case 'QUALIFIED':
+    case 'SCORING':
     case 'PITCHING':
       return pitchAgent(messages, { intelligenceContext, multimodalContext, sessionId })
 

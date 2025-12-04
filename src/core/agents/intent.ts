@@ -1,6 +1,7 @@
 import type { Message as ChatMessage } from '../../types/core.js'
 
-export type IntentSignal = 'BOOKING' | 'EXIT' | 'CONTINUE'
+export type IntentSignal = 'BOOKING' | 'EXIT' | 'CONTINUE' | 'ADMIN'
+export type ExitIntent = 'BOOKING' | 'WRAP_UP' | 'FRUSTRATION' | 'FORCE_EXIT' | null
 
 export function preProcessIntent(messages: ChatMessage[]): IntentSignal {
   const lastUserMessage = messages.filter((m) => m.role === 'user').pop()

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       const pdfBase64 = base64Match ? base64Match[1] : pdfData
       
       // Send email with PDF attachment
-      const result = await EmailService.sendEmail({
+      const emailOptions = {
         to: toEmail,
         subject: 'Your F.B/c AI Consultation Report',
         html: `
@@ -60,8 +60,9 @@ export async function POST(request: Request) {
           filename: `FBC-Consultation-${recipientName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`,
           content: Buffer.from(pdfBase64, 'base64'),
           contentType: 'application/pdf'
-        }] : undefined
-      })
+        }] : []
+      }
+      const result = await EmailService.sendEmail(emailOptions)
 
       return new Response(JSON.stringify({ success: true, messageId: result.emailId }), {
         status: 200,

@@ -355,17 +355,18 @@ export const VOICE_CONFIG = {
 } as const
 
 // Calendar/Booking Configuration
+// All booking links now use Cal.com
 export const CALENDAR_CONFIG = {
-  DEFAULT_LINK: 'https://calendly.com/fbcdiscoveryai/consultation',
-  WORKSHOP_LINK: 'https://calendly.com/fbcdiscoveryai/workshop',
-  CONSULTATION_LINK: 'https://calendly.com/fbcdiscoveryai/consultation',
-  // Function to get calendar link with optional customization
-  getLink: (type: 'workshop' | 'consultation' | 'default' = 'default'): string => {
-    switch (type) {
-      case 'workshop': return 'https://calendly.com/fbcdiscoveryai/workshop'
-      case 'consultation': return 'https://calendly.com/fbcdiscoveryai/consultation'
-      default: return 'https://calendly.com/fbcdiscoveryai/consultation'
-    }
+  DEFAULT_LINK: CONTACT_CONFIG.SCHEDULING.BOOKING_URL,
+  WORKSHOP_LINK: CONTACT_CONFIG.SCHEDULING.BOOKING_URL,
+  CONSULTATION_LINK: CONTACT_CONFIG.SCHEDULING.BOOKING_URL,
+  // Aliases for agent usage - all point to same Cal.com booking
+  WORKSHOP: CONTACT_CONFIG.SCHEDULING.BOOKING_URL,
+  CONSULTING: CONTACT_CONFIG.SCHEDULING.BOOKING_URL,
+  DEFAULT: CONTACT_CONFIG.SCHEDULING.BOOKING_URL,
+  // Function to get calendar link (all types use same Cal.com URL)
+  getLink: (_type?: 'workshop' | 'consultation' | 'default'): string => {
+    return CONTACT_CONFIG.SCHEDULING.BOOKING_URL
   }
 } as const
 

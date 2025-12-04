@@ -6,7 +6,9 @@ import ControlPanel from './components/ControlPanel';
 import MultimodalChat from './components/MultimodalChat';
 import { BrowserCompatibility } from './components/BrowserCompatibility';
 import WebcamPreview from './components/chat/WebcamPreview';
+import ScreenSharePreview from './components/chat/ScreenSharePreview';
 import LandingPage from './components/LandingPage';
+import { useScreenShare } from 'src/hooks/media/useScreenShare';
 import TermsOverlay from './components/TermsOverlay';
 import AdminDashboard from './components/AdminDashboard';
 import { GeminiLiveService } from './services/geminiLiveService';
@@ -141,6 +143,20 @@ export const App: React.FC = () => {
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
     // Ref to avoid stale closures in callbacks
     const isWebcamActiveRef = useRef(isWebcamActive);
+
+    // Screen Share State
+    const [screenShareSessionId] = useState<string>(`session-${Date.now()}`);
+    const screenShare = useScreenShare({
+        sessionId: screenShareSessionId,
+        enableAutoCapture: true,
+        captureInterval: 4000,
+        onAnalysis: (analysis, _imageData, _capturedAt) => {
+            logger.debug('[App] Screen share analysis:', { analysis });
+        }
+    });
+
+    // Location State  
+    const [locationData, setLocationData] = useState<{ latitude: number; longitude: number; city?: string; country?: string } | null>(null);
 
     const [visualState, setVisualState] = useState<VisualState>({
         isActive: false,
@@ -324,12 +340,13 @@ export const App: React.FC = () => {
                         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
                     });
                     logger.debug('[App] Location access granted:', { lat: pos.coords.latitude, lng: pos.coords.longitude });
-                    const location = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-                    // Store location in unified context
-                    unifiedContext.setLocation(location);
+                    const geoLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+                    // Store location in state and unified context
+                    setLocationData(geoLocation);
+                    unifiedContext.setLocation(geoLocation);
                     // Sync location to StandardChatService proactively
                     if (standardChatRef.current) {
-                        standardChatRef.current.setLocation(location);
+                        standardChatRef.current.setLocation(geoLocation);
                     }
                 } catch (err) {
                     console.warn('[App] Location access failed:', err);
@@ -1842,6 +1859,25 @@ export const App: React.FC = () => {
                         </div>
                     )}
 
+                    {/* Floating Screen Share Preview */}
+                    {(screenShare.isActive || screenShare.isInitializing) && (
+                        <div className={`fixed z-50 transition-all duration-500 ease-in-out ${
+                            isWebcamActive 
+                                ? 'top-16 left-4 w-40 md:top-auto md:bottom-32 md:left-8 md:w-72' 
+                                : 'top-16 right-4 w-40 md:top-auto md:bottom-32 md:right-8 md:w-72'
+                        }`}>
+                            <ScreenSharePreview
+                                isScreenShareActive={screenShare.isActive}
+                                isInitializing={screenShare.isInitializing}
+                                stream={screenShare.stream}
+                                error={screenShare.error}
+                                onToggle={() => void screenShare.toggleScreenShare()}
+                                onCapture={() => void screenShare.captureFrame()}
+                                className="rounded-2xl shadow-2xl border border-purple-500/20"
+                            />
+                        </div>
+                    )}
+
                     <div className="relative z-10 w-full h-full flex flex-col pointer-events-none">
                         {/* HEADER */}
                         <header className="fixed top-0 left-0 w-full p-4 md:p-6 flex flex-row justify-between items-center z-50 pointer-events-auto gap-2 md:gap-0">
@@ -1983,6 +2019,12 @@ export const App: React.FC = () => {
                                 audioLevel={visualState.audioLevel}
                                 onConnect={() => void handleConnect()}
                                 onDisconnect={() => void handleDisconnect()}
+                                isWebcamActive={isWebcamActive}
+                                onWebcamToggle={() => setIsWebcamActive(prev => !prev)}
+                                isScreenShareActive={screenShare.isActive}
+                                isScreenShareInitializing={screenShare.isInitializing}
+                                onScreenShareToggle={() => void screenShare.toggleScreenShare()}
+                                isLocationShared={!!locationData}
                             />
                         </div>
                     </div>

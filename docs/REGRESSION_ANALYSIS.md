@@ -59,7 +59,7 @@ This document tracks features from v5-v9 that need to be restored or verified in
 
 **Fix Applied:**
 - Added `CALENDAR_CONFIG` to constants
-- Updated discovery agent to include real Calendly link
+- Updated discovery agent to include real Cal.com link
 
 **Files Changed:**
 - `src/config/constants.ts`

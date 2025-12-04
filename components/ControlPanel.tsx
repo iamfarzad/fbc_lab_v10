@@ -1,15 +1,34 @@
 
 import React from 'react';
 import { LiveConnectionState } from 'types';
+import { Camera, CameraOff, Monitor, MonitorOff, MapPin } from 'lucide-react';
 
 interface ControlPanelProps {
   connectionState: LiveConnectionState;
   audioLevel: number;
   onConnect: () => void;
   onDisconnect: () => void;
+  // Optional media controls
+  isWebcamActive?: boolean;
+  onWebcamToggle?: () => void;
+  isScreenShareActive?: boolean;
+  isScreenShareInitializing?: boolean;
+  onScreenShareToggle?: () => void;
+  isLocationShared?: boolean;
 }
 
-const ControlPanel: React.FC<ControlPanelProps> = ({ connectionState, audioLevel, onConnect, onDisconnect }) => {
+const ControlPanel: React.FC<ControlPanelProps> = ({ 
+  connectionState, 
+  audioLevel, 
+  onConnect, 
+  onDisconnect,
+  isWebcamActive,
+  onWebcamToggle,
+  isScreenShareActive,
+  isScreenShareInitializing,
+  onScreenShareToggle,
+  isLocationShared
+}) => {
   const isConnected = connectionState === LiveConnectionState.CONNECTED;
   const isConnecting = connectionState === LiveConnectionState.CONNECTING;
   const isError = connectionState === LiveConnectionState.ERROR;
@@ -53,7 +72,47 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ connectionState, audioLevel
         )}
 
         {/* Main Button Container */}
-        <div className={`relative z-10 flex gap-4 items-center bg-white/40 backdrop-blur-xl p-1.5 rounded-full border shadow-[0_8px_32px_rgba(0,0,0,0.05)] transition-all duration-500 hover:scale-105 ${isConnected ? 'border-orange-200 shadow-[0_0_20px_rgba(249,115,22,0.15)]' : 'border-white/60'}`}>
+        <div className={`relative z-10 flex gap-2 items-center bg-white/40 backdrop-blur-xl p-1.5 rounded-full border shadow-[0_8px_32px_rgba(0,0,0,0.05)] transition-all duration-500 hover:scale-105 ${isConnected ? 'border-orange-200 shadow-[0_0_20px_rgba(249,115,22,0.15)]' : 'border-white/60'}`}>
+          
+          {/* Webcam Toggle */}
+          {onWebcamToggle && (
+            <button
+              onClick={onWebcamToggle}
+              className={`
+                relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300
+                ${isWebcamActive 
+                  ? 'bg-blue-500 text-white shadow-[0_0_12px_rgba(59,130,246,0.5)]' 
+                  : 'bg-white/60 text-gray-500 hover:bg-white hover:text-gray-700'
+                }
+              `}
+              title={isWebcamActive ? 'Turn off camera' : 'Turn on camera'}
+            >
+              {isWebcamActive ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
+            </button>
+          )}
+
+          {/* Screen Share Toggle */}
+          {onScreenShareToggle && (
+            <button
+              onClick={onScreenShareToggle}
+              disabled={isScreenShareInitializing}
+              className={`
+                relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300
+                ${isScreenShareActive 
+                  ? 'bg-purple-500 text-white shadow-[0_0_12px_rgba(168,85,247,0.5)]' 
+                  : isScreenShareInitializing
+                    ? 'bg-purple-200 text-purple-600 animate-pulse'
+                    : 'bg-white/60 text-gray-500 hover:bg-white hover:text-gray-700'
+                }
+                disabled:cursor-wait
+              `}
+              title={isScreenShareActive ? 'Stop sharing' : 'Share screen'}
+            >
+              {isScreenShareActive || isScreenShareInitializing ? <Monitor className="w-4 h-4" /> : <MonitorOff className="w-4 h-4" />}
+            </button>
+          )}
+
+          {/* Main Voice Button */}
           <button
             onClick={handleAction}
             disabled={isConnecting}
@@ -99,6 +158,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ connectionState, audioLevel
                </svg>
             )}
           </button>
+
+          {/* Location Indicator (read-only) */}
+          {isLocationShared && (
+            <div 
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-green-500/20 text-green-600"
+              title="Location shared"
+            >
+              <MapPin className="w-4 h-4" />
+            </div>
+          )}
         </div>
       </div>
 
