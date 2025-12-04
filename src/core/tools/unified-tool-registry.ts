@@ -321,9 +321,18 @@ export function getChatToolDefinitions(sessionId: string, agentName: string = 'C
       description: 'Generate a proposal based on the conversation. Returns markdown proposal text that can be displayed or saved.',
       parameters: ToolSchemas.generate_proposal_draft,
       execute: createToolExecute('generate_proposal_draft')
+    },
+    capture_webcam_snapshot: {
+      description: 'Retrieve the latest analyzed webcam context for this session.',
+      parameters: ToolSchemas.capture_webcam_snapshot,
+      execute: createToolExecute('capture_webcam_snapshot')
+    },
+    capture_screen_snapshot: {
+      description: 'Retrieve the latest analyzed screen-share context for this session.',
+      parameters: ToolSchemas.capture_screen_snapshot,
+      execute: createToolExecute('capture_screen_snapshot')
     }
-    // Note: Voice-only tools (capture_webcam_snapshot, capture_screen_snapshot) are not included in chat tool definitions
-    // Note: Admin-only tools (get_dashboard_stats) are not included in chat tool definitions
+    // Note: get_dashboard_stats is admin-only and not included in chat tool definitions
   }
 }
 

@@ -205,17 +205,17 @@ describe('Unified Tool Registry', () => {
     it('should return tool definitions for chat', () => {
       const tools = getChatToolDefinitions('test-session', 'Test Agent')
 
-      // Should have unified tools (excluding voice-only tools)
+      // Should have unified tools (including webcam/screen for chat via session-based lookup)
       expect(tools.search_web).toBeDefined()
       expect(tools.calculate_roi).toBeDefined()
       expect(tools.extract_action_items).toBeDefined()
       expect(tools.generate_summary_preview).toBeDefined()
       expect(tools.draft_follow_up_email).toBeDefined()
       expect(tools.generate_proposal_draft).toBeDefined()
+      expect(tools.capture_webcam_snapshot).toBeDefined()
+      expect(tools.capture_screen_snapshot).toBeDefined()
 
-      // Voice-only tools should not be included
-      expect(tools.capture_screen_snapshot).toBeUndefined()
-      expect(tools.capture_webcam_snapshot).toBeUndefined()
+      // Admin-only tools should not be included
       expect(tools.get_dashboard_stats).toBeUndefined()
     })
 
