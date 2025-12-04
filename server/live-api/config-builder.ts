@@ -2,8 +2,8 @@ import { Modality } from '@google/genai'
 import { serverLogger } from '../utils/env-setup.js'
 import { DEBUG_MODE } from '../utils/turn-completion.js'
 import { isAdmin } from '../utils/permissions.js'
-import { GEMINI_CONFIG, VOICE_CONFIG } from '../../src/config/constants.js'
-import { LIVE_FUNCTION_DECLARATIONS, ADMIN_LIVE_FUNCTION_DECLARATIONS } from '../../src/config/live-tools.js'
+import { GEMINI_CONFIG, VOICE_CONFIG } from 'src/config/constants.js'
+import { LIVE_FUNCTION_DECLARATIONS, ADMIN_LIVE_FUNCTION_DECLARATIONS } from 'src/config/live-tools.js'
 
 /**
  * Helper function to build Live API configuration

@@ -8,12 +8,12 @@
  * See: api/admin/README.md for architecture details
  */
 
-import { agentAnalytics, type SystemHealth } from 'src/core/analytics/agent-analytics'
-import { toolAnalytics } from 'src/core/analytics/tool-analytics'
-import { parseTimeRange } from 'src/lib/date-utils'
-import { logger } from 'src/lib/logger'
-import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
-import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
+import { agentAnalytics, type SystemHealth } from '../../analytics/agent-analytics.js'
+import { toolAnalytics } from '../../analytics/tool-analytics.js'
+import { parseTimeRange } from '../../../lib/date-utils.js'
+import { logger } from '../../../lib/logger.js'
+import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
+import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
 
 function generateRequestId() {
   return crypto.randomUUID()

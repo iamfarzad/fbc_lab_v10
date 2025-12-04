@@ -1,10 +1,10 @@
-import { safeGenerateText } from 'src/lib/gemini-safe';
-import { formatMessagesForAI } from 'src/lib/format-messages';
-import { toolExecutor } from 'src/core/tools/tool-executor';
-import { getChatToolDefinitions } from 'src/core/tools/unified-tool-registry';
+import { safeGenerateText } from '../../lib/gemini-safe.js';
+import { formatMessagesForAI } from '../../lib/format-messages.js';
+import { toolExecutor } from '../tools/tool-executor.js';
+import { getChatToolDefinitions } from '../tools/unified-tool-registry.js';
 import { z } from 'zod';
 import type { AgentContext, ChatMessage } from './types';
-import { GEMINI_MODELS } from 'src/config/constants';
+import { GEMINI_MODELS } from '../../config/constants.js';
 
 // src/core/agents/closer-agent.ts — FINAL UPGRADED VERSION
 // Uses unified tool registry + agent-specific tools

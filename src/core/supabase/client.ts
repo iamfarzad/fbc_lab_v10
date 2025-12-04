@@ -1,5 +1,5 @@
-import { getSupabaseServer, getSupabaseService } from 'src/lib/supabase';
-import { Database } from 'src/core/database.types'
+import { getSupabaseServer, getSupabaseService } from '../../lib/supabase.js';
+import { Database } from '../database.types.js'
 
 // Type definitions for Supabase operations
 interface SupabaseAuthUser {

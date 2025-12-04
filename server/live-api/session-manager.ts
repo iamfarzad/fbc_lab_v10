@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { serverLogger } from '../utils/env-setup.js'
-import { GEMINI_MODELS } from '../../src/config/constants.ts'
+import { GEMINI_MODELS } from 'src/config/constants.ts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

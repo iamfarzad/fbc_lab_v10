@@ -8,21 +8,21 @@
  * See: api/admin/README.md for architecture details
  */
 
-// import { respond } from 'src/core/lib/api/response' // Not used
-import { adminAuthMiddleware } from 'src/core/app/api-utils/auth'
-import { adminRateLimit } from 'src/core/app/api-utils/rate-limiting'
-import { adminChatService } from 'src/core/admin/admin-chat-service'
-import { supabaseService } from 'src/core/supabase/client'
+// import { respond } from '../../lib/api/response' // Not used
+import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
+import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
+import { adminChatService } from '../admin-chat-service.js'
+import { supabaseService } from '../../supabase/client.js'
 // TODO: Import parseJsonRequest when available
-// import { parseJsonRequest } from 'src/lib/json'
+// import { parseJsonRequest } from '../../../lib/json'
 import { z } from 'zod'
 // TODO: Import asAdminSession when supabase-parsers is available
-// import { asAdminSession } from 'src/lib/supabase-parsers'
+// import { asAdminSession } from '../../../lib/supabase-parsers'
 // TODO: Import schemas when available
-// import type { AdminSessionRow } from 'src/schemas/supabase'
-// import { SessionsQuerySchema, SessionsPostBodySchema } from 'src/schemas/admin'
-import { logger } from 'src/lib/logger'
-import type { Database } from 'src/core/database.types'
+// import type { AdminSessionRow } from '../../../schemas/supabase'
+// import { SessionsQuerySchema, SessionsPostBodySchema } from '../../../schemas/admin'
+import { logger } from '../../../lib/logger.js'
+import type { Database } from '../../database.types.js'
 
 // Use generated Database types for admin schema
 type AdminSessionUpdate = Database['admin']['Tables']['admin_sessions']['Update']

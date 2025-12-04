@@ -4,9 +4,9 @@ import { objectionAgent } from './objection-agent'
 import { closerAgent } from './closer-agent'
 import { summaryAgent } from './summary-agent'
 import { detectObjection } from './utils/detect-objections'
-import type { FunnelStage } from 'src/core/types/funnel-stage'
+import type { FunnelStage } from '../types/funnel-stage.js'
 import type { AgentResult, AgentContext, ChatMessage } from './types'
-import { GEMINI_MODELS } from 'src/config/constants'
+import { GEMINI_MODELS } from '../../config/constants.js'
 
 /**
  * Simplified Multi-Agent Orchestrator - Routes conversations to specialized agents

@@ -1,11 +1,11 @@
 import { serverLogger } from '../utils/env-setup'
-import { searchWeb } from '../../src/core/intelligence/search.js'
+import { searchWeb } from 'src/core/intelligence/search.js'
 import { 
   extractActionItems, 
   generateSummary, 
   draftFollowUpEmail, 
   generateProposal 
-} from '../../src/core/intelligence/analysis.js'
+} from 'src/core/intelligence/analysis.js'
 import { isAdmin } from '../rate-limiting/websocket-rate-limiter'
 
 export interface ToolResult {
@@ -434,7 +434,7 @@ export async function executeGetDashboardStats(args: any, sessionId: string): Pr
         }
 
         const period = args?.period || '7d'
-        const { supabaseService } = await import('../../src/core/supabase/client.js')
+        const { supabaseService } = await import('src/core/supabase/client.js')
         
         const now = new Date()
         const daysBack = period === '1d' ? 1 : period === '30d' ? 30 : period === '90d' ? 90 : 7

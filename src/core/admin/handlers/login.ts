@@ -8,9 +8,9 @@
  * See: api/admin/README.md for architecture details
  */
 
-// import { respond } from 'src/core/lib/api/response' // Not used in this route
-import { createToken } from 'src/core/security/auth'
-import { logger } from 'src/lib/logger'
+// import { respond } from '../../lib/api/response' // Not used in this route
+import { createToken } from '../../security/auth.js'
+import { logger } from '../../../lib/logger.js'
 
 export async function POST(request: Request) {
   try {

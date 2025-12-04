@@ -15,11 +15,11 @@
 
 import { z } from 'zod'
 import { toolExecutor } from './tool-executor'
-import { withTimeout } from 'src/lib/code-quality'
+import { withTimeout } from '../../lib/code-quality.js'
 import type { ToolExecutionResult } from './types'
 
 // Re-export Live API function declarations (no changes needed - already correct format)
-export { LIVE_FUNCTION_DECLARATIONS, ADMIN_LIVE_FUNCTION_DECLARATIONS } from 'src/config/live-tools'
+export { LIVE_FUNCTION_DECLARATIONS, ADMIN_LIVE_FUNCTION_DECLARATIONS } from '../../config/live-tools.js'
 
 // ============================================================================
 // Tool Result Interface (matches server/utils/tool-implementations.ts)
