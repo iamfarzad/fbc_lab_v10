@@ -268,6 +268,7 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
                 </button>
             </div>
         </form>
+      </div>
     </div>
   );
 };
