@@ -3,7 +3,7 @@
  * Adjust these settings based on your needs
  */
 
-import { GEMINI_MODELS } from 'src/config/constants'
+import { GEMINI_MODELS } from '../../config/constants.js'
 
 export const RETRY_CONFIG = {
   // Timeout settings (in milliseconds)

@@ -5,7 +5,7 @@
  * Supabase's Json type is: string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
  */
 
-import type { Json } from 'src/core/database.types'
+import type { Json } from '../core/database.types.js'
 
 /**
  * Type guard to check if a Json value is an object (not array, not primitive)
