@@ -5,9 +5,9 @@
  */
 
 import { truncateText as truncateTextUtil } from './text-utils'
-import { safeParseJson } from 'src/lib/json'
-import { AppError } from 'src/lib/errors'
-import { logger } from 'src/lib/logger'
+import { safeParseJson } from './json.js'
+import { AppError } from './errors.js'
+import { logger } from './logger.js'
 
 // Type guards for runtime type checking
 export function isString(value: unknown): value is string {
