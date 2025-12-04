@@ -24,9 +24,48 @@
 - `vercel.json` - Simplified functions configuration to use only wildcard pattern
 
 **Next Steps:**
-- Deploy to Vercel to verify build succeeds
-- Test admin routes functionality
-- Address other issues: voice tool calling, chat weather search, webcam+voice integration
+- ✅ Deploy to Vercel to verify build succeeds
+- ✅ Fix SPA routing for `/admin` page (404 error)
+- ⏳ Test admin routes functionality
+- ⏳ Address other issues: voice tool calling, chat weather search, webcam+voice integration
+
+## 🔧 SPA Routing Fix (2025-12-04)
+
+**Issue:** `/admin` page returns 404 on production (`farzadbayat.com/admin`)
+
+**Root Cause:** Missing SPA rewrite rule in `vercel.json`. React Router handles client-side routing, but Vercel needs to serve `index.html` for all non-API routes.
+
+**Fix Applied:**
+- ✅ Added catch-all rewrite rule: `"source": "/((?!api/).*)", "destination": "/index.html"`
+- ✅ This sends all non-API routes to `index.html` so React Router can handle them
+- ✅ Pattern excludes `/api/*` routes which are handled by serverless functions
+
+**Files Changed:**
+- `vercel.json` - Added SPA routing rewrite rule
+
+**Expected Result:**
+- `/admin` route should now work correctly
+- `/chat` route should also work
+- All React Router client-side routes will be handled properly
+
+## 🔧 Module Resolution Fix (2025-12-04)
+
+**Issue:** `ERR_MODULE_NOT_FOUND: Cannot find package 'src'` in serverless functions (`/api/chat`, `/api/chat/persist-message`)
+
+**Root Cause:** With `"type": "module"` in package.json, Node.js ESM treats `'src/...'` imports as bare module specifiers (package names), not file paths. Even though `includeFiles: "src/**"` bundles the files, Node.js can't resolve the import paths.
+
+**Fix Applied:**
+- ✅ Added `exports` field to `package.json` to map `src/*` paths
+- ✅ This tells Node.js how to resolve `src/...` imports in ESM mode
+- ✅ Works alongside `includeFiles` - files are bundled AND paths are resolved
+
+**Files Changed:**
+- `package.json` - Added exports field for src/* path mapping
+
+**Expected Result:**
+- Serverless functions should be able to import from `src/` directory
+- `/api/chat` and `/api/chat/persist-message` should work correctly
+- All API routes using `src/` imports should resolve properly
 
 ## ✅ Vercel Deployment Complete (2025-12-04)
 
@@ -242,15 +281,19 @@
 
 ## 🚧 In Progress
 
-**Current Task:** Phase 3: Admin Service Restoration - Hooks Porting Complete
+**Current Task:** Unified Tool Integration - Master Plan Complete
 
-**Active Plan:** [Phase 3: Admin Service Restoration](./cursor-plan://3aba34ea-7448-4529-b583-d01265322976/Phase%203%20Admin%20Service%20Restoration.plan.md)
-- Goal: Restore Admin Chat functionality by porting logic from v8 and merging admin features from v5/v7/v8
+**Active Plan:** [Unified Tool Integration](./docs/TOOL_INTEGRATION_MASTER_PLAN.md)
+- Goal: Unify tool execution across Chat, Voice, and Webcam modalities
+- Status: Master plan created after analyzing v8→v10 evolution and Gemini Live API documentation
+- Next: Review plan and begin Phase 1 implementation
+
+**Previous Task:** Phase 3: Admin Service Restoration - Hooks Porting Complete ✅
 - ✅ Port AdminChatService implementation from v8
 - ✅ Implement token-usage-logger for cost tracking
 - ✅ Port missing admin API routes (12 endpoints)
 - ✅ Port missing admin UI components (29+ components)
-- ✅ **Port all hooks from v8** (useAdminChat, useCamera, useScreenShare, useVoice)
+- ✅ Port all hooks from v8 (useAdminChat, useCamera, useScreenShare, useVoice)
 
 ## 📋 Next Steps
 
