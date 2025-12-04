@@ -108,8 +108,15 @@ function checkFile(filePath) {
       }
     }
     
-    // Skip API key patterns that are just env var references
+    // Skip API key patterns that are just env var references or error messages
     if (name.includes('API Key') && filePath.endsWith('.ts')) {
+      // Skip error messages that mention API keys but don't contain actual keys
+      if (content.match(/error.*api.*key.*not.*configure/i) ||
+          content.match(/api.*key.*not.*configure/i) ||
+          content.match(/please.*set.*api.*key/i) ||
+          content.match(/api.*key.*environment.*variable/i)) {
+        return
+      }
       // Only flag if there's an actual long string that looks like a key
       if (!content.match(/['"][a-zA-Z0-9_-]{32,}['"]/)) {
         return

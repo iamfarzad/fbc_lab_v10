@@ -11,7 +11,7 @@
  * See: api/admin/README.md for full documentation
  */
 
-import { getAdminHandler } from '../../src/core/admin/admin-router'
+import { getAdminHandler } from '../../src/core/admin/admin-router.js'
 
 export async function GET(req: Request) {
   return getAdminHandler('GET')(req)

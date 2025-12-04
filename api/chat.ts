@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { routeToAgent } from '../src/core/agents/orchestrator';
-import type { ChatMessage } from '../src/core/agents/types';
-import type { FunnelStage } from '../src/core/types/funnel-stage';
-import { logger } from '../src/lib/logger'
-import { multimodalContextManager } from '../src/core/context/multimodal-context';
-import { rateLimit } from '../src/lib/rate-limiter';
-import { supabaseService } from '../src/core/supabase/client';
+import { routeToAgent } from '../src/core/agents/orchestrator.js';
+import type { ChatMessage } from '../src/core/agents/types.js';
+import type { FunnelStage } from '../src/core/types/funnel-stage.js';
+import { logger } from '../src/lib/logger.js'
+import { multimodalContextManager } from '../src/core/context/multimodal-context.js';
+import { rateLimit } from '../src/lib/rate-limiter.js';
+import { supabaseService } from '../src/core/supabase/client.js';
 // import { ensureWorkersInitialized } from 'src/core/queue/redis-queue';
 
 /**
