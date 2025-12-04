@@ -2011,6 +2011,9 @@ export const App: React.FC = () => {
                                 }
                             }}
                             userEmail={userProfile?.email}
+                            userName={userProfile?.name}
+                            isScreenShareActive={screenShare.isActive}
+                            isLocationShared={!!locationData}
                         />
 
                         <div className={`pointer-events-auto ${isChatVisible ? 'hidden md:block' : 'block'}`}>

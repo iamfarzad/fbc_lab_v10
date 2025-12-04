@@ -7,35 +7,35 @@ import type { FunnelStage } from '../types/funnel-stage.js'
 // Proposal interface for structured output
 export interface Proposal {
   executiveSummary?: {
-    client?: string
-    industry?: string
-    problemStatement?: string
-    proposedSolution?: string
-  }
+    client?: string | undefined
+    industry?: string | undefined
+    problemStatement?: string | undefined
+    proposedSolution?: string | undefined
+  } | undefined
   scopeOfWork?: {
     phases?: Array<{
-      name?: string
-      duration?: string
-      deliverables?: string[]
-    }>
-  }
+      name?: string | undefined
+      duration?: string | undefined
+      deliverables?: string[] | undefined
+    }> | undefined
+  } | undefined
   timeline?: {
-    projectStart?: string
-    milestones?: string[]
-    projectCompletion?: string
-  }
+    projectStart?: string | undefined
+    milestones?: string[] | undefined
+    projectCompletion?: string | undefined
+  } | undefined
   investment?: {
-    phase1?: number
-    phase2?: number
-    phase3?: number
-    total?: number
-    paymentTerms?: string
-  }
+    phase1?: number | undefined
+    phase2?: number | undefined
+    phase3?: number | undefined
+    total?: number | undefined
+    paymentTerms?: string | undefined
+  } | undefined
   roi?: {
-    expectedSavings?: string
-    paybackPeriod?: string
-    efficiency?: string
-  }
+    expectedSavings?: string | undefined
+    paybackPeriod?: string | undefined
+    efficiency?: string | undefined
+  } | undefined
 }
 
 // Zod schema for validating proposal output
@@ -246,10 +246,12 @@ OUTPUT: Valid JSON only, no explanation.`
     })
   }
 
-  steps[3].status = 'complete'
-  const milestones = proposal.timeline?.milestones
-  const totalWeeks = Array.isArray(milestones) ? milestones.length : 12
-  steps[3].description = `${totalWeeks} weeks total project timeline`
+  if (steps[3]) {
+    steps[3].status = 'complete'
+    const milestones = proposal.timeline?.milestones
+    const totalWeeks = Array.isArray(milestones) ? milestones.length : 12
+    steps[3].description = `${totalWeeks} weeks total project timeline`
+  }
 
   // Step 5: Computing investment breakdown
   const totalInvestment = proposal.investment?.total

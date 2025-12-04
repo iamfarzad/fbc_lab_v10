@@ -7,13 +7,11 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { 
-  Wifi, 
   WifiOff, 
   Signal, 
   SignalHigh, 
   SignalMedium, 
   SignalLow,
-  AlertTriangle,
   RefreshCw
 } from 'lucide-react'
 

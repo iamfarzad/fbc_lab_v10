@@ -17,7 +17,6 @@ import {
   FileText,
   Mail,
   BarChart,
-  Globe,
   CheckCircle,
   AlertCircle,
   Info

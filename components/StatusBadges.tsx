@@ -56,13 +56,14 @@ const Badge: React.FC<BadgeProps> = ({
 }
 
 export interface StatusBadgesProps {
-  isVoiceActive?: boolean
-  isWebcamActive?: boolean
-  isScreenShareActive?: boolean
-  isLocationShared?: boolean
-  isConnected?: boolean
-  isProcessing?: boolean
-  className?: string
+  isVoiceActive?: boolean | undefined
+  isWebcamActive?: boolean | undefined
+  isScreenShareActive?: boolean | undefined
+  isLocationShared?: boolean | undefined
+  isConnected?: boolean | undefined
+  isProcessing?: boolean | undefined
+  isDarkMode?: boolean | undefined
+  className?: string | undefined
 }
 
 const StatusBadges: React.FC<StatusBadgesProps> = ({
@@ -70,7 +71,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
   isWebcamActive,
   isScreenShareActive,
   isLocationShared,
-  isConnected,
+  // isConnected, // Reserved for future use
   isProcessing,
   className = ''
 }) => {

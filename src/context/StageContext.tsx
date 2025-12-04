@@ -32,7 +32,7 @@ export interface StageTransition {
   from: FunnelStage
   to: FunnelStage
   timestamp: number
-  reason?: string
+  reason?: string | undefined
 }
 
 /**
@@ -66,6 +66,7 @@ const StageContext = createContext<StageContextValue | null>(null)
 function stageToShape(stage: FunnelStage): VisualShape {
   const shapeMap: Record<FunnelStage, VisualShape> = {
     DISCOVERY: 'discovery',
+    QUALIFIED: 'scoring',
     SCORING: 'scoring',
     INTELLIGENCE_GATHERING: 'brain',
     WORKSHOP_PITCH: 'workshop',
@@ -144,8 +145,9 @@ export function StageProvider({ children, initialStage = 'DISCOVERY' }: StagePro
   
   const advanceStage = useCallback((reason?: string) => {
     const currentIndex = STAGE_ORDER.indexOf(currentStage)
-    if (currentIndex < STAGE_ORDER.length - 1) {
-      setStage(STAGE_ORDER[currentIndex + 1], reason)
+    const nextStage = STAGE_ORDER[currentIndex + 1]
+    if (currentIndex < STAGE_ORDER.length - 1 && nextStage) {
+      setStage(nextStage, reason)
     }
   }, [currentStage, setStage])
   

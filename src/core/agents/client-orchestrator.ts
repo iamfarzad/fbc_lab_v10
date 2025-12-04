@@ -20,8 +20,8 @@ import { objectionAgent } from './objection-agent.js'
 import { closerAgent } from './closer-agent.js'
 import { summaryAgent } from './summary-agent.js'
 import { proposalAgent } from './proposal-agent.js'
-import { retargetingAgent } from './retargeting-agent.js'
-import { leadIntelligenceAgent } from './lead-intelligence-agent.js'
+// Note: retargetingAgent and leadIntelligenceAgent have different signatures
+// They are not chat agents - retargeting is for scheduled emails, lead intelligence runs at session start
 import { adminAgent } from './admin-agent.js'
 import type { ExitIntent } from './intent.js'
 import { preProcessIntent } from './intent.js'
@@ -42,8 +42,8 @@ interface ClientFlowState {
   currentStage: FunnelStage
   exitAttempts: number
   scoringComplete: boolean
-  fitScore?: { workshop: number; consulting: number }
-  leadScore?: number
+  fitScore?: { workshop: number; consulting: number } | undefined
+  leadScore?: number | undefined
   pitchDelivered: boolean
   proposalGenerated: boolean
   objectionCount: number
@@ -251,7 +251,9 @@ export async function clientRouteToAgent(
       return clientRouteToAgent(messages, context)
       
     case 'INTELLIGENCE_GATHERING':
-      return leadIntelligenceAgent(messages, context)
+      // Lead intelligence runs at session start, not during chat
+      // Route to discovery for continued conversation
+      return discoveryAgent(messages, context)
       
     case 'WORKSHOP_PITCH':
       flowState.pitchDelivered = true
@@ -286,7 +288,9 @@ export async function clientRouteToAgent(
       return summaryAgent(messages, context)
       
     case 'RETARGETING':
-      return retargetingAgent(messages, context)
+      // Retargeting is for scheduled follow-up emails, not interactive chat
+      // Route to summary agent for wrap-up
+      return summaryAgent(messages, context)
       
     case 'ADMIN':
       return adminAgent(messages, context)
@@ -319,7 +323,7 @@ export function updateIntelligenceFromScoring(
 /**
  * Check if proposal should be offered
  */
-export function shouldOfferProposal(context: AgentContext): boolean {
+export function shouldOfferProposal(_context: AgentContext): boolean {
   if (flowState.proposalGenerated) return false
   
   // Offer proposal when:

@@ -135,35 +135,35 @@ export interface AgentMetadata {
 // Proposal types for proposal-agent
 export interface Proposal {
   executiveSummary?: {
-    client?: string
-    industry?: string
-    problemStatement?: string
-    proposedSolution?: string
-  }
+    client?: string | undefined
+    industry?: string | undefined
+    problemStatement?: string | undefined
+    proposedSolution?: string | undefined
+  } | undefined
   scopeOfWork?: {
     phases?: Array<{
-      name?: string
-      duration?: string
-      deliverables?: string[]
-    }>
-  }
+      name?: string | undefined
+      duration?: string | undefined
+      deliverables?: string[] | undefined
+    }> | undefined
+  } | undefined
   timeline?: {
-    projectStart?: string
-    milestones?: string[]
-    projectCompletion?: string
-  }
+    projectStart?: string | undefined
+    milestones?: string[] | undefined
+    projectCompletion?: string | undefined
+  } | undefined
   investment?: {
-    phase1?: number
-    phase2?: number
-    phase3?: number
-    total?: number
-    paymentTerms?: string
-  }
+    phase1?: number | undefined
+    phase2?: number | undefined
+    phase3?: number | undefined
+    total?: number | undefined
+    paymentTerms?: string | undefined
+  } | undefined
   roi?: {
-    expectedSavings?: string
-    paybackPeriod?: string
-    efficiency?: string
-  }
+    expectedSavings?: string | undefined
+    paybackPeriod?: string | undefined
+    efficiency?: string | undefined
+  } | undefined
 }
 
 export interface ProposalMeta {

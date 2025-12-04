@@ -4,6 +4,10 @@ import ChatMessage from './chat/ChatMessage';
 import ChatInputDock from './chat/ChatInputDock';
 import { Lightbox } from './chat/Attachments';
 import { isTextMime } from './chat/UIHelpers';
+import StatusBadges from './StatusBadges';
+import EmptyState from './chat/EmptyState';
+import { ToolCall, FloatingToolIndicator } from './chat/ToolCallIndicator';
+import { ResponseTimeBadge } from './chat/MessageMetadata';
 
 interface MultimodalChatProps {
   items: TranscriptItem[];
@@ -14,16 +18,21 @@ interface MultimodalChatProps {
   onDisconnect: () => void;
   isWebcamActive: boolean;
   onWebcamChange: (active: boolean) => void;
-  localAiAvailable?: boolean;
+  isScreenShareActive?: boolean | undefined;
+  isLocationShared?: boolean | undefined;
+  localAiAvailable?: boolean | undefined;
   onLocalAction?: (text: string, action: 'rewrite' | 'proofread') => Promise<string>;
   onStopGeneration?: () => void;
-  visible?: boolean;
+  visible?: boolean | undefined;
   onToggleVisibility?: (visible: boolean) => void;
-  isDarkMode?: boolean;
+  isDarkMode?: boolean | undefined;
   onToggleTheme?: () => void;
   onGeneratePDF?: () => void;
   onEmailPDF?: () => void;
   userEmail?: string | undefined;
+  userName?: string | undefined;
+  activeTools?: ToolCall[];
+  latency?: number | undefined;
 }
 
 const MultimodalChat: React.FC<MultimodalChatProps> = ({ 
@@ -35,6 +44,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onDisconnect,
     isWebcamActive,
     onWebcamChange,
+    isScreenShareActive,
+    isLocationShared,
     localAiAvailable,
     onLocalAction,
     onStopGeneration,
@@ -44,7 +55,10 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onToggleTheme,
     onGeneratePDF,
     onEmailPDF,
-    userEmail
+    userEmail,
+    userName,
+    activeTools = []
+    // latency // Reserved for future connection quality indicator
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -304,12 +318,21 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
           </div>
 
           {/* CHAT HEADER - Inside Card Constraints */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 shrink-0 z-10 bg-white/40 dark:bg-black/40 backdrop-blur-md">
-              <div className="flex items-center gap-2">
-                 <div className={`w-2 h-2 rounded-full ${connectionState === LiveConnectionState.CONNECTED ? 'bg-orange-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
-                 <span className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/40' : 'text-black/40'}`}>
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-white/5 shrink-0 z-10 bg-white/40 dark:bg-black/40 backdrop-blur-md gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${connectionState === LiveConnectionState.CONNECTED ? 'bg-orange-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                 <span className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/40' : 'text-black/40'} hidden sm:inline`}>
                     {connectionState === LiveConnectionState.CONNECTED ? 'Live Session' : 'Chat History'}
                  </span>
+                 {/* Status Badges */}
+                 <StatusBadges 
+                    isVoiceActive={connectionState === LiveConnectionState.CONNECTED}
+                    isWebcamActive={isWebcamActive}
+                    isScreenShareActive={isScreenShareActive}
+                    isLocationShared={isLocationShared}
+                    isProcessing={items.some(i => !i.isFinal)}
+                    className="ml-1"
+                 />
               </div>
               
               <div className="flex items-center gap-1">
@@ -383,17 +406,42 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
           </div>
 
           {/* MESSAGES AREA - Gradient Mask for smooth scrolling fade */}
-          <div className="relative flex-1 overflow-y-auto px-6 py-6 space-y-8 custom-scrollbar mask-image-gradient">
-            {items.map((item, index) => (
-                <ChatMessage 
-                    key={item.id + index} 
+          <div className="relative flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8 custom-scrollbar mask-image-gradient">
+            {items.length === 0 ? (
+              <EmptyState 
+                userName={userName}
+                onSuggestionClick={(text) => onSendMessage(text)}
+                onActionClick={(action) => {
+                  if (action === 'webcam') onWebcamChange(!isWebcamActive);
+                  if (action === 'voice') onConnect();
+                }}
+                hasVoice={connectionState !== LiveConnectionState.CONNECTED}
+                hasWebcam={!isWebcamActive}
+                isDarkMode={isDarkMode}
+              />
+            ) : (
+              items.map((item, index) => (
+                <div key={item.id + index}>
+                  <ChatMessage 
                     item={item} 
                     onPreview={setPreviewItem}
                     isDarkMode={isDarkMode}
-                />
-            ))}
+                  />
+                  {/* Response Time Badge - show on last model message */}
+                  {index === items.length - 1 && item.role === 'model' && item.isFinal && item.processingTime && (
+                    <ResponseTimeBadge 
+                      ms={item.processingTime}
+                      className="mt-1 ml-5"
+                    />
+                  )}
+                </div>
+              ))
+            )}
             <div ref={endRef} />
           </div>
+          
+          {/* Floating Tool Indicator */}
+          <FloatingToolIndicator tools={activeTools} />
 
           {/* INPUT DOCK (FOOTER) */}
           <ChatInputDock 

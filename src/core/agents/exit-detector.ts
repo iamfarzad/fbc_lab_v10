@@ -115,6 +115,9 @@ export function detectExitIntent(messages: ChatMessage[]): ExitDetectionResult {
   }
   
   const lastMessage = userMessages[userMessages.length - 1]
+  if (!lastMessage) {
+    return { intent: null, confidence: 0, shouldForceExit: false }
+  }
   const text = lastMessage.content
   
   // Check booking patterns (highest positive intent)

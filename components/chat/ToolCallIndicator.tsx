@@ -67,7 +67,7 @@ const TOOL_LABELS: Record<string, string> = {
 }
 
 function getToolIcon(toolName: string): typeof Globe {
-  return TOOL_ICONS[toolName] ?? TOOL_ICONS.default
+  return TOOL_ICONS[toolName] || Globe
 }
 
 function getToolLabel(toolName: string, status: ToolCall['status']): string {

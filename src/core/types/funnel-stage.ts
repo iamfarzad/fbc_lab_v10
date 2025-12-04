@@ -8,6 +8,7 @@
 export type FunnelStage =
   // Discovery & Qualification
   | 'DISCOVERY'              // Initial discovery, first 1-8 messages
+  | 'QUALIFIED'              // Lead has been qualified, ready for pitch
   | 'SCORING'                // Lead scoring & fit calculation
   | 'INTELLIGENCE_GATHERING' // Gathering additional context
   
@@ -66,7 +67,8 @@ export const STAGE_ORDER: FunnelStage[] = [
 export function getStageMetadata(stage: FunnelStage): StageMetadata {
   const metadata: Record<FunnelStage, StageMetadata> = {
     DISCOVERY: { id: 'DISCOVERY', label: 'Discovery', description: 'Understanding your needs', color: 'blue', shape: 'discovery', order: 1 },
-    SCORING: { id: 'SCORING', label: 'Qualification', description: 'Evaluating fit', color: 'indigo', shape: 'scoring', order: 2 },
+    QUALIFIED: { id: 'QUALIFIED', label: 'Qualified', description: 'Lead qualified', color: 'green', shape: 'scoring', order: 2 },
+    SCORING: { id: 'SCORING', label: 'Scoring', description: 'Evaluating fit', color: 'indigo', shape: 'scoring', order: 3 },
     INTELLIGENCE_GATHERING: { id: 'INTELLIGENCE_GATHERING', label: 'Research', description: 'Gathering context', color: 'violet', shape: 'brain', order: 3 },
     WORKSHOP_PITCH: { id: 'WORKSHOP_PITCH', label: 'Workshop', description: 'Workshop offering', color: 'purple', shape: 'workshop', order: 4 },
     CONSULTING_PITCH: { id: 'CONSULTING_PITCH', label: 'Consulting', description: 'Consulting offering', color: 'fuchsia', shape: 'consulting', order: 4 },

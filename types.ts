@@ -38,6 +38,7 @@ export interface TranscriptItem {
   isFinal: boolean;
   reasoning?: string; // For Chain of Thought UI
   status?: 'streaming' | 'complete'; // For Shimmer UI
+  processingTime?: number; // Response time in milliseconds
   attachment?: {
     type: 'image' | 'file' | 'research-card' | 'calendar_widget'; // Added research-card and calendar_widget
     url?: string; // base64 data url or blob url for UI, or booking URL for calendar_widget

@@ -134,8 +134,8 @@ export function isMarkdownTable(content: string): boolean {
   const lines = content.trim().split('\n')
   if (lines.length < 2) return false
   
-  const firstLine = lines[0].trim()
-  const secondLine = lines[1].trim()
+  const firstLine = lines[0]?.trim() ?? ''
+  const secondLine = lines[1]?.trim() ?? ''
   
   return (
     firstLine.startsWith('|') && 

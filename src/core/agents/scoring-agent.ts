@@ -35,7 +35,10 @@ export async function scoringAgent(
   })
 
   // Step 3: Analyzing conversation quality
-  const categoriesCovered = conversationFlow?.categoriesCovered || 0
+  // Calculate categories covered from the covered object
+  const categoriesCovered = conversationFlow?.covered 
+    ? Object.values(conversationFlow.covered).filter(Boolean).length 
+    : 0
   steps.push({
     label: 'Analyzing conversation quality',
     description: `${categoriesCovered}/6 categories covered (max 25 points)`,
@@ -208,8 +211,11 @@ OUTPUT REQUIRED (JSON only, no explanation):
   }
 
   // Mark computing step as complete with results
-  steps[steps.length - 1].status = 'complete'
-  steps[steps.length - 1].description = `Lead: ${scores.leadScore}/100, Workshop: ${(scores.fitScore.workshop * 100).toFixed(0)}%, Consulting: ${(scores.fitScore.consulting * 100).toFixed(0)}%`
+  const lastStep = steps[steps.length - 1]
+  if (lastStep) {
+    lastStep.status = 'complete'
+    lastStep.description = `Lead: ${scores.leadScore}/100, Workshop: ${(scores.fitScore.workshop * 100).toFixed(0)}%, Consulting: ${(scores.fitScore.consulting * 100).toFixed(0)}%`
+  }
 
   return {
     output: `Lead Score: ${scores.leadScore}/100\nWorkshop Fit: ${(scores.fitScore.workshop * 100).toFixed(0)}%\nConsulting Fit: ${(scores.fitScore.consulting * 100).toFixed(0)}%\n\n${scores.reasoning}`,
