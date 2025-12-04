@@ -151,7 +151,7 @@ export class GeminiLiveService {
         const ic = snapshot.intelligenceContext;
 
         // Start the Live API session AFTER we receive connectionId
-        // Pass full user context including name and email for personalization
+        // Pass full user context including name, email, and location for personalization
         try {
           const userContext: { name?: string; email?: string } = {};
           if (rc?.person?.fullName) {
@@ -162,12 +162,25 @@ export class GeminiLiveService {
             userContext.email = ic.email as string;
           }
           
+          // Get location from unified context or instance variable
+          const locationToSend = this.location || snapshot.location;
+          const locationData = locationToSend ? {
+            latitude: locationToSend.latitude,
+            longitude: locationToSend.longitude,
+            // City/country would need reverse geocoding - for now just coords
+          } : undefined;
+          
           this.liveClient?.start({
             languageCode: 'en-US',
             voiceName: this.config.voiceName || 'Kore',
             sessionId: this.sessionId,
-            ...(Object.keys(userContext).length > 0 ? { userContext } : {})
+            ...(Object.keys(userContext).length > 0 ? { userContext } : {}),
+            ...(locationData ? { locationData } : {})
           });
+          
+          if (locationData) {
+            logger.debug('[GeminiLiveService] Sent location with start:', locationData);
+          }
         } catch (err) {
           console.error('[GeminiLiveService] Error calling start():', err);
         }

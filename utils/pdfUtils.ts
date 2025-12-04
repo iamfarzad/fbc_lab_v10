@@ -7,12 +7,12 @@ interface PDFOptions {
     researchContext?: ResearchResult | null;
 }
 
-export const generatePDF = ({ transcript, userProfile, researchContext }: PDFOptions) => {
+export const generatePDF = ({ transcript, userProfile, researchContext }: PDFOptions): string | undefined => {
     // @ts-expect-error - jsPDF is loaded dynamically and may not be in window type
     if (!window.jspdf) {
         console.error("jsPDF library not loaded");
         alert("PDF Generator is initializing. Please try again in a moment.");
-        return;
+        return undefined;
     }
 
     // @ts-expect-error - jsPDF is loaded dynamically and may not be in window type
@@ -239,10 +239,71 @@ export const generatePDF = ({ transcript, userProfile, researchContext }: PDFOpt
         y += 4; // Spacing between messages
     }
 
+    // --- PROPOSED OFFER / QUOTATION SECTION ---
+    checkPageBreak(80); // Ensure space for offer section
+    
+    y += 10;
+    
+    // Section Header
+    doc.setFillColor(249, 115, 22); // Orange accent
+    doc.rect(margin, y, contentWidth, 8, 'F');
+    doc.setFontSize(11);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text("PROPOSED OFFER", margin + 3, y + 5.5);
+    y += 15;
+
+    // Offer Details Box
+    doc.setFillColor(250, 250, 250);
+    doc.setDrawColor(230, 230, 230);
+    doc.rect(margin, y, contentWidth, 55, 'FD');
+
+    doc.setFontSize(9);
+    doc.setTextColor(...colors.text);
+    doc.setFont("helvetica", "normal");
+
+    const offerY = y + 8;
+    
+    // Service Type
+    doc.setFont("helvetica", "bold");
+    doc.text("Service:", margin + 5, offerY);
+    doc.setFont("helvetica", "normal");
+    doc.text("AI Consulting & Strategy Workshop", margin + 30, offerY);
+    
+    // Pricing (placeholder)
+    doc.setFont("helvetica", "bold");
+    doc.text("Investment:", margin + 5, offerY + 10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Custom pricing based on scope - Schedule a call to discuss", margin + 30, offerY + 10);
+    
+    // Timeline
+    doc.setFont("helvetica", "bold");
+    doc.text("Timeline:", margin + 5, offerY + 20);
+    doc.setFont("helvetica", "normal");
+    doc.text("Typically 2-4 weeks for initial engagement", margin + 30, offerY + 20);
+    
+    // Next Steps
+    doc.setFont("helvetica", "bold");
+    doc.text("Next Steps:", margin + 5, offerY + 30);
+    doc.setFont("helvetica", "normal");
+    const nextStepsText = "1. Review this summary  2. Schedule follow-up call  3. Receive detailed proposal";
+    doc.text(nextStepsText, margin + 30, offerY + 30);
+    
+    // CTA
+    doc.setFontSize(8);
+    doc.setTextColor(...colors.accent);
+    doc.setFont("helvetica", "bold");
+    doc.text("Book your follow-up: https://calendly.com/fbcdiscoveryai", margin + 5, offerY + 42);
+
+    y += 65;
+
     // Final Footer
     addFooter(pageCount);
 
-    // Save
+    // Save and/or return data URL
     const filename = `FBC-Consultation-${userProfile?.name?.replace(/\s+/g, '_') || 'Session'}-${new Date().toISOString().slice(0, 10)}.pdf`;
     doc.save(filename);
+    
+    // Return base64 data URL for email functionality
+    return doc.output('dataurlstring') as string;
 };

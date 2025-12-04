@@ -17,11 +17,24 @@ export const LIVE_FUNCTION_DECLARATIONS = [
   },
   {
     name: 'get_weather',
-    description: 'Get current weather for a location. Always use this when asked about weather, temperature, or forecasts.',
+    description: 'Get current weather for a location. Always use this when asked about weather, temperature, or forecasts. IMPORTANT: Always report temperature in Celsius (°C), never Fahrenheit.',
     parameters: {
       type: 'object',
       properties: {
-        location: { type: 'string', description: 'City name or location (e.g., "Oslo, Norway", "New York").' },
+        location: { type: 'string', description: 'City name or location (e.g., "Oslo, Norway", "New York"). Always return temperature in Celsius.' },
+      },
+      required: ['location'],
+    },
+  },
+  {
+    name: 'search_companies_by_location',
+    description: 'Search for companies and businesses in a specific location. Use this to find local businesses, competitors, or industry presence in an area.',
+    parameters: {
+      type: 'object',
+      properties: {
+        location: { type: 'string', description: 'City, region, or country to search for companies (e.g., "Oslo, Norway", "San Francisco Bay Area").' },
+        industry: { type: 'string', description: 'Optional industry filter (e.g., "technology", "healthcare", "consulting").' },
+        companyType: { type: 'string', description: 'Optional company type filter (e.g., "startups", "enterprises", "agencies").' },
       },
       required: ['location'],
     },

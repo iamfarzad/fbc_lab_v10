@@ -5,6 +5,13 @@ import { isAdmin } from '../utils/permissions.js'
 import { GEMINI_CONFIG, VOICE_CONFIG } from 'src/config/constants.js'
 import { LIVE_FUNCTION_DECLARATIONS, ADMIN_LIVE_FUNCTION_DECLARATIONS } from 'src/config/live-tools.js'
 
+export interface LocationData {
+  latitude: number
+  longitude: number
+  city?: string
+  country?: string
+}
+
 /**
  * Helper function to build Live API configuration
  */
@@ -12,9 +19,10 @@ export async function buildLiveConfig(
   sessionId: string,
   priorContext: string,
   voiceNameOverride?: string,
-  userContext?: { name?: string; email?: string }
+  userContext?: { name?: string; email?: string },
+  locationData?: LocationData
 ): Promise<any> {
-  serverLogger.debug('Building config for session', { sessionId })
+  serverLogger.debug('Building config for session', { sessionId, hasLocation: Boolean(locationData) })
 
   // Detect admin session early for conditional system prompt
   const isAdminSession = isAdmin(sessionId)
@@ -48,10 +56,21 @@ YOUR TOOLS IN VOICE MODE:
   // ADD VOICE-SPECIFIC GUIDANCE (applies to both admin and client)
   fullInstruction += `\n\nVOICE MODE: Keep responses conversational and concise for voice playback. 2 sentences maximum per turn unless explicitly asked for details.`
 
+  // ADD LANGUAGE GUIDANCE
+  fullInstruction += `\n\nLANGUAGE: Always respond in English. If the user speaks another language, continue in English and politely ask if they'd prefer English. Never switch languages automatically.`
 
   // ADD USER CONTEXT (from client - quick personalization for voice start)
   const { buildQuickPersonalization, buildPersonalizationContext } = await import('src/core/prompts/personalization-builder')
   fullInstruction += buildQuickPersonalization(userContext)
+
+  // ADD LOCATION CONTEXT (if available)
+  if (locationData) {
+    const locationStr = locationData.city && locationData.country 
+      ? `${locationData.city}, ${locationData.country}`
+      : `${locationData.latitude.toFixed(4)}, ${locationData.longitude.toFixed(4)}`
+    fullInstruction += `\n\nUSER LOCATION: The user is located in ${locationStr}. Use this information when discussing weather, local time, nearby services, or location-specific topics. Always use Celsius for temperature.`
+    serverLogger.debug('Added location to system instruction', { sessionId, location: locationStr })
+  }
 
   // ADD PERSONALIZED CONTEXT (if sessionId available - full context from DB)
   if (sessionId && sessionId !== 'anonymous') {

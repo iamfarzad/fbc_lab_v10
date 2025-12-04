@@ -378,9 +378,14 @@ export const App: React.FC = () => {
             if (liveServiceRef.current) {
                 liveServiceRef.current.setResearchContext(result);
             }
-            // Pass research context as intelligence context for agents
+            // Pass research context as intelligence context for agents (flattened)
             intelligenceContextRef.current = {
                 ...intelligenceContextRef.current,
+                // Flatten research data for direct agent access
+                ...(result.company ? { company: result.company } : {}),
+                ...(result.person ? { person: result.person } : {}),
+                ...(result.strategic ? { strategic: result.strategic } : {}),
+                // Also keep full research object for backward compatibility
                 research: result
             };
             unifiedContext.setResearchContext(result);
@@ -437,9 +442,14 @@ export const App: React.FC = () => {
 
                 if (standardChatRef.current) standardChatRef.current.setResearchContext(result);
                 if (liveServiceRef.current) liveServiceRef.current.setResearchContext(result);
-                // Pass research context as intelligence context for agents
+                // Pass research context as intelligence context for agents (flattened)
                 intelligenceContextRef.current = {
                     ...intelligenceContextRef.current,
+                    // Flatten research data for direct agent access
+                    ...(result.company ? { company: result.company } : {}),
+                    ...(result.person ? { person: result.person } : {}),
+                    ...(result.strategic ? { strategic: result.strategic } : {}),
+                    // Also keep full research object for backward compatibility
                     research: result
                 };
 
@@ -1121,10 +1131,16 @@ export const App: React.FC = () => {
             if (liveServiceRef.current) {
                 liveServiceRef.current.setResearchContext(researchResultRef.current);
             }
-            // Pass research context as intelligence context for agents
+            // Pass research context as intelligence context for agents (flattened)
+            const researchData = researchResultRef.current;
             intelligenceContextRef.current = {
                 ...intelligenceContextRef.current,
-                research: researchResultRef.current
+                // Flatten research data for direct agent access
+                ...(researchData?.company ? { company: researchData.company } : {}),
+                ...(researchData?.person ? { person: researchData.person } : {}),
+                ...(researchData?.strategic ? { strategic: researchData.strategic } : {}),
+                // Also keep full research object for backward compatibility
+                research: researchData
             };
         }
 
@@ -1135,12 +1151,12 @@ export const App: React.FC = () => {
                 // Wait for session to actually be ready (not just connecting)
                 const isReady = await liveServiceRef.current.waitForSessionReady(5000);
                 if (isReady) {
-                    const unifiedSnapshot = unifiedContext.getSnapshot();
-                    void liveServiceRef.current.sendContext(transcriptRef.current, {
-                        ...(unifiedSnapshot.location ? { location: unifiedSnapshot.location } : {}),
-                        ...(unifiedSnapshot.researchContext ? { research: unifiedSnapshot.researchContext } : {}),
-                        ...(unifiedSnapshot.intelligenceContext ? { intelligenceContext: unifiedSnapshot.intelligenceContext } : {})
-                    });
+                const unifiedSnapshot = unifiedContext.getSnapshot();
+                void liveServiceRef.current.sendContext(transcriptRef.current, {
+                    ...(unifiedSnapshot.location ? { location: unifiedSnapshot.location } : {}),
+                    ...(unifiedSnapshot.researchContext ? { research: unifiedSnapshot.researchContext } : {}),
+                    ...(unifiedSnapshot.intelligenceContext ? { intelligenceContext: unifiedSnapshot.intelligenceContext } : {})
+                });
                 } else {
                     logger.warn('[App] Session not ready after 5s, skipping context send');
                 }
@@ -1317,10 +1333,16 @@ export const App: React.FC = () => {
 
                 // Ensure updated context is passed
                 if (researchResultRef.current) {
-                    // Pass research context as intelligence context
+                    // Pass research context as intelligence context (flattened)
+                    const researchData = researchResultRef.current;
                     intelligenceContextRef.current = {
                         ...intelligenceContextRef.current,
-                        research: researchResultRef.current
+                        // Flatten research data for direct agent access
+                        ...(researchData.company ? { company: researchData.company } : {}),
+                        ...(researchData.person ? { person: researchData.person } : {}),
+                        ...(researchData.strategic ? { strategic: researchData.strategic } : {}),
+                        // Also keep full research object for backward compatibility
+                        research: researchData
                     };
                     unifiedContext.setResearchContext(researchResultRef.current);
                     unifiedContext.setIntelligenceContext(intelligenceContextRef.current);
@@ -1337,10 +1359,18 @@ export const App: React.FC = () => {
                     liveServiceRef.current.setLocation(location);
                 }
                 const unifiedSnapshot = unifiedContext.getSnapshot();
+                // Flatten research data for agent access - agents expect intelligenceContext.company.name directly
+                const researchData = unifiedSnapshot.researchContext || intelligenceContextRef.current?.research;
                 const intelligencePayload = {
                     ...(unifiedSnapshot.intelligenceContext || {}),
                     ...(intelligenceContextRef.current || {}),
-                    ...(unifiedSnapshot.researchContext ? { research: unifiedSnapshot.researchContext } : {}),
+                    // Flatten research data to top level for agent access
+                    ...(researchData?.company ? { company: researchData.company } : {}),
+                    ...(researchData?.person ? { person: researchData.person } : {}),
+                    ...(researchData?.strategic ? { strategic: researchData.strategic } : {}),
+                    ...(researchData?.citations ? { citations: researchData.citations } : {}),
+                    // Also keep full research object for backward compatibility
+                    ...(researchData ? { research: researchData } : {}),
                     ...(location ? { location } : {})
                 };
 
@@ -1910,6 +1940,41 @@ export const App: React.FC = () => {
                                     researchContext: researchResultRef.current
                                 });
                             }}
+                            onEmailPDF={async () => {
+                                if (!userProfile?.email) {
+                                    alert('No email address available. Please provide your email first.');
+                                    return;
+                                }
+                                try {
+                                    // Generate PDF data URL
+                                    const pdfDataUrl = generatePDF({
+                                        transcript,
+                                        userProfile,
+                                        researchContext: researchResultRef.current
+                                    });
+                                    // Send via API
+                                    const response = await fetch('/api/send-pdf-summary', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            email: userProfile.email,
+                                            name: userProfile.name,
+                                            pdfData: pdfDataUrl,
+                                            sessionId: sessionIdRef.current
+                                        })
+                                    });
+                                    if (response.ok) {
+                                        alert(`PDF sent to ${userProfile.email}`);
+                                    } else {
+                                        const error = await response.json();
+                                        alert(`Failed to send email: ${error.message || 'Unknown error'}`);
+                                    }
+                                } catch (err) {
+                                    console.error('Failed to send PDF email:', err);
+                                    alert('Failed to send email. Please try downloading the PDF instead.');
+                                }
+                            }}
+                            userEmail={userProfile?.email}
                         />
 
                         <div className={`pointer-events-auto ${isChatVisible ? 'hidden md:block' : 'block'}`}>

@@ -23,6 +23,13 @@ export interface ContextUpdatePayload {
   analysis?: string;
   imageData?: string;
   capturedAt?: number;
+  sessionId?: string;
+  metadata?: {
+    location?: { latitude: number; longitude: number; city?: string; country?: string };
+    research?: any;
+    intelligenceContext?: any;
+    transcript?: Array<{ role: string; content: string; timestamp: string }>;
+  };
 }
 
 export interface StartPayload {
@@ -32,6 +39,12 @@ export interface StartPayload {
   userContext?: {
     name?: string;
     email?: string;
+  };
+  locationData?: {
+    latitude: number;
+    longitude: number;
+    city?: string;
+    country?: string;
   };
 }
 

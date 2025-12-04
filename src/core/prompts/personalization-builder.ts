@@ -4,6 +4,13 @@
  * Used by both Voice (Live API) and Chat (Unified API)
  */
 
+export interface LocationData {
+    latitude: number
+    longitude: number
+    city?: string
+    country?: string
+}
+
 export interface PersonalizationData {
     name?: string
     email?: string
@@ -16,6 +23,7 @@ export interface PersonalizationData {
         role?: string
         seniority?: string
     }
+    location?: LocationData
 }
 
 /**
@@ -23,7 +31,7 @@ export interface PersonalizationData {
  * Returns formatted string ready to inject into system prompt
  */
 export function buildPersonalizationContext(data: PersonalizationData): string {
-    if (!data.name && !data.company && !data.person) {
+    if (!data.name && !data.company && !data.person && !data.location) {
         return ''
     }
 
@@ -51,9 +59,18 @@ export function buildPersonalizationContext(data: PersonalizationData): string {
         context += `Seniority: ${data.person.seniority}\n`
     }
 
-    // Cap at 500 chars to avoid token bloat
-    if (context.length > 500) {
-        context = context.substring(0, 500) + '...\n'
+    // Location info
+    if (data.location) {
+        const locationStr = data.location.city && data.location.country 
+            ? `${data.location.city}, ${data.location.country}`
+            : `${data.location.latitude.toFixed(4)}, ${data.location.longitude.toFixed(4)}`
+        context += `Location: ${locationStr}\n`
+        context += `Note: When discussing weather, temperature, or local topics, use this location. Always use Celsius for temperature.\n`
+    }
+
+    // Cap at 600 chars to avoid token bloat (increased to accommodate location)
+    if (context.length > 600) {
+        context = context.substring(0, 600) + '...\n'
     }
 
     return context

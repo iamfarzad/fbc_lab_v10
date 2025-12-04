@@ -14,8 +14,8 @@ export class LiveClientWS {
   private socket: WebSocket | null = null;
   private listeners = new Map<keyof LiveClientEventMap, Set<(...args: unknown[]) => void>>();
   private connectionId: string | null = null;
-  private pendingStartOpts: { languageCode?: string; voiceName?: string; sessionId?: string; userContext?: { name?: string; email?: string } } | null = null;
-  private lastStartOptions: { languageCode?: string; voiceName?: string; sessionId?: string; userContext?: { name?: string; email?: string } } | null = null;
+  private pendingStartOpts: { languageCode?: string; voiceName?: string; sessionId?: string; userContext?: { name?: string; email?: string }; locationData?: { latitude: number; longitude: number; city?: string; country?: string } } | null = null;
+  private lastStartOptions: { languageCode?: string; voiceName?: string; sessionId?: string; userContext?: { name?: string; email?: string }; locationData?: { latitude: number; longitude: number; city?: string; country?: string } } | null = null;
   private sessionActive = false;
   private lastSessionStartedPayload: { connectionId: string; languageCode?: string; voiceName?: string; mock?: boolean } | null = null;
   private devLogEnabled = (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_CLIENT_LIVE_LOG === '1' || (process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_CLIENT_LIVE_LOG !== '0')));
@@ -689,7 +689,7 @@ export class LiveClientWS {
     }
   }
 
-  start(opts?: { languageCode?: string; voiceName?: string; sessionId?: string; userContext?: { name?: string; email?: string } }) {
+  start(opts?: { languageCode?: string; voiceName?: string; sessionId?: string; userContext?: { name?: string; email?: string }; locationData?: { latitude: number; longitude: number; city?: string; country?: string } }) {
     const startOptions = opts || {}
     this.lastStartOptions = startOptions
     this.startAckReceived = false
@@ -750,7 +750,7 @@ export class LiveClientWS {
     }, this.START_RETRY_DELAY_MS)
   }
 
-  private scheduleStartRetry(opts?: { languageCode?: string; voiceName?: string; sessionId?: string; userContext?: { name?: string; email?: string } }) {
+  private scheduleStartRetry(opts?: { languageCode?: string; voiceName?: string; sessionId?: string; userContext?: { name?: string; email?: string }; locationData?: { latitude: number; longitude: number; city?: string; country?: string } }) {
     if (this.startAckReceived) return
     if (this.startSendAttempts >= this.MAX_START_RETRIES) return
     if (this.startRetryTimer) return

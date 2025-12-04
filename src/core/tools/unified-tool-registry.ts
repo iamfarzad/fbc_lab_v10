@@ -88,6 +88,13 @@ export const ToolSchemas = {
     location: z.string().min(1, 'Location cannot be empty')
   }),
 
+  // Search companies by location tool
+  search_companies_by_location: z.object({
+    location: z.string().min(1, 'Location cannot be empty').describe('City, region, or country to search for companies'),
+    industry: z.string().optional().describe('Optional industry filter'),
+    companyType: z.string().optional().describe('Optional company type (e.g., "startups", "enterprises", "consultants")')
+  }),
+
   // Action items extraction
   extract_action_items: z.object({}),
 
@@ -206,8 +213,19 @@ export async function executeUnifiedTool(
 
     case 'get_weather': {
       // Weather is implemented via search_web with a formatted query
+      // Explicitly request Celsius temperature
       const location = (args as { location: string }).location
-      return await executeSearchWeb({ query: `current weather in ${location}` })
+      return await executeSearchWeb({ query: `current weather in ${location} temperature in celsius degrees` })
+    }
+
+    case 'search_companies_by_location': {
+      // Search for companies by location using search_web
+      const { location, industry, companyType } = args as { location: string; industry?: string; companyType?: string }
+      let searchQuery = `companies businesses in ${location}`
+      if (industry) searchQuery += ` ${industry} industry`
+      if (companyType) searchQuery += ` ${companyType}`
+      searchQuery += ' business directory'
+      return await executeSearchWeb({ query: searchQuery })
     }
 
     case 'extract_action_items':

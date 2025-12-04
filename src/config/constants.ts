@@ -354,6 +354,21 @@ export const VOICE_CONFIG = {
   INJECT_ON_CONTEXT_UPDATE: process.env.LIVE_SERVER_INJECT_ON_CONTEXT_UPDATE === '0' ? false : true,
 } as const
 
+// Calendar/Booking Configuration
+export const CALENDAR_CONFIG = {
+  DEFAULT_LINK: 'https://calendly.com/fbcdiscoveryai/consultation',
+  WORKSHOP_LINK: 'https://calendly.com/fbcdiscoveryai/workshop',
+  CONSULTATION_LINK: 'https://calendly.com/fbcdiscoveryai/consultation',
+  // Function to get calendar link with optional customization
+  getLink: (type: 'workshop' | 'consultation' | 'default' = 'default'): string => {
+    switch (type) {
+      case 'workshop': return 'https://calendly.com/fbcdiscoveryai/workshop'
+      case 'consultation': return 'https://calendly.com/fbcdiscoveryai/consultation'
+      default: return 'https://calendly.com/fbcdiscoveryai/consultation'
+    }
+  }
+} as const
+
 // Gemini Configuration
 export const GEMINI_CONFIG = {
   DEFAULT_TEMPERATURE: 0.7,

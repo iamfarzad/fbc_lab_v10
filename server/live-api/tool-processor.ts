@@ -46,6 +46,7 @@ export interface ActiveSessionsMap {
 const CAPABILITY_MAP: Record<string, string> = {
   'search_web': 'search',
   'get_weather': 'search', // Weather uses search internally
+  'search_companies_by_location': 'search', // Location search uses search internally
   'calculate_roi': 'roi',
   'extract_action_items': 'doc',
   'generate_summary_preview': 'exportPdf',

@@ -3,7 +3,7 @@ import { formatMessagesForAI } from '../../lib/format-messages.js'
 import { detectExitIntent } from '../../lib/exit-detection.js'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult, FunnelStage } from './types.js'
 import type { ConversationFlowState, ConversationCategory } from '../../types/conversation-flow-types.js'
-import { GEMINI_MODELS } from '../../config/constants.js'
+import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js'
 import { PHRASE_BANK } from '../chat/conversation-phrases.js'
 import { extractCompanySize, extractBudgetSignals, extractTimelineUrgency } from './utils/index.js'
 import { analyzeUrl } from '../intelligence/url-context-tool.js'
@@ -32,25 +32,29 @@ export async function discoveryAgent(
     const exitIntent = detectExitIntent(lastUserMessage.content);
 
     if (exitIntent === 'BOOKING') {
+      const calendarLink = CALENDAR_CONFIG.getLink('consultation')
       return {
-        output: "Absolutely! I'll send you our calendar link. What time zone are you in?",
+        output: `Absolutely! Here's our booking link: ${calendarLink}\n\nYou can schedule a time that works for you. What specific areas would you like to focus on in our consultation?`,
         agent: 'Discovery Agent (Booking Mode)',
         metadata: {
           stage: 'BOOKING_REQUESTED' as FunnelStage,
           triggerBooking: true,
-          action: 'show_calendar_widget'
+          action: 'show_calendar_widget',
+          calendarLink
         }
       };
     }
 
     if (exitIntent === 'WRAP_UP') {
       const recap = generateRecap(conversationFlow);
+      const calendarLink = CALENDAR_CONFIG.getLink('consultation')
       return {
-        output: `Got it. Quick recap: ${recap}. Sound right? Let's schedule a call with Farzad to map this out.`,
+        output: `Got it. Quick recap: ${recap}. Sound right? Let's schedule a call with Farzad to map this out: ${calendarLink}`,
         agent: 'Discovery Agent (Wrap-up Mode)',
         metadata: {
           stage: 'WRAP_UP' as FunnelStage,
-          triggerBooking: true
+          triggerBooking: true,
+          calendarLink
         }
       };
     }
@@ -138,13 +142,22 @@ URL ANALYSIS (${primaryUrlStr}):
   // Build system prompt with all context
   let systemPrompt = `You are F.B/c Discovery AI - a lead qualification specialist.
 
+CRITICAL PERSONALIZATION RULES:
+- ALWAYS use the company name and person's role in your responses when available
+- NEVER give generic responses - every response should reference specific context
+- If research shows company info, USE IT in your response (e.g., "Since [Company] is in [Industry]...")
+- Avoid generic phrases like "many leaders feel that way" - instead, personalize based on their role/industry
+
 INTELLIGENCE CONTEXT:
-${intelligenceContext?.company?.name ? `Company: ${(intelligenceContext.company).name}` : ''}
+${intelligenceContext?.company?.name ? `Company: ${(intelligenceContext.company).name} (USE THIS NAME IN YOUR RESPONSE!)` : '(No company identified yet)'}
+${(intelligenceContext?.company)?.industry ? `Industry: ${(intelligenceContext.company).industry}` : ''}
 ${(intelligenceContext?.company)?.size ? `Size: ${(intelligenceContext.company).size}` : ''}
-${intelligenceContext?.person?.role ? `Role: ${(intelligenceContext.person).role}` : ''}
+${intelligenceContext?.person?.fullName ? `Person: ${(intelligenceContext.person).fullName}` : ''}
+${intelligenceContext?.person?.role ? `Role: ${(intelligenceContext.person).role} (REFERENCE THIS ROLE IN YOUR RESPONSE!)` : ''}
 ${(intelligenceContext)?.budget?.hasExplicit ? `Budget: explicit (${(intelligenceContext).budget.minUsd ? `$${(intelligenceContext).budget.minUsd}k+` : 'mentioned'})` : 'Budget: none yet'}
 ${(intelligenceContext)?.timeline?.urgency ? `Timeline urgency: ${((intelligenceContext).timeline.urgency).toFixed(2)}` : ''}
 ${intelligenceContext?.leadScore ? `Lead Score: ${intelligenceContext.leadScore}` : ''}
+${intelligenceContext?.location ? `Location: ${typeof intelligenceContext.location === 'object' && 'city' in intelligenceContext.location ? (intelligenceContext.location as {city?: string}).city : 'Unknown'}` : ''}
 ${urlContext ? `${urlContext}\n\nReference this naturally in your response.` : ''}
 
 YOUR MISSION:
@@ -178,11 +191,17 @@ MULTIMODAL AWARENESS:`
 
   systemPrompt += `
 
+LANGUAGE RULES:
+- ALWAYS respond in English unless the user explicitly switches languages
+- If the user writes in another language, respond in English and politely note you'll continue in English
+- Never automatically switch to another language based on a few words
+- Maintain consistent language throughout the conversation
+
 STYLE:
 - Sound like a sharp, friendly consultant (no fluff)
 - Two sentences max per turn
 - Ask ONE focused question at a time
-- Mirror user's language and build on latest turn
+- Mirror user's language style (not language) and build on latest turn
 - If they shared a URL, act like you deeply read it
 - Reference hiring, tech stack, initiatives naturally
 - Natural integration of multimodal context:

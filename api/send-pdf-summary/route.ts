@@ -2,13 +2,77 @@ import { getSupabaseService } from '../../src/lib/supabase.js'
 import { logger } from '../../src/lib/logger.js'
 import { EmailService } from '../../src/core/email-service.js'
 
+interface SendPdfRequest {
+  sessionId?: string
+  toEmail?: string
+  email?: string // Alternative field name
+  leadName?: string
+  name?: string // Alternative field name
+  pdfData?: string // Base64 PDF data URL from client-side generation
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { sessionId?: string; toEmail?: string; leadName?: string }
-    const { sessionId, toEmail, leadName } = body
+    const body = await request.json() as SendPdfRequest
+    const { sessionId, pdfData, leadName, name } = body
+    const toEmail = body.toEmail || body.email
 
-    if (!sessionId || !toEmail) {
-      return new Response(JSON.stringify({ error: 'Missing sessionId or toEmail' }), {
+    if (!toEmail) {
+      return new Response(JSON.stringify({ error: 'Missing email address' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const recipientName = leadName || name || 'there'
+
+    // If PDF data is provided directly (from client-side generation), use that
+    if (pdfData) {
+      logger.info('Sending client-generated PDF via email', { toEmail })
+      
+      // Extract base64 data from data URL
+      const base64Match = pdfData.match(/^data:application\/pdf;base64,(.+)$/)
+      const pdfBase64 = base64Match ? base64Match[1] : pdfData
+      
+      // Send email with PDF attachment
+      const result = await EmailService.sendEmail({
+        to: toEmail,
+        subject: 'Your F.B/c AI Consultation Report',
+        html: `
+          <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+              <h2>Your F.B/c AI Consultation Report</h2>
+              <p>Hi ${recipientName},</p>
+              <p>Thank you for your consultation with F.B/c AI. Please find your consultation report attached to this email.</p>
+              <p>The report includes:</p>
+              <ul>
+                <li>Executive summary of your consultation</li>
+                <li>Full conversation transcript</li>
+                <li>Key insights and recommendations</li>
+              </ul>
+              <p>If you have any questions or would like to schedule a follow-up, please don't hesitate to reach out.</p>
+              <p>Best regards,<br/>F.B/c Team</p>
+            </body>
+          </html>
+        `,
+        text: `Hi ${recipientName},\n\nThank you for your consultation with F.B/c AI. Please find your consultation report attached to this email.\n\nBest regards,\nF.B/c Team`,
+        attachments: pdfBase64 ? [{
+          filename: `FBC-Consultation-${recipientName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`,
+          content: pdfBase64,
+          encoding: 'base64',
+          contentType: 'application/pdf'
+        }] : undefined
+      })
+
+      return new Response(JSON.stringify({ success: true, messageId: result.emailId }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Fallback: Fetch from database if no PDF data provided
+    if (!sessionId) {
+      return new Response(JSON.stringify({ error: 'Missing sessionId or pdfData' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       })
@@ -65,7 +129,7 @@ export async function POST(request: Request) {
       <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <h2>Your F.B/c AI Consultation Summary</h2>
-          <p>Hi ${leadData?.company_name || leadName || 'there'},</p>
+          <p>Hi ${leadData?.company_name || recipientName},</p>
           <p>Thank you for your consultation. Below is a summary of our conversation:</p>
           
           <div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px;">
@@ -91,7 +155,7 @@ export async function POST(request: Request) {
       to: toEmail,
       subject: 'Your F.B/c AI Consultation Summary',
       html: emailBody,
-      text: `Hi ${leadData?.company_name || leadName || 'there'},\n\nThank you for your consultation. This is a summary of our conversation.\n\nBest regards,\nF.B/c Team`
+      text: `Hi ${leadData?.company_name || recipientName},\n\nThank you for your consultation. This is a summary of our conversation.\n\nBest regards,\nF.B/c Team`
     })
 
     return new Response(JSON.stringify({ success: true, messageId: result.emailId }), {
@@ -100,7 +164,7 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     logger.error('Send PDF summary failed', error instanceof Error ? error : undefined)
-    return new Response(JSON.stringify({ error: 'Failed to send summary' }), {
+    return new Response(JSON.stringify({ error: 'Failed to send summary', message: error instanceof Error ? error.message : 'Unknown error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })

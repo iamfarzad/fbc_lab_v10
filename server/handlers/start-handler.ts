@@ -194,8 +194,8 @@ export async function handleStart(
     let isOpen = false
 
     // Build Live API configuration (now async with sessionId)
-    serverLogger.info('Building Live API config...', { connectionId })
-    const liveConfig = await buildLiveConfig(sessionId, priorChatContext, voiceName, payload.userContext)
+    serverLogger.info('Building Live API config...', { connectionId, hasLocation: Boolean(payload.locationData) })
+    const liveConfig = await buildLiveConfig(sessionId, priorChatContext, voiceName, payload.userContext, payload.locationData)
     serverLogger.info('Live API config built', { connectionId, hasConfig: !!liveConfig, responseModalities: liveConfig?.responseModalities })
 
     // Add connection timeout to prevent infinite hangs

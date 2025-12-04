@@ -9,6 +9,7 @@ type UnifiedState = {
     conversationFlow?: any;
     intelligenceContext?: any;
     transcript: TranscriptItem[];
+    language?: string; // Preferred language (e.g., 'en', 'nb', 'es')
 };
 
 type Listener = (state: UnifiedState) => void;
@@ -160,6 +161,29 @@ class UnifiedContext {
         });
 
         return this.locationPromise;
+    }
+
+    setLanguage(language: string) {
+        this.state.language = language;
+        this.notify();
+    }
+
+    /**
+     * Ensure language is set, defaulting to browser language or 'en'
+     */
+    ensureLanguage(): string {
+        if (this.state.language) return this.state.language;
+        
+        // Try to detect from browser
+        if (typeof navigator !== 'undefined' && navigator.language) {
+            const browserLang = navigator.language.split('-')[0] || 'en';
+            this.setLanguage(browserLang);
+            return browserLang;
+        }
+        
+        // Default to English
+        this.setLanguage('en');
+        return 'en';
     }
 }
 

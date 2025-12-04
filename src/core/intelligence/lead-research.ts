@@ -72,9 +72,16 @@ const ResearchResultSchema = z.object({
   confidence: z.number().min(0).max(1),
 })
 
+export interface LocationData {
+  latitude: number
+  longitude: number
+  city?: string
+  country?: string
+}
+
 export class LeadResearchService {
   // Cached research function
-  private cachedResearch: (email: string, name?: string, companyUrl?: string, sessionId?: string) => Promise<ResearchResult>
+  private cachedResearch: (email: string, name?: string, companyUrl?: string, sessionId?: string, location?: LocationData) => Promise<ResearchResult>
 
   constructor() {
     // Wrap the internal method with caching (24 hour TTL)
@@ -84,15 +91,16 @@ export class LeadResearchService {
       {
         ttl: CACHE_TTL.VERY_LONG, // 24 hours
         keyPrefix: 'lead-research:',
-        keyGenerator: (email: string, name: string | undefined, companyUrl: string | undefined) => `${email}|${name || ''}|${companyUrl || ''}`
+        keyGenerator: (email: string, name: string | undefined, companyUrl: string | undefined, _sessionId: string | undefined, location: LocationData | undefined) => 
+          `${email}|${name || ''}|${companyUrl || ''}|${location?.city || ''}`
       }
     )
   }
 
-  async researchLead(email: string, name?: string, companyUrl?: string, sessionId?: string): Promise<ResearchResult> {
+  async researchLead(email: string, name?: string, companyUrl?: string, sessionId?: string, location?: LocationData): Promise<ResearchResult> {
     // Client-side Caching (localStorage)
     // This preserves the behavior from the old service for browser environments
-    const cacheKey = `lead_research_${email}_${name || ''}`
+    const cacheKey = `lead_research_${email}_${name || ''}_${location?.city || ''}`
     
     if (typeof window !== 'undefined') {
         const cached = localStorage.getItem(cacheKey)
@@ -108,7 +116,7 @@ export class LeadResearchService {
     }
 
     // Execute research (using server-side cache wrapper)
-    const result = await this.cachedResearch(email, name, companyUrl, sessionId)
+    const result = await this.cachedResearch(email, name, companyUrl, sessionId, location)
 
     // Update client-side cache
     if (typeof window !== 'undefined' && result) {
@@ -122,11 +130,11 @@ export class LeadResearchService {
     return result
   }
 
-  private async researchLeadInternal(email: string, name?: string, companyUrl?: string, sessionId?: string): Promise<ResearchResult> {
+  private async researchLeadInternal(email: string, name?: string, companyUrl?: string, sessionId?: string, location?: LocationData): Promise<ResearchResult> {
     void sessionId
 
     try {
-      logger.debug('🔍 [Lead Research] Starting', { email })
+      logger.debug('🔍 [Lead Research] Starting', { email, hasLocation: Boolean(location) })
 
       const domain = email.split('@')[1] || 'unknown.com'
 
@@ -163,6 +171,11 @@ export class LeadResearchService {
         }
       }
 
+      // Build location context for prompt
+      const locationContext = location 
+        ? `User Location: ${location.city || 'Unknown city'}, ${location.country || 'Unknown country'} (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`
+        : ''
+
       // Use generateObject with Google Grounding Search
       const prompt = `Research the following individual and company using Google Search.
 
@@ -171,6 +184,7 @@ Email: ${email}
 Name: ${name || 'Unknown'}
 Domain: ${domain}
     Company Context: ${companyUrl || 'Use email domain'}
+${locationContext ? `    ${locationContext}` : ''}
     
     Task:
     1. Identify the company details (Industry, Size, Summary, Country).
@@ -179,6 +193,10 @@ Domain: ${domain}
        - Find recent news/events about the company.
        - Identify key competitors.
        - Infer likely pain points based on the role and industry trends.
+${location ? `    4. LOCATION-BASED INSIGHTS:
+       - Search for any local business presence or offices near the user's location.
+       - Find relevant local market information.
+       - Identify any location-specific opportunities or challenges.` : ''}
     
 Return structured data matching the schema.`
 

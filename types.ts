@@ -59,10 +59,20 @@ export interface VisualState {
   weatherData?: {
     condition: 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'stormy';
     temperature?: string;
+    temperatureValue?: number; // Numeric value for particle rendering (Celsius)
+    location?: string;
   };
   chartData?: {
     trend: 'up' | 'down' | 'neutral';
     value?: string;
+    numericValue?: number; // Numeric value for particle rendering
+    label?: string;
+  };
+  stockData?: {
+    symbol: string;
+    price: number;
+    change: number;
+    changePercent?: number;
   };
   mapData?: {
     title: string;
