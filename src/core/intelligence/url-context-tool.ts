@@ -1,5 +1,5 @@
-import { generateObject, google } from 'src/lib/ai-client'
-import { GEMINI_MODELS } from 'src/config/constants'
+import { generateObject, google } from '../../lib/ai-client.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
 import { z } from 'zod'
 
 /**

@@ -3,9 +3,9 @@
  * Schema-validated parsers for Supabase query results
  */
 
-import type { ConversationRow, LeadSummaryRow, AdminSessionRow, AdminConversationRow, MeetingRow, EmailCampaignRow, ConversationContextRow } from 'src/schemas/supabase'
-import { ConversationRow as ConversationRowSchema, LeadSummaryRow as LeadSummaryRowSchema, AdminSessionRow as AdminSessionRowSchema, AdminConversationRow as AdminConversationRowSchema, MeetingRow as MeetingRowSchema, EmailCampaignRow as EmailCampaignRowSchema, ConversationContextRow as ConversationContextRowSchema } from 'src/schemas/supabase'
-import { getString, getNumber, getRecord, getArray } from 'src/lib/guards'
+import type { ConversationRow, LeadSummaryRow, AdminSessionRow, AdminConversationRow, MeetingRow, EmailCampaignRow, ConversationContextRow } from '../schemas/supabase.js'
+import { ConversationRow as ConversationRowSchema, LeadSummaryRow as LeadSummaryRowSchema, AdminSessionRow as AdminSessionRowSchema, AdminConversationRow as AdminConversationRowSchema, MeetingRow as MeetingRowSchema, EmailCampaignRow as EmailCampaignRowSchema, ConversationContextRow as ConversationContextRowSchema } from '../schemas/supabase.js'
+import { getString, getNumber, getRecord, getArray } from './guards.js'
 
 /**
  * Parse conversations data from Supabase
