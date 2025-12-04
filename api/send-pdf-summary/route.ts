@@ -1,6 +1,6 @@
-import { getSupabaseService } from 'src/lib/supabase'
-import { logger } from 'src/lib/logger'
-import { EmailService } from 'src/core/email-service'
+import { getSupabaseService } from '../../src/lib/supabase'
+import { logger } from '../../src/lib/logger'
+import { EmailService } from '../../src/core/email-service'
 
 export async function POST(request: Request) {
   try {
