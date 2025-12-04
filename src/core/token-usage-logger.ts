@@ -34,8 +34,19 @@ export async function getTokenUsageByDateRange(
 
   if (!data) return []
 
+  // Type the raw data from Supabase
+  type RawEntry = {
+    timestamp: string
+    model: string
+    input_tokens: number
+    output_tokens: number
+    total_tokens: number | null
+    cost: number
+    session_id?: string
+  }
+
   // Aggregate by date
-  const aggregated = data.reduce((acc, curr) => {
+  const aggregated = (data as RawEntry[]).reduce((acc: Record<string, TokenUsageEntry>, curr: RawEntry) => {
     // Use local date string for aggregation bucket
     // Handle undefined timestamp if necessary
     const timestamp = curr.timestamp || new Date().toISOString()
@@ -47,27 +58,33 @@ export async function getTokenUsageByDateRange(
     const key = `${dateStr}_${curr.model}`
 
     if (!acc[key]) {
-      acc[key] = {
+      const entry: TokenUsageEntry = {
         timestamp: new Date(dateStr).toISOString(),
         model: curr.model,
         input_tokens: 0,
         output_tokens: 0,
         total_tokens: 0,
-        cost: 0,
-        session_id: curr.session_id
+        cost: 0
       }
+      // Only add session_id if it exists
+      if (curr.session_id) {
+        entry.session_id = curr.session_id
+      }
+      acc[key] = entry
     }
 
-    acc[key].input_tokens += curr.input_tokens
-    acc[key].output_tokens += curr.output_tokens
+    const entry = acc[key]!
+    entry.input_tokens += curr.input_tokens
+    entry.output_tokens += curr.output_tokens
     // Handle potentially null total_tokens
-    acc[key].total_tokens += (curr.total_tokens ?? (curr.input_tokens + curr.output_tokens))
-    acc[key].cost += Number(curr.cost)
+    entry.total_tokens += (curr.total_tokens ?? (curr.input_tokens + curr.output_tokens))
+    entry.cost += Number(curr.cost)
 
     return acc
   }, {} as Record<string, TokenUsageEntry>)
 
-  return Object.values(aggregated).sort((a, b) => 
+  const result: TokenUsageEntry[] = Object.values(aggregated)
+  return result.sort((a: TokenUsageEntry, b: TokenUsageEntry) => 
     new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   )
 }
