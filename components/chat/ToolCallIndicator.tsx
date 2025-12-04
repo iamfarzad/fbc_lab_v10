@@ -130,10 +130,10 @@ const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
           <div 
             key={tool.id}
             className={`
-              flex items-center gap-2 px-2 py-1 rounded-lg text-xs
+              flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs
               transition-all duration-200
               ${tool.status === 'running' ? 'bg-blue-50 border border-blue-200 text-blue-700' : ''}
-              ${tool.status === 'pending' ? 'bg-gray-50 border border-gray-200 text-gray-500' : ''}
+              ${tool.status === 'pending' ? 'bg-slate-50 border border-slate-200 text-slate-500' : ''}
               ${tool.status === 'complete' ? 'bg-green-50 border border-green-200 text-green-700' : ''}
               ${tool.status === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : ''}
             `}
@@ -212,7 +212,7 @@ export const FloatingToolIndicator: React.FC<{
 
   return (
     <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
-      <div className="bg-white/90 backdrop-blur-lg rounded-full px-4 py-2 shadow-lg border border-gray-200">
+      <div className="bg-white/90 backdrop-blur-xl rounded-full px-4 py-2 shadow-lg border border-white/40">
         <div className="flex items-center gap-3">
           <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
           <div className="flex items-center gap-2">

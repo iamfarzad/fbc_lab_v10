@@ -39,7 +39,7 @@ const Badge: React.FC<BadgeProps> = ({
   return (
     <div 
       className={`
-        inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium
+        inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium
         transition-all duration-300
         ${color}
       `}
@@ -86,7 +86,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isVoiceActive}
         label="Voice"
         icon={<Mic className="w-3 h-3" />}
-        color="bg-orange-100 text-orange-600 border border-orange-200"
+        color="bg-orange-50 text-orange-600 border border-orange-200"
       />
 
       {/* Webcam Active */}
@@ -94,7 +94,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isWebcamActive}
         label="Camera"
         icon={<Camera className="w-3 h-3" />}
-        color="bg-blue-100 text-blue-600 border border-blue-200"
+        color="bg-blue-50 text-blue-600 border border-blue-200"
       />
 
       {/* Screen Share Active */}
@@ -102,7 +102,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isScreenShareActive}
         label="Screen"
         icon={<Monitor className="w-3 h-3" />}
-        color="bg-purple-100 text-purple-600 border border-purple-200"
+        color="bg-purple-50 text-purple-600 border border-purple-200"
       />
 
       {/* Location Shared */}
@@ -110,7 +110,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isLocationShared}
         label="Location"
         icon={<MapPin className="w-3 h-3" />}
-        color="bg-green-100 text-green-600 border border-green-200"
+        color="bg-green-50 text-green-600 border border-green-200"
         pulse={false}
       />
 
@@ -119,7 +119,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isProcessing}
         label="Thinking"
         icon={<Brain className="w-3 h-3 animate-pulse" />}
-        color="bg-indigo-100 text-indigo-600 border border-indigo-200"
+        color="bg-indigo-50 text-indigo-600 border border-indigo-200"
         pulse={false}
       />
     </div>
@@ -172,8 +172,8 @@ export const CapabilityHint: React.FC<{
     <button
       onClick={onClick}
       className={`
-        inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px]
-        bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700
+        inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs
+        bg-white/60 text-slate-600 hover:bg-white/80 hover:text-slate-900 border border-white/40
         transition-colors
         ${className}
       `}
