@@ -292,13 +292,18 @@ describe('Unified Tool Registry', () => {
   })
 
   describe('UNIFIED_TOOL_NAMES', () => {
-    it('should contain all 9 tools', () => {
-      expect(UNIFIED_TOOL_NAMES).toHaveLength(9)
+    it('should contain all 11 tools', () => {
+      expect(UNIFIED_TOOL_NAMES).toHaveLength(11)
     })
 
     it('should contain core business tools', () => {
       expect(UNIFIED_TOOL_NAMES).toContain('search_web')
       expect(UNIFIED_TOOL_NAMES).toContain('calculate_roi')
+    })
+
+    it('should contain search and location tools', () => {
+      expect(UNIFIED_TOOL_NAMES).toContain('get_weather')
+      expect(UNIFIED_TOOL_NAMES).toContain('search_companies_by_location')
     })
 
     it('should contain conversation tools', () => {
@@ -320,7 +325,7 @@ describe('Unified Tool Registry', () => {
 
   describe('ToolSchemas', () => {
     it('should export schemas for all tools', () => {
-      expect(Object.keys(ToolSchemas)).toHaveLength(9)
+      expect(Object.keys(ToolSchemas)).toHaveLength(11)
     })
 
     it('should have schema for each unified tool', () => {
