@@ -1,6 +1,16 @@
 import { kv } from '@vercel/kv';
 import { logger } from './logger.js'
 
+// Type assertion for @vercel/kv - runtime API has these methods but types are incomplete
+interface KVClient {
+  set(key: string, value: any, options?: { ex?: number }): Promise<void>;
+  get<T>(key: string): Promise<T | null>;
+  del(key: string): Promise<void>;
+  keys(pattern: string): Promise<string[]>;
+}
+
+const kvClient = kv as unknown as KVClient;
+
 // Cache configuration
 export interface CacheConfig {
   ttl?: number; // Time to live in seconds
@@ -92,7 +102,7 @@ export class VercelCache {
       const key = this.generateKey(namespace, identifier);
       const ttlSeconds = Math.floor((config.ttl || CACHE_CONFIGS.API_RESPONSE.ttl) / 1000);
 
-      await kv.set(key, entry, { ex: ttlSeconds });
+      await kvClient.set(key, entry, { ex: ttlSeconds });
 
       logger.debug('Cache set', {
         namespace,
@@ -119,7 +129,7 @@ export class VercelCache {
 
     try {
       const key = this.generateKey(namespace, identifier);
-      const entry = await kv.get<CacheEntry<T>>(key);
+      const entry = await kvClient.get<CacheEntry<T>>(key);
 
       if (!entry) {
         logger.debug('Cache miss', { namespace, identifier });
@@ -157,7 +167,7 @@ export class VercelCache {
 
     try {
       const key = this.generateKey(namespace, identifier);
-      await kv.del(key);
+      await kvClient.del(key);
 
       logger.debug('Cache deleted', { namespace, identifier });
     } catch (error) {
@@ -177,7 +187,7 @@ export class VercelCache {
       // Note: Vercel KV doesn't have native tag-based invalidation
       // We'll implement a simple pattern-based approach
       const pattern = `fbc_cache:*:*`;
-      await kv.keys(pattern);
+      await kvClient.keys(pattern);
 
       // For now, we'll do selective invalidation based on common patterns
       // In production, consider using a more sophisticated tagging system
