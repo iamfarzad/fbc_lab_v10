@@ -45,6 +45,7 @@ export interface ActiveSessionsMap {
 // Capability mapping - maps tool names to capability names for tracking
 const CAPABILITY_MAP: Record<string, string> = {
   'search_web': 'search',
+  'get_weather': 'search', // Weather uses search internally
   'calculate_roi': 'roi',
   'extract_action_items': 'doc',
   'generate_summary_preview': 'exportPdf',

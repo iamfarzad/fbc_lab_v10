@@ -147,18 +147,25 @@ export class GeminiLiveService {
 
         const snapshot = unifiedContext.getSnapshot();
         const rc = snapshot.researchContext;
+        const ic = snapshot.intelligenceContext;
 
         // Start the Live API session AFTER we receive connectionId
+        // Pass full user context including name and email for personalization
         try {
+          const userContext: { name?: string; email?: string } = {};
+          if (rc?.person?.fullName) {
+            userContext.name = rc.person.fullName;
+          }
+          // Email might be in intelligenceContext.email (from lead research) or passed directly
+          if (ic?.email) {
+            userContext.email = ic.email as string;
+          }
+          
           this.liveClient?.start({
             languageCode: 'en-US',
             voiceName: this.config.voiceName || 'Kore',
             sessionId: this.sessionId,
-            ...(rc?.person?.fullName ? {
-              userContext: {
-                name: rc.person.fullName
-              }
-            } : {})
+            ...(Object.keys(userContext).length > 0 ? { userContext } : {})
           });
         } catch (err) {
           console.error('[GeminiLiveService] Error calling start():', err);

@@ -83,6 +83,11 @@ export const ToolSchemas = {
     urls: z.array(z.string().url()).optional()
   }),
 
+  // Weather tool - uses search_web internally
+  get_weather: z.object({
+    location: z.string().min(1, 'Location cannot be empty')
+  }),
+
   // Action items extraction
   extract_action_items: z.object({}),
 
@@ -198,6 +203,12 @@ export async function executeUnifiedTool(
   switch (toolName) {
     case 'search_web':
       return await executeSearchWeb(args as { query: string; urls?: string[] })
+
+    case 'get_weather': {
+      // Weather is implemented via search_web with a formatted query
+      const location = (args as { location: string }).location
+      return await executeSearchWeb({ query: `current weather in ${location}` })
+    }
 
     case 'extract_action_items':
       return await executeExtractActionItems(args, sessionId)

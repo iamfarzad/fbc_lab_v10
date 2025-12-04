@@ -1,11 +1,11 @@
 export const LIVE_FUNCTION_DECLARATIONS = [
   {
     name: 'search_web',
-    description: 'Search the web for current information and return grounded, cited findings.',
+    description: 'Search the web for current information and return grounded, cited findings. Use for weather, news, stock prices, sports scores, or any real-time information.',
     parameters: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Search query to submit.' },
+        query: { type: 'string', description: 'Search query to submit. For weather, include location (e.g., "weather in Oslo, Norway").' },
         urls: {
           type: 'array',
           items: { type: 'string' },
@@ -13,6 +13,17 @@ export const LIVE_FUNCTION_DECLARATIONS = [
         },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'get_weather',
+    description: 'Get current weather for a location. Always use this when asked about weather, temperature, or forecasts.',
+    parameters: {
+      type: 'object',
+      properties: {
+        location: { type: 'string', description: 'City name or location (e.g., "Oslo, Norway", "New York").' },
+      },
+      required: ['location'],
     },
   },
   {
