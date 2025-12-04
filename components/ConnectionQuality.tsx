@@ -96,45 +96,48 @@ const ConnectionQuality: React.FC<ConnectionQualityProps> = ({
   return (
     <div 
       className={`
-        inline-flex items-center gap-2 px-3 py-1.5 rounded-lg
-        ${config.bgColor} ${config.color}
-        transition-all duration-300
+        group relative flex items-center justify-center
         ${className}
       `}
+      title={connected ? `Connected (${latency}ms)` : 'Disconnected'}
     >
-      {/* Icon */}
-      <div className="relative">
-        {isReconnecting ? (
-          <RefreshCw className="w-4 h-4 animate-spin" />
-        ) : (
-          config.icon
+      {/* Status Dot */}
+      <div className={`
+        relative w-2 h-2 rounded-full transition-colors duration-500
+        ${isReconnecting ? 'bg-amber-500 animate-pulse' : level === 'disconnected' ? 'bg-red-500' : 'bg-green-500'}
+      `}>
+        {connected && (
+          <div className={`absolute inset-0 w-full h-full rounded-full animate-ping opacity-30 ${level === 'excellent' ? 'bg-green-400' : 'bg-green-600'}`} />
         )}
       </div>
 
-      {/* Label */}
-      <span className="text-xs font-medium">
-        {isReconnecting 
-          ? `Reconnecting${reconnectAttempts > 1 ? ` (${reconnectAttempts})` : ''}...` 
-          : config.label
-        }
-      </span>
-
-      {/* Latency */}
-      {showDetails && connected && latency && (
-        <span className="text-[10px] opacity-70">
-          {latency}ms
-        </span>
-      )}
-
-      {/* Reconnect button */}
-      {!connected && !isReconnecting && onReconnect && (
-        <button
-          onClick={onReconnect}
-          className="ml-1 p-0.5 hover:bg-black/10 rounded transition-colors"
-        >
-          <RefreshCw className="w-3 h-3" />
-        </button>
-      )}
+      {/* Tooltip / Expanded View on Hover */}
+      <div className="
+        absolute right-0 top-full mt-2 
+        opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto
+        transition-all duration-200 translate-y-1 group-hover:translate-y-0
+        z-50
+      ">
+        <div className="bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-lg shadow-xl border border-white/20 p-2 text-xs whitespace-nowrap">
+          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-medium">
+            {isReconnecting ? <RefreshCw className="w-3 h-3 animate-spin" /> : config.icon}
+            <span>
+              {isReconnecting 
+                ? `Reconnecting (${reconnectAttempts})...` 
+                : `${config.label} (${latency || '?'}ms)`
+              }
+            </span>
+          </div>
+          {!connected && !isReconnecting && onReconnect && (
+            <button
+              onClick={onReconnect}
+              className="mt-1 w-full px-2 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded text-[10px] text-center transition-colors"
+            >
+              Reconnect
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -156,137 +156,109 @@ const ToolShowcase: React.FC<ToolShowcaseProps> = ({
 
   if (!isOpen) return null
 
-  const filteredTools = selectedCategory 
-    ? TOOLS.filter(t => t.category === selectedCategory)
-    : TOOLS
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-md transition-opacity duration-300"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="
+        relative w-full max-w-4xl max-h-[90vh] overflow-hidden
+        bg-white/80 dark:bg-black/80 backdrop-blur-xl border border-white/20 dark:border-white/10 
+        rounded-3xl shadow-2xl ring-1 ring-black/5
+        flex flex-col animate-fade-in-up
+      ">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Available Tools</h2>
-            <p className="text-sm text-gray-500">
-              {TOOLS.length} tools available to help you
-            </p>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-black/5 dark:border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-tr from-orange-400 to-orange-600 rounded-xl shadow-lg">
+              <Wrench className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-medium text-slate-900 dark:text-white">System Capabilities</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {TOOLS.length} tools available to help you
+              </p>
+            </div>
           </div>
-          <button
+          <button 
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Category Filters */}
-        <div className="px-6 py-3 border-b bg-gray-50 flex gap-2 overflow-x-auto">
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className={`
-              px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap
-              transition-colors
-              ${!selectedCategory 
-                ? 'bg-gray-900 text-white' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-              }
-            `}
-          >
-            All
-          </button>
-          {Object.entries(CATEGORIES).map(([key, cat]) => (
-            <button
-              key={key}
-              onClick={() => setSelectedCategory(key)}
-              className={`
-                px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap
-                transition-colors
-                ${selectedCategory === key 
-                  ? 'bg-gray-900 text-white' 
-                  : `${cat.color} hover:opacity-80`
-                }
-              `}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tool Grid */}
-        <div className="p-6 overflow-y-auto max-h-[50vh]">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filteredTools.map(tool => (
-              <button
-                key={tool.name}
-                onClick={() => setSelectedTool(tool)}
-                className={`
-                  flex items-start gap-3 p-4 rounded-xl text-left
-                  transition-all hover:scale-[1.02]
-                  ${selectedTool?.name === tool.name 
-                    ? 'bg-orange-50 border-2 border-orange-200' 
-                    : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
-                  }
-                `}
-              >
-                <div className={`
-                  p-2 rounded-lg
-                  ${CATEGORIES[tool.category].color}
-                `}>
-                  {tool.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">
-                      {tool.displayName}
-                    </span>
-                    {tool.available ? (
-                      <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                    ) : (
-                      <AlertCircle className="w-3.5 h-3.5 text-gray-400" />
-                    )}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(CATEGORIES).map(([key, cat]) => {
+              const categoryTools = TOOLS.filter(t => t.category === key)
+              return (
+                <div 
+                  key={key}
+                  className="group p-4 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/40 dark:border-white/5 hover:border-orange-200 dark:hover:border-orange-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/5"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`p-2 rounded-lg ${cat.color} bg-opacity-10`}>
+                      <div className={cat.color.replace('bg-', 'text-').split(' ')[1]}>
+                        {/* No specific icon for category, could add later */}
+                        <Info className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <h3 className="font-medium text-slate-900 dark:text-white text-sm">{cat.label}</h3>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                    {tool.description}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Selected Tool Details */}
-        {selectedTool && (
-          <div className="px-6 py-4 border-t bg-gray-50">
-            <div className="flex items-start gap-4">
-              <div className={`p-3 rounded-xl ${CATEGORIES[selectedTool.category].color}`}>
-                {selectedTool.icon}
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">
-                  {selectedTool.displayName}
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {selectedTool.description}
-                </p>
-                <div className="mt-3">
-                  <p className="text-xs font-medium text-gray-500 mb-2">
-                    Try saying:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedTool.examples.map((example, i) => (
-                      <span 
-                        key={i}
-                        className="px-2 py-1 bg-white rounded-lg text-xs text-gray-600 border"
+                  
+                  <div className="space-y-2">
+                    {categoryTools.map(tool => (
+                      <div 
+                        key={tool.name}
+                        className="flex items-start gap-2 p-2 rounded-lg hover:bg-white/50 dark:hover:bg-white/5 transition-colors"
                       >
-                        "{example}"
-                      </span>
+                        <div className="mt-0.5 text-slate-400 dark:text-slate-500 scale-75 origin-top-left">
+                          {tool.icon}
+                        </div>
+                        <div>
+                          <div className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                            {tool.displayName}
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
+                            {tool.description}
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
-              </div>
-            </div>
+              )
+            })}
           </div>
-        )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-slate-50/50 dark:bg-white/5 border-t border-black/5 dark:border-white/10 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-3 h-3 text-green-500" />
+            <span>All systems operational</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+              Core
+            </span>
+            <span className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Media
+            </span>
+            <span className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+              Analysis
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   )

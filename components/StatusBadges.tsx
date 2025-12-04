@@ -36,21 +36,27 @@ const Badge: React.FC<BadgeProps> = ({
 }) => {
   if (!active) return null
 
+  // Extract base color class (e.g., "text-orange-600" -> "orange-500")
+  // This is a simplification; ideally we'd pass the color name directly.
+  // For now, we'll stick to the passed classes but refine the styling.
+  
   return (
     <div 
       className={`
-        inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium
-        transition-all duration-300
+        group relative inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium tracking-wide
+        backdrop-blur-md transition-all duration-300
         ${color}
+        hover:bg-opacity-20
       `}
+      title={label}
     >
-      <div className="relative">
+      <div className="relative flex items-center justify-center">
         {activeIcon || icon}
         {pulse && (
-          <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-20" />
+          <span className="absolute inset-0 -m-1 animate-ping rounded-full bg-current opacity-20 duration-1000" />
         )}
       </div>
-      <span className="hidden sm:inline">{label}</span>
+      <span className="hidden sm:inline opacity-90">{label}</span>
     </div>
   )
 }
@@ -86,7 +92,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isVoiceActive}
         label="Voice"
         icon={<Mic className="w-3 h-3" />}
-        color="bg-orange-100 text-orange-600 border border-orange-200"
+        color="bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20"
       />
 
       {/* Webcam Active */}
@@ -94,7 +100,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isWebcamActive}
         label="Camera"
         icon={<Camera className="w-3 h-3" />}
-        color="bg-blue-100 text-blue-600 border border-blue-200"
+        color="bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
       />
 
       {/* Screen Share Active */}
@@ -102,7 +108,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isScreenShareActive}
         label="Screen"
         icon={<Monitor className="w-3 h-3" />}
-        color="bg-purple-100 text-purple-600 border border-purple-200"
+        color="bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
       />
 
       {/* Location Shared */}
@@ -110,7 +116,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isLocationShared}
         label="Location"
         icon={<MapPin className="w-3 h-3" />}
-        color="bg-green-100 text-green-600 border border-green-200"
+        color="bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20"
         pulse={false}
       />
 
@@ -119,7 +125,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         active={!!isProcessing}
         label="Thinking"
         icon={<Brain className="w-3 h-3 animate-pulse" />}
-        color="bg-indigo-100 text-indigo-600 border border-indigo-200"
+        color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"
         pulse={false}
       />
     </div>

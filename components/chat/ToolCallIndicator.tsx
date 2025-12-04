@@ -211,31 +211,32 @@ export const FloatingToolIndicator: React.FC<{
   if (!activeTools.length) return null
 
   return (
-    <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up">
-      <div className="bg-white/90 backdrop-blur-lg rounded-full px-4 py-2 shadow-lg border border-gray-200">
-        <div className="flex items-center gap-3">
+    <div className="fixed bottom-24 sm:bottom-32 left-1/2 -translate-x-1/2 z-50 animate-fade-in-up pointer-events-none">
+      <div className="bg-white/80 dark:bg-black/60 backdrop-blur-xl rounded-full pl-3 pr-4 py-2 shadow-xl border border-white/20 dark:border-white/10 flex items-center gap-3">
+        <div className="relative flex items-center justify-center w-5 h-5">
           <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-          <div className="flex items-center gap-2">
-            {activeTools.slice(0, 3).map(tool => {
-              const Icon = getToolIcon(tool.name)
-              return (
-                <div 
-                  key={tool.id} 
-                  className="flex items-center gap-1 text-xs text-gray-600"
-                >
-                  <Icon className="w-3 h-3" />
-                  <span className="hidden sm:inline">
-                    {getToolLabel(tool.name, tool.status)}
-                  </span>
-                </div>
-              )
-            })}
-            {activeTools.length > 3 && (
-              <span className="text-xs text-gray-500">
-                +{activeTools.length - 3} more
-              </span>
-            )}
-          </div>
+          <div className="absolute inset-0 bg-blue-500/20 rounded-full animate-ping" />
+        </div>
+        <div className="flex items-center gap-3 border-l border-black/5 dark:border-white/10 pl-3">
+          {activeTools.slice(0, 2).map(tool => {
+            const Icon = getToolIcon(tool.name)
+            return (
+              <div 
+                key={tool.id} 
+                className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300"
+              >
+                <Icon className="w-3 h-3 opacity-70" />
+                <span className="truncate max-w-[100px]">
+                  {getToolLabel(tool.name, tool.status)}
+                </span>
+              </div>
+            )
+          })}
+          {activeTools.length > 2 && (
+            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/10 px-1.5 py-0.5 rounded-full">
+              +{activeTools.length - 2}
+            </span>
+          )}
         </div>
       </div>
     </div>
