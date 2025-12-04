@@ -3,7 +3,7 @@ import { formatMessagesForAI } from '../../lib/format-messages.js';
 import { toolExecutor } from '../tools/tool-executor.js';
 import { getChatToolDefinitions } from '../tools/unified-tool-registry.js';
 import { z } from 'zod';
-import type { AgentContext, ChatMessage } from './types';
+import type { AgentContext, ChatMessage } from './types.js';
 import { GEMINI_MODELS } from '../../config/constants.js';
 
 // src/core/agents/closer-agent.ts — FINAL UPGRADED VERSION

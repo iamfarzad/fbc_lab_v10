@@ -1,7 +1,7 @@
 import { generateObject, google } from '../../../lib/ai-client.js'
 import { GEMINI_MODELS } from '../../../config/constants.js'
 import { z } from 'zod'
-import type { CompanySize } from '../types'
+import type { CompanySize } from '../types.js'
 
 const schema = z.object({
   size: z.enum(['1-10', '11-50', '51-200', '201-1000', '1000+', 'unknown']),

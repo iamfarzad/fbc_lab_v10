@@ -1,6 +1,6 @@
 import { ContextStorage } from 'src/core/context/context-storage'
 import { vercelCache } from 'src/lib/vercel-cache'
-import type { AgentResult, AgentContext } from './types'
+import type { AgentResult, AgentContext } from './types.js'
 import type { ConversationFlowState } from 'src/types/conversation-flow-types'
 import { AgentMetadata, IntelligenceContext as SchemaIntelligenceContext } from 'src/schemas/agents'
 import { generateHash } from 'src/lib/hash-utils'

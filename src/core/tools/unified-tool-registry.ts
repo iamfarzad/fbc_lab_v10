@@ -14,9 +14,9 @@
  */
 
 import { z } from 'zod'
-import { toolExecutor } from './tool-executor'
+import { toolExecutor } from './tool-executor.js'
 import { withTimeout } from '../../lib/code-quality.js'
-import type { ToolExecutionResult } from './types'
+import type { ToolExecutionResult } from './types.js'
 
 // Re-export Live API function declarations (no changes needed - already correct format)
 export { LIVE_FUNCTION_DECLARATIONS, ADMIN_LIVE_FUNCTION_DECLARATIONS } from '../../config/live-tools.js'

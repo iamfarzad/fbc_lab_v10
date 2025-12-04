@@ -1,5 +1,5 @@
 import { LeadResearchService } from 'src/core/intelligence/lead-research'
-import type { ChainOfThoughtStep } from './types'
+import type { ChainOfThoughtStep } from './types.js'
 import { logger } from 'src/lib/logger'
 
 /**

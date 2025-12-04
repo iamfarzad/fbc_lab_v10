@@ -16,16 +16,16 @@
  * All agents are multimodal-aware and share context via orchestrator
  */
 
-export { routeToAgent, getCurrentStage } from './orchestrator'
-export { discoveryAgent } from './discovery-agent'
-export { pitchAgent } from './pitch-agent'
-export { objectionAgent } from './objection-agent'
-export { closerAgent } from './closer-agent'
-export { summaryAgent } from './summary-agent'
+export { routeToAgent, getCurrentStage } from './orchestrator.js'
+export { discoveryAgent } from './discovery-agent.js'
+export { pitchAgent } from './pitch-agent.js'
+export { objectionAgent } from './objection-agent.js'
+export { closerAgent } from './closer-agent.js'
+export { summaryAgent } from './summary-agent.js'
 // Special agents (not in main flow)
-export { adminAgent, searchConversations, draftFollowUpEmail } from './admin-agent'
-export { retargetingAgent } from './retargeting-agent'
-export { leadIntelligenceAgent } from './lead-intelligence-agent'
+export { adminAgent, searchConversations, draftFollowUpEmail } from './admin-agent.js'
+export { retargetingAgent } from './retargeting-agent.js'
+export { leadIntelligenceAgent } from './lead-intelligence-agent.js'
 
 export type { 
   AgentContext, 
@@ -34,4 +34,4 @@ export type {
   IntelligenceContext,
   MultimodalContextData,
   ChatMessage
-} from './types'
+} from './types.js'
