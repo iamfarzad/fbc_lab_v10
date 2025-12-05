@@ -191,7 +191,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                             AI Consultant & Workshop Facilitator
                         </h2>
 
-                        <h1 className={`text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[0.95] ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        <h1 className={`text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[0.95] ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                             F.B/c <br />
                             <span className={`text-transparent bg-clip-text ${isDarkMode ? 'bg-gradient-to-b from-slate-200 to-slate-500' : 'bg-gradient-to-b from-slate-800 to-slate-500'}`}>
                                 Consulting
@@ -222,10 +222,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                     <div className="flex flex-col md:flex-row items-center justify-center gap-4 mt-2">
                         <button
                             onClick={onStartChat}
-                            className={`group relative px-8 py-4 rounded-full font-medium text-sm tracking-wide hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl w-full md:w-auto min-w-[200px] flex items-center justify-center gap-2 ${isDarkMode ? 'bg-white text-slate-900' : 'bg-[#1a1a1a] text-white'}`}
+                            className={`group relative px-8 py-4 rounded-full font-medium text-sm tracking-wide hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl w-full md:w-auto min-w-[200px] flex items-center justify-center gap-2 overflow-hidden ${isDarkMode ? 'bg-white text-slate-900' : 'bg-[#1a1a1a] text-white'}`}
                         >
-                            <span>START LIVE CHAT</span>
-                            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
+                            <span className="relative">START LIVE CHAT</span>
+                            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform relative" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                         </button>
 
                         <button

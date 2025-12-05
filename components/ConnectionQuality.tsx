@@ -12,7 +12,9 @@ import {
   SignalHigh, 
   SignalMedium, 
   SignalLow,
-  RefreshCw
+  RefreshCw,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react'
 
 export type ConnectionQualityLevel = 'excellent' | 'good' | 'fair' | 'poor' | 'disconnected'
@@ -111,13 +113,16 @@ const ConnectionQuality: React.FC<ConnectionQualityProps> = ({
         )}
       </div>
 
-      {/* Tooltip / Expanded View on Hover */}
-      <div className="
+      {/* Tooltip / Expanded View - Always visible if showDetails is true */}
+      <div className={`
         absolute right-0 top-full mt-2 
-        opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto
-        transition-all duration-200 translate-y-1 group-hover:translate-y-0
+        ${showDetails 
+          ? 'opacity-100 pointer-events-auto translate-y-0' 
+          : 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto translate-y-1 group-hover:translate-y-0'
+        }
+        transition-all duration-200
         z-50
-      ">
+      `}>
         <div className="bg-white/90 dark:bg-black/90 backdrop-blur-md rounded-lg shadow-xl border border-white/20 p-2 text-xs whitespace-nowrap">
           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 font-medium">
             {isReconnecting ? <RefreshCw className="w-3 h-3 animate-spin" /> : config.icon}

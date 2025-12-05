@@ -18,8 +18,8 @@ import {
   Mail,
   BarChart,
   CheckCircle,
-  AlertCircle,
-  Info
+  Info,
+  Wrench
 } from 'lucide-react'
 
 export interface ToolInfo {
@@ -151,8 +151,9 @@ const ToolShowcase: React.FC<ToolShowcaseProps> = ({
   isOpen,
   onClose
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [selectedTool, setSelectedTool] = useState<ToolInfo | null>(null)
+  // Remove unused state declarations
+  // const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  // const [selectedTool, setSelectedTool] = useState<ToolInfo | null>(null)
 
   if (!isOpen) return null
 

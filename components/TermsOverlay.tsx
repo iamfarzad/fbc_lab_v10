@@ -80,10 +80,8 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
       />
 
       {/* Modal Card - Glass Morphism */}
-      <div className={`relative w-full max-w-md p-6 sm:p-8 rounded-xl backdrop-blur-xl animate-fade-in-up border my-auto transition-all duration-300 ${
-        isDarkMode 
-          ? 'bg-slate-900/60 border-white/10 text-white shadow-2xl' 
-          : 'bg-white/40 border-white/40 text-slate-900 shadow-xl'
+      <div className={`relative w-full max-w-md p-6 sm:p-8 rounded-2xl animate-fade-in-scale transition-all duration-300 glass-panel ${
+        isDarkMode ? 'text-white' : 'text-slate-900'
       }`}>
         
         {/* Header - Minimal */}
@@ -235,20 +233,21 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDar
                 </div>
 
                 {/* Terms Agreement */}
-                <div className="flex items-start gap-2.5 pt-2">
-                    <input
-                        type="checkbox"
-                        id="terms-agree"
-                        checked={agreed}
-                        onChange={(e) => setAgreed(e.target.checked)}
-                        className={`mt-0.5 w-4 h-4 rounded border-2 cursor-pointer transition-all ${
-                            isDarkMode 
-                                ? 'border-white/20 bg-white/5 checked:bg-orange-500 checked:border-orange-500' 
-                                : 'border-slate-300 bg-white checked:bg-orange-500 checked:border-orange-500'
-                        }`}
-                    />
-                    <label htmlFor="terms-agree" className={`text-[10px] leading-relaxed cursor-pointer flex-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                        I agree to the <a href="/terms" target="_blank" className={`underline hover:opacity-80 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>Terms of Service</a> and <a href="/privacy" target="_blank" className={`underline hover:opacity-80 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>Privacy Policy</a>
+                <div className="relative flex items-start gap-3 pt-2">
+                    <div className="relative flex items-center">
+                        <input
+                            type="checkbox"
+                            id="terms-agree"
+                            checked={agreed}
+                            onChange={(e) => setAgreed(e.target.checked)}
+                            className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-slate-300 dark:border-white/20 bg-white dark:bg-white/5 transition-all checked:border-orange-500 checked:bg-orange-500 hover:border-orange-500 dark:hover:border-orange-400"
+                        />
+                        <svg className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="2 6 4.5 9 10.5 3" />
+                        </svg>
+                    </div>
+                    <label htmlFor="terms-agree" className={`text-[11px] leading-snug cursor-pointer select-none ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                        I agree to the <a href="#" className="font-medium underline decoration-orange-500/50 hover:decoration-orange-500 text-slate-900 dark:text-white transition-all">Terms of Service</a> and <a href="#" className="font-medium underline decoration-orange-500/50 hover:decoration-orange-500 text-slate-900 dark:text-white transition-all">Privacy Policy</a>
                     </label>
                 </div>
 

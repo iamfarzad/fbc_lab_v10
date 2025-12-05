@@ -334,3 +334,4 @@ Earlier unified endpoints streamed SSE for incremental render. Current api/chat.
 **Validation Status:** Complete  
 **Confidence:** High (based on codebase analysis)
 
+

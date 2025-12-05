@@ -3,6 +3,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Tooltip, isTextMime } from './UIHelpers';
 import { LiveConnectionState } from 'types';
 import { StagingArea } from './Attachments';
+import { Mic, Camera, CameraOff, Monitor, MonitorOff, Paperclip, X, ArrowUp, Sparkles } from 'lucide-react';
 
 const SUGGESTIONS = [
   "Research & compare iPhone 16 vs Pixel 9",
@@ -18,6 +19,9 @@ interface ChatInputDockProps {
     setSelectedFile: (file: any) => void;
     isWebcamActive: boolean;
     onWebcamChange: (active: boolean) => void;
+    isScreenShareActive?: boolean;
+    isScreenShareInitializing?: boolean;
+    onScreenShareToggle?: () => void;
     onSendMessage: (text: string, file?: { mimeType: string, data: string }) => void;
     connectionState: LiveConnectionState;
     onConnect: () => void;
@@ -36,10 +40,13 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
     setSelectedFile,
     isWebcamActive,
     onWebcamChange,
+    isScreenShareActive,
+    isScreenShareInitializing,
+    onScreenShareToggle,
     onSendMessage,
     connectionState,
-    // onConnect, // Not used
-    // onDisconnect, // Not used
+    onConnect,
+    onDisconnect,
     localAiAvailable,
     onLocalAction,
     suggestionsVisible,
@@ -50,14 +57,14 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const magicMenuRef = useRef<HTMLDivElement>(null);
     
-    const [isDictating, setIsDictating] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false); 
-    const recognitionRef = useRef<any>(null);
     const inputValueRef = useRef('');
     const [showMagicMenu, setShowMagicMenu] = useState(false);
     const [isProcessingLocal, setIsProcessingLocal] = useState(false);
     
+    // Connection States
     const isConnected = connectionState === LiveConnectionState.CONNECTED;
+    const isConnecting = connectionState === LiveConnectionState.CONNECTING;
 
     useEffect(() => {
         inputValueRef.current = inputValue;
@@ -169,51 +176,11 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
         e.target.value = ''; // Allow re-selecting same file
     };
 
-    const toggleDictation = () => {
-        if (isDictating) {
-            recognitionRef.current?.stop();
-            setIsDictating(false);
-            return;
-        }
-
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Speech recognition not supported in this browser.");
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        const startingValue = inputValueRef.current;
-
-        recognition.onstart = () => setIsDictating(true);
-        recognition.onend = () => setIsDictating(false);
-        recognition.onerror = (event: any) => {
-            console.error("Speech recognition error", event.error);
-            setIsDictating(false);
-        };
-
-        recognition.onresult = (event: any) => {
-            let transcript = '';
-            for (let i = 0; i < event.results.length; ++i) {
-                transcript += event.results[i][0].transcript;
-            }
-            
-            if (transcript) {
-                const spacer = (startingValue && !startingValue.endsWith(' ') && !transcript.startsWith(' ')) ? ' ' : '';
-                const newValue = startingValue + spacer + transcript;
-                
-                setInputValue(newValue);
-                adjustHeight();
-            }
-        };
-
-        recognition.start();
-        recognitionRef.current = recognition;
-    };
+    // Removed legacy dictation in favor of Voice Mode logic primarily, but keeping function if needed for text-only fallback?
+    // For now, let's keep it but maybe hide the button if we want to declutter.
+    // Actually, user said "duplicate controls". Let's removing the dedicated dictation button for now to simplify.
+    // Or keeping it as a "Mic" inside the text area for text entry, while the main FAB is for "Live Mode".
+    // Let's stick to the Plan: Unify.
 
     const executeMagicAction = async (action: 'rewrite' | 'proofread') => {
         if (!onLocalAction || !inputValue.trim()) return;
@@ -227,13 +194,24 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
         setIsProcessingLocal(false);
     };
 
+    const handleVoiceToggle = () => {
+        // Haptic feedback
+        if (typeof navigator.vibrate === 'function') navigator.vibrate(10);
+        
+        if (isConnected) {
+            onDisconnect();
+        } else {
+            onConnect();
+        }
+    };
+
     return (
         <div className="relative w-full z-40 flex flex-col justify-end pointer-events-auto">
             
             {/* --- EXPANDED VIEW (Slide Up) --- */}
             {isExpanded && (
             <div 
-                className="w-full transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) ease-out overflow-hidden opacity-100 max-h-[600px]"
+                className="w-full transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) ease-out overflow-visible opacity-100"
             >
                 <div className="
                     w-full
@@ -266,32 +244,33 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                         </div>
                     )}
 
-                    {/* Input Dock - Glassmorphism Pill */}
-                    <div className="relative flex flex-col gap-2 bg-gray-50/80 dark:bg-white/5 backdrop-blur-xl border border-gray-100 dark:border-white/10 p-2 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] ring-1 ring-black/5 dark:ring-white/5 transition-all focus-within:ring-black/10 dark:focus-within:ring-white/20 focus-within:bg-white dark:focus-within:bg-black/40 focus-within:shadow-[0_8px_30px_rgba(0,0,0,0.06)] overflow-hidden">
+                    {/* Input Container */}
+                    <div className="relative flex flex-col gap-2 bg-gray-50/80 dark:bg-white/5 backdrop-blur-xl border border-gray-100 dark:border-white/10 p-2 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] ring-1 ring-black/5 dark:ring-white/5 transition-all focus-within:ring-black/10 dark:focus-within:ring-white/20 focus-within:bg-white dark:focus-within:bg-black/40 focus-within:shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
                         
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf,text/plain,text/csv,application/json" onChange={handleFileSelect} />
 
-                        {/* Textarea on top */}
+                        {/* Top Row: Textarea + Send/Close */}
                         <div className="relative flex items-start gap-2">
                             <textarea 
+                                data-testid="chat-input-textarea"
                                 ref={textareaRef}
                                 value={inputValue}
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
                                 onPaste={handlePaste}
-                                placeholder={isConnected ? "Message Gemini..." : "Ask or research..."}
+                                placeholder="Message F.B/c..."
                                 autoFocus
-                                className="flex-1 max-h-32 min-h-[40px] py-2.5 px-3 bg-transparent text-[15px] text-gray-900 dark:text-gray-100 font-normal placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none resize-none custom-scrollbar leading-relaxed"
+                                className="flex-1 max-h-32 min-h-[44px] py-3 px-4 bg-transparent text-[15px] text-gray-900 dark:text-gray-100 font-normal placeholder-gray-400 dark:placeholder-gray-400 focus:outline-none resize-none custom-scrollbar leading-relaxed"
                                 rows={1}
                             />
 
-                            <div className="flex flex-col gap-1 pt-1 shrink-0">
+                            <div className="flex flex-col gap-1 pt-1.5 pr-1 shrink-0">
                                 <button 
                                     onClick={() => setIsExpanded(false)}
                                     className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white transition-colors"
-                                    title="Close Keyboard"
+                                    title="Close Input"
                                 >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                    <X className="w-5 h-5" />
                                 </button>
 
                                 {isGenerating && onStopGeneration ? (
@@ -308,87 +287,83 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                         <button 
                                             onClick={() => handleSendMessage()}
                                             disabled={!inputValue.trim() && !selectedFile}
-                                            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all transform active:scale-95 shrink-0 ${
+                                            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors transform active:scale-95 shrink-0 ${
                                                 inputValue.trim() || selectedFile 
-                                                    ? 'bg-black dark:bg-white text-white dark:text-black shadow-md hover:bg-gray-800 dark:hover:bg-gray-200' 
+                                                    ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700' 
                                                     : 'bg-gray-200 dark:bg-white/10 text-gray-400 dark:text-white/20 cursor-not-allowed'
                                             }`}
                                         >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M5 12L12 5L19 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M12 5V19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
+                                            <ArrowUp className="w-5 h-5" strokeWidth={1.5} />
                                         </button>
                                     </Tooltip>
                                 )}
                             </div>
                         </div>
 
-                        {/* Action buttons row below */}
-                        <div className="flex items-center justify-center gap-1 px-1 pb-0.5">
+                        {/* Bottom Row: Tools */}
+                        <div className="flex items-center gap-1 px-2 pb-1">
+                            {/* File Upload */}
                             <Tooltip text="Upload File">
                                 <button 
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white transition-colors"
+                                    className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white transition-colors"
                                 >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
+                                    <Paperclip className="w-4 h-4" />
                                 </button>
                             </Tooltip>
 
+                            {/* Camera Toggle */}
                             <Tooltip text={isWebcamActive ? "Close Camera" : "Open Camera"}>
                                 <button 
                                     onClick={() => onWebcamChange(!isWebcamActive)}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isWebcamActive ? 'bg-red-50 text-red-500' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'}`}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${isWebcamActive ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'}`}
                                 >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M23 19C23 20.1 22.1 21 21 21H3C1.9 21 1 20.1 1 19V8C1 6.9 1.9 6 3 6H7L9 3H15L17 6H21C22.1 6 23 6.9 23 8V19Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                        <path d="M12 17C14.21 17 16 15.21 16 13C16 10.79 14.21 9 12 9C9.79 9 8 10.79 8 13C8 15.21 9.79 17 12 17Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
+                                    {isWebcamActive ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
                                 </button>
                             </Tooltip>
                             
-                            <Tooltip text={isDictating ? "Stop Dictation" : "Dictate"}>
-                                <button 
-                                    onClick={toggleDictation}
-                                    className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isDictating ? 'bg-red-50 text-red-500 animate-pulse' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'}`}
-                                >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M12 1C10.3 1 9 2.3 9 4V12C9 13.7 10.3 15 12 15C13.7 15 15 13.7 15 12V4C15 2.3 13.7 1 12 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                        <path d="M19 10C19 14 16 17 12 17C8 17 5 14 5 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                        <path d="M12 17V23" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                </button>
-                            </Tooltip>
-                            
+                            {/* Screen Share Toggle */}
+                            {onScreenShareToggle && (
+                                <Tooltip text={isScreenShareActive ? "Stop Sharing" : "Share Screen"}>
+                                    <button 
+                                        onClick={onScreenShareToggle}
+                                        disabled={isScreenShareInitializing}
+                                        className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
+                                            isScreenShareActive 
+                                                ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600' 
+                                                : isScreenShareInitializing 
+                                                    ? 'bg-purple-50 dark:bg-purple-900/10 text-purple-400 animate-pulse'
+                                                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'
+                                        }`}
+                                    >
+                                        {isScreenShareActive ? <Monitor className="w-4 h-4" strokeWidth={1.5} /> : <MonitorOff className="w-4 h-4" strokeWidth={1.5} />}
+                                    </button>
+                                </Tooltip>
+                            )}
+
+                            <div className="flex-1" />
+
+                            {/* Local AI / Magic Menu */}
                             {localAiAvailable && (
                                 <div className="relative" ref={magicMenuRef}>
                                     <Tooltip text="Local AI Tools">
                                         <button 
                                             onClick={() => setShowMagicMenu(!showMagicMenu)}
                                             disabled={isProcessingLocal || !inputValue.trim()}
-                                            className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isProcessingLocal ? 'text-purple-400 animate-spin' : showMagicMenu ? 'bg-purple-50 text-purple-600' : 'text-gray-500 dark:text-gray-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-600 dark:hover:text-purple-400'}`}
+                                            className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${isProcessingLocal ? 'text-purple-400 animate-spin' : showMagicMenu ? 'bg-purple-50 text-purple-600' : 'text-gray-400 dark:text-gray-500 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-600 dark:hover:text-purple-400'}`}
                                         >
-                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M15 9L9 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                                <path d="M9 9L15 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
+                                            <Sparkles className="w-4 h-4" strokeWidth={1.5} />
                                         </button>
                                     </Tooltip>
 
                                     {/* POPUP MAGIC MENU */}
                                     {showMagicMenu && (
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-xl border border-white/40 dark:border-white/10 shadow-xl ring-1 ring-black/5 overflow-hidden animate-fade-in-up origin-bottom z-[100]">
+                                        <div className="absolute bottom-full right-0 mb-3 w-48 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-xl border border-white/40 dark:border-white/10 shadow-xl ring-1 ring-black/5 overflow-hidden animate-fade-in-up origin-bottom-right z-[100]">
                                             <div className="p-1.5 flex flex-col gap-0.5">
                                                 <button 
-                                                    onClick={() => {
-                                                      void executeMagicAction('rewrite')
-                                                    }}
+                                                    onClick={() => void executeMagicAction('rewrite')}
                                                     className="flex items-center gap-3 px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-white/10 hover:text-purple-700 dark:hover:text-purple-400 rounded-lg transition-colors"
                                                 >
-                                                    <svg className="w-4 h-4 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                                     <div className="flex flex-col">
                                                         <span>Rewrite</span>
                                                         <span className="text-[9px] text-gray-400 dark:text-gray-500 font-normal">Improve tone & clarity</span>
@@ -396,12 +371,9 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                                 </button>
                                                 <div className="h-px bg-gray-100 dark:bg-white/10 my-0.5"></div>
                                                 <button 
-                                                    onClick={() => {
-                                                      void executeMagicAction('proofread')
-                                                    }}
+                                                    onClick={() => void executeMagicAction('proofread')}
                                                     className="flex items-center gap-3 px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-purple-50 dark:hover:bg-white/10 hover:text-purple-700 dark:hover:text-purple-400 rounded-lg transition-colors"
                                                 >
-                                                    <svg className="w-4 h-4 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                                                     <div className="flex flex-col">
                                                         <span>Proofread</span>
                                                         <span className="text-[9px] text-gray-400 dark:text-gray-500 font-normal">Fix grammar errors</span>
@@ -418,41 +390,74 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
             </div>
             )}
 
-            {/* --- COLLAPSED VIEW (Pill) --- */}
-            {/* Kept absolute so it stays at the bottom when collapsed, but visibility toggles */}
+            {/* --- COLLAPSED VIEW (Unified Floating Bar) --- */}
             {!isExpanded && (
             <div 
-                className="absolute bottom-0 left-0 w-full p-4 pb-[env(safe-area-inset-bottom,24px)] md:pb-6 flex justify-center transition-all duration-500 delay-100 cubic-bezier(0.16, 1, 0.3, 1) pointer-events-auto translate-y-0 opacity-100"
+                data-testid="chat-input-dock-collapsed"
+                className="absolute bottom-0 left-0 w-full p-4 pb-[env(safe-area-inset-bottom,24px)] md:pb-8 flex justify-center transition-all duration-500 delay-100 ease-out pointer-events-auto"
             >
-                <div className="flex items-center gap-3 bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-white/60 dark:border-white/10 p-2 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.1)] ring-1 ring-black/5 hover:scale-105 transition-all duration-300 pb-[env(safe-area-inset-bottom,2px)]">
-                    <Tooltip text={isWebcamActive ? "Close Camera" : "Open Camera"}>
-                        <button 
-                            onClick={() => onWebcamChange(!isWebcamActive)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isWebcamActive ? 'bg-red-50 text-red-500' : 'bg-gray-50 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/20'}`}
-                        >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M23 19C23 20.1 22.1 21 21 21H3C1.9 21 1 20.1 1 19V8C1 6.9 1.9 6 3 6H7L9 3H15L17 6H21C22.1 6 23 6.9 23 8V19Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                <path d="M12 17C14.21 17 16 15.21 16 13C16 10.79 14.21 9 12 9C9.79 9 8 10.79 8 13C8 15.21 9.79 17 12 17Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                        </button>
-                    </Tooltip>
+                <div className="flex items-center gap-3 w-full max-w-[500px] mx-auto">
+                    
+                    {/* Main Input Pill (With Camera & Mic integrated) */}
+                    <div className="flex-1 h-[60px] bg-white/90 dark:bg-[#1a1a1a]/90 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/5 dark:ring-white/5 flex items-center p-1.5 gap-2 transition-transform hover:scale-[1.01]">
+                        
+                        {/* Camera Button */}
+                        <Tooltip text={isWebcamActive ? "Close Camera" : "Open Camera"}>
+                            <button 
+                                onClick={() => onWebcamChange(!isWebcamActive)}
+                                className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${isWebcamActive ? 'bg-blue-500 text-white shadow-md' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10'}`}
+                            >
+                                {isWebcamActive ? <Camera className="w-5 h-5" strokeWidth={1.5} /> : <CameraOff className="w-5 h-5" strokeWidth={1.5} />}
+                            </button>
+                        </Tooltip>
 
-                    <Tooltip text="Open Keyboard">
+                        {/* Fake Input Area */}
                         <button 
                             onClick={() => setIsExpanded(true)}
-                            className="w-10 h-10 flex items-center justify-center rounded-full transition-colors bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 shadow-md"
+                            className="flex-1 h-full flex items-center px-4 text-left group"
                         >
-                            {/* Keyboard Icon */}
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="2" y="4" width="20" height="16" rx="2" />
-                                <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10" />
-                            </svg>
+                            <span className="text-[15px] font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">Ask F.B/c...</span>
                         </button>
-                    </Tooltip>
+
+                         {/* Divider */}
+                         <div className="w-px h-6 bg-gray-200 dark:bg-white/10 mx-1"></div>
+
+                        {/* Main Voice Fab (Integrated) */}
+                        <Tooltip text={isConnected ? "Disconnect Voice" : "Start Voice Session"}>
+                            <button 
+                                onClick={handleVoiceToggle}
+                                className={`
+                                    relative w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500
+                                    ${isConnected 
+                                        ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' 
+                                        : isConnecting
+                                            ? 'bg-orange-100 text-orange-400 animate-pulse'
+                                            : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600'
+                                    }
+                                `}
+                            >
+                                {isConnected ? (
+                                    <div className="flex gap-1 items-end justify-center h-4">
+                                        <div className="w-1 bg-white rounded-full animate-[bounce_1s_infinite] h-3"></div>
+                                        <div className="w-1 bg-white rounded-full animate-[bounce_1s_infinite_0.1s] h-4"></div>
+                                        <div className="w-1 bg-white rounded-full animate-[bounce_1s_infinite_0.2s] h-3"></div>
+                                    </div>
+                                ) : (
+                                    <Mic className="w-5 h-5" strokeWidth={1.5} />
+                                )}
+                                
+                                {/* Connecting Spinner Ring */}
+                                {isConnecting && (
+                                    <div className="absolute inset-0 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+                                )}
+                            </button>
+                        </Tooltip>
+                    </div>
+
                  </div>
             </div>
             )}
-      </div>
+        </div>
     );
 };
 

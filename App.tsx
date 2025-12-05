@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AntigravityCanvas from './components/AntigravityCanvas';
-import ControlPanel from './components/ControlPanel';
 import MultimodalChat from './components/MultimodalChat';
 import { BrowserCompatibility } from './components/BrowserCompatibility';
 import WebcamPreview from './components/chat/WebcamPreview';
@@ -2013,23 +2012,11 @@ export const App: React.FC = () => {
                             userEmail={userProfile?.email}
                             userName={userProfile?.name}
                             isScreenShareActive={screenShare.isActive}
+                            isScreenShareInitializing={screenShare.isInitializing}
+                            onScreenShareToggle={() => void screenShare.toggleScreenShare()}
                             isLocationShared={!!locationData}
                         />
 
-                        <div className={`pointer-events-auto ${isChatVisible ? 'hidden md:block' : 'block'}`}>
-                            <ControlPanel
-                                connectionState={connectionState}
-                                audioLevel={visualState.audioLevel}
-                                onConnect={() => void handleConnect()}
-                                onDisconnect={() => void handleDisconnect()}
-                                isWebcamActive={isWebcamActive}
-                                onWebcamToggle={() => setIsWebcamActive(prev => !prev)}
-                                isScreenShareActive={screenShare.isActive}
-                                isScreenShareInitializing={screenShare.isInitializing}
-                                onScreenShareToggle={() => void screenShare.toggleScreenShare()}
-                                isLocationShared={!!locationData}
-                            />
-                        </div>
                     </div>
                 </>
             )}

@@ -15,8 +15,8 @@ import {
   Calendar,
   Building,
   Cloud,
-  ArrowRight,
-  Sparkles
+  Sparkles,
+  ArrowRight
 } from 'lucide-react'
 
 interface EmptyStateProps {
@@ -69,18 +69,20 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       </div>
 
       {/* Greeting */}
-      <h2 className={`text-2xl sm:text-3xl font-light tracking-tight mb-3 text-center ${
+      <h2 className={`text-2xl sm:text-3xl font-medium tracking-tight mb-2 text-center ${
         isDarkMode ? 'text-white' : 'text-slate-900'
       }`}>
         {userName ? (
-          <>Hello, <span className="font-medium bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-orange-600">{userName}</span></>
-        ) : 'How can I help?'}
+          <>Hello, <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-orange-600">{userName}</span></>
+        ) : 'I am F.B/c.'}
       </h2>
-      <p className={`text-sm font-light leading-relaxed mb-10 text-center max-w-md ${
+      <p className={`text-sm font-light leading-relaxed mb-1 text-center max-w-md ${
         isDarkMode ? 'text-white/40' : 'text-slate-500'
       }`}>
-        I&apos;m your AI partner for consulting and analysis. 
-        Start a conversation or explore the tools below.
+        I can analyze files, browse the web, and help you plan.
+      </p>
+      <p className="text-[10px] text-gray-400 mb-10 text-center">
+         Your data is processed securely & privately.
       </p>
 
       {/* Quick Actions */}
@@ -163,9 +165,12 @@ const EmptyState: React.FC<EmptyStateProps> = ({
               }`}>
                 {suggestion.icon}
               </div>
-              <span className={`text-xs font-medium leading-snug ${
+              <span className={`text-xs font-medium leading-snug flex-1 ${
                 isDarkMode ? 'text-white/70 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'
               }`}>{suggestion.text}</span>
+              <ArrowRight className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
+                isDarkMode ? 'text-white/30 group-hover:text-white/60' : 'text-slate-400 group-hover:text-slate-600'
+              }`} />
             </button>
           ))}
         </div>

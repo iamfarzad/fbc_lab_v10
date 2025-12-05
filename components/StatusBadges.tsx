@@ -6,9 +6,7 @@
 
 import React from 'react'
 import { 
-  Mic, 
   MicOff, 
-  Camera, 
   CameraOff, 
   Monitor, 
   MapPin,
@@ -73,44 +71,16 @@ export interface StatusBadgesProps {
 }
 
 const StatusBadges: React.FC<StatusBadgesProps> = ({
-  isVoiceActive,
-  isWebcamActive,
-  isScreenShareActive,
   isLocationShared,
-  // isConnected, // Reserved for future use
   isProcessing,
   className = ''
 }) => {
-  const hasAnyActive = isVoiceActive || isWebcamActive || isScreenShareActive || isLocationShared
+  const hasAnyActive = isLocationShared || isProcessing
 
-  if (!hasAnyActive && !isProcessing) return null
+  if (!hasAnyActive) return null
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {/* Voice Active */}
-      <Badge
-        active={!!isVoiceActive}
-        label="Voice"
-        icon={<Mic className="w-3 h-3" />}
-        color="bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20"
-      />
-
-      {/* Webcam Active */}
-      <Badge
-        active={!!isWebcamActive}
-        label="Camera"
-        icon={<Camera className="w-3 h-3" />}
-        color="bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-      />
-
-      {/* Screen Share Active */}
-      <Badge
-        active={!!isScreenShareActive}
-        label="Screen"
-        icon={<Monitor className="w-3 h-3" />}
-        color="bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
-      />
-
       {/* Location Shared */}
       <Badge
         active={!!isLocationShared}
@@ -123,7 +93,7 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
       {/* Processing */}
       <Badge
         active={!!isProcessing}
-        label="Thinking"
+        label="Thinking..."
         icon={<Brain className="w-3 h-3 animate-pulse" />}
         color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"
         pulse={false}

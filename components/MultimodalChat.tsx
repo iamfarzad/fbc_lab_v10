@@ -19,6 +19,8 @@ interface MultimodalChatProps {
   isWebcamActive: boolean;
   onWebcamChange: (active: boolean) => void;
   isScreenShareActive?: boolean | undefined;
+  isScreenShareInitializing?: boolean;
+  onScreenShareToggle?: () => void;
   isLocationShared?: boolean | undefined;
   localAiAvailable?: boolean | undefined;
   onLocalAction?: (text: string, action: 'rewrite' | 'proofread') => Promise<string>;
@@ -45,6 +47,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     isWebcamActive,
     onWebcamChange,
     isScreenShareActive,
+    isScreenShareInitializing,
+    onScreenShareToggle,
     isLocationShared,
     localAiAvailable,
     onLocalAction,
@@ -319,19 +323,20 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
           {/* CHAT HEADER - Inside Card Constraints */}
           <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 dark:border-white/5 shrink-0 z-10 bg-white/40 dark:bg-black/40 backdrop-blur-md gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${connectionState === LiveConnectionState.CONNECTED ? 'bg-orange-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
-                 <span className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/40' : 'text-black/40'} hidden sm:inline`}>
-                    {connectionState === LiveConnectionState.CONNECTED ? 'Live Session' : 'Chat History'}
-                 </span>
-                 {/* Status Badges */}
+              <div className="flex items-center gap-3 min-w-0">
+                 {/* Connection Dot & Title */}
+                 <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-500 ${connectionState === LiveConnectionState.CONNECTED ? 'bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
+                    <span className="text-sm font-bold tracking-wide text-gray-800 dark:text-gray-100">
+                        F.B/c
+                    </span>
+                 </div>
+
+                 {/* Status Badges (Only generic/location/processing) */}
                  <StatusBadges 
-                    isVoiceActive={connectionState === LiveConnectionState.CONNECTED}
-                    isWebcamActive={isWebcamActive}
-                    isScreenShareActive={isScreenShareActive}
                     isLocationShared={isLocationShared}
                     isProcessing={items.some(i => !i.isFinal)}
-                    className="ml-1"
+                    className="ml-2"
                  />
               </div>
               
@@ -451,6 +456,9 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
             setSelectedFile={setSelectedFile}
             isWebcamActive={isWebcamActive}
             onWebcamChange={onWebcamChange}
+            isScreenShareActive={isScreenShareActive}
+            isScreenShareInitializing={isScreenShareInitializing}
+            onScreenShareToggle={onScreenShareToggle}
             onSendMessage={onSendMessage}
             connectionState={connectionState}
             onConnect={onConnect}

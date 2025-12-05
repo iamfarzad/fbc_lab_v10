@@ -68,7 +68,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item, onPreview, isDarkMode =
                         </div>
 
                         {data.strategic && (
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <h4 className="text-[10px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500">Competitors</h4>
                                     <ul className="text-xs space-y-1 text-slate-600 dark:text-slate-300">
@@ -242,14 +242,22 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item, onPreview, isDarkMode =
             
             {/* Message Bubble */}
             {item.status === 'streaming' && !item.text ? (
-                <Shimmer />
+                <div className="flex flex-col gap-1 items-start max-w-[90%] font-medium">
+                     <span className="text-[10px] uppercase tracking-wider text-orange-500/80 mb-1 ml-1 animate-pulse">F.B/c Thinking</span>
+                    <Shimmer />
+                </div>
             ) : item.text ? (
                 <div className="group relative flex flex-col gap-1 max-w-[90%] md:max-w-[75%]">
+                    {/* Speaker Label */}
+                    <span className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ml-1 ${isUser ? 'text-gray-400 dark:text-gray-500 self-end mr-2 text-right' : 'text-orange-600/60 dark:text-orange-400/60 self-start'}`}>
+                        {isUser ? 'You' : 'F.B/c'}
+                    </span>
+
                     <div className={`
-                        relative px-5 py-4 text-[14px] leading-relaxed shadow-sm backdrop-blur-md transition-colors
+                        relative px-5 py-4 text-[14px] leading-relaxed shadow-sm backdrop-blur-3xl transition-all duration-300
                         ${isUser 
-                            ? 'bg-[#1a1a1a] dark:bg-white/10 text-white rounded-[24px] rounded-tr-none shadow-[0_4px_12px_rgba(0,0,0,0.1)]' 
-                            : 'bg-white/70 dark:bg-black/40 text-[#111] dark:text-gray-200 border border-white/60 dark:border-white/10 rounded-[24px] rounded-tl-none shadow-[0_4px_20px_rgba(255,255,255,0.5)] dark:shadow-none'
+                            ? 'bg-black text-white rounded-[24px] rounded-tr-sm shadow-xl' 
+                            : 'bg-white/60 dark:bg-white/5 text-gray-800 dark:text-gray-100 border border-white/60 dark:border-white/10 rounded-[24px] rounded-tl-sm shadow-sm hover:shadow-md hover:bg-white/80 dark:hover:bg-white/10'
                         }
                     `}>
                         <MarkdownRenderer content={item.text} isUser={isUser} />
