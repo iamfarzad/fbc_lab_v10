@@ -12,9 +12,7 @@ import {
   SignalHigh, 
   SignalMedium, 
   SignalLow,
-  RefreshCw,
-  AlertCircle,
-  ArrowRight
+  RefreshCw
 } from 'lucide-react'
 
 export type ConnectionQualityLevel = 'excellent' | 'good' | 'fair' | 'poor' | 'disconnected'

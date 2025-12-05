@@ -5,7 +5,7 @@
  * and their capabilities.
  */
 
-import React, { useState } from 'react'
+import React from 'react'
 import { 
   X, 
   Search, 
@@ -151,9 +151,7 @@ const ToolShowcase: React.FC<ToolShowcaseProps> = ({
   isOpen,
   onClose
 }) => {
-  // Remove unused state declarations
-  // const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  // const [selectedTool, setSelectedTool] = useState<ToolInfo | null>(null)
+
 
   if (!isOpen) return null
 

@@ -19,18 +19,18 @@ interface ChatInputDockProps {
     setSelectedFile: (file: any) => void;
     isWebcamActive: boolean;
     onWebcamChange: (active: boolean) => void;
-    isScreenShareActive?: boolean;
-    isScreenShareInitializing?: boolean;
-    onScreenShareToggle?: () => void;
+    isScreenShareActive?: boolean | undefined;
+    isScreenShareInitializing?: boolean | undefined;
+    onScreenShareToggle?: (() => void) | undefined;
     onSendMessage: (text: string, file?: { mimeType: string, data: string }) => void;
     connectionState: LiveConnectionState;
     onConnect: () => void;
     onDisconnect: () => void;
-    localAiAvailable?: boolean;
-    onLocalAction?: (text: string, action: 'rewrite' | 'proofread') => Promise<string>;
+    localAiAvailable?: boolean | undefined;
+    onLocalAction?: ((text: string, action: 'rewrite' | 'proofread') => Promise<string>) | undefined;
     suggestionsVisible: boolean;
-    onStopGeneration?: () => void;
-    isGenerating?: boolean;
+    onStopGeneration?: (() => void) | undefined;
+    isGenerating?: boolean | undefined;
 }
 
 const ChatInputDock: React.FC<ChatInputDockProps> = ({
@@ -394,7 +394,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
             {!isExpanded && (
             <div 
                 data-testid="chat-input-dock-collapsed"
-                className="absolute bottom-0 left-0 w-full p-4 pb-[env(safe-area-inset-bottom,24px)] md:pb-8 flex justify-center transition-all duration-500 delay-100 ease-out pointer-events-auto"
+                className="absolute bottom-0 left-0 w-full p-4 pb-[env(safe-area-inset-bottom,24px)] md:pb-8 flex justify-center pointer-events-auto animate-slide-up"
             >
                 <div className="flex items-center gap-3 w-full max-w-[500px] mx-auto">
                     
@@ -405,7 +405,9 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                         <Tooltip text={isWebcamActive ? "Close Camera" : "Open Camera"}>
                             <button 
                                 onClick={() => onWebcamChange(!isWebcamActive)}
-                                className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${isWebcamActive ? 'bg-blue-500 text-white shadow-md' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10'}`}
+                                className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${
+                                    isWebcamActive ? 'bg-blue-500 text-white shadow-md' : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10'
+                                }`}
                             >
                                 {isWebcamActive ? <Camera className="w-5 h-5" strokeWidth={1.5} /> : <CameraOff className="w-5 h-5" strokeWidth={1.5} />}
                             </button>
@@ -429,7 +431,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                 className={`
                                     relative w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500
                                     ${isConnected 
-                                        ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' 
+                                        ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)] animate-pop-in' 
                                         : isConnecting
                                             ? 'bg-orange-100 text-orange-400 animate-pulse'
                                             : 'bg-transparent text-gray-500 dark:text-gray-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600'
