@@ -32,6 +32,7 @@ interface MultimodalChatProps {
   onToggleTheme?: () => void;
   onGeneratePDF?: () => void;
   onEmailPDF?: () => void;
+  onGenerateDiscoveryReport?: () => void;
   userEmail?: string | undefined;
   userName?: string | undefined;
   activeTools?: ToolCall[];
@@ -57,6 +58,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onToggleTheme,
     onGeneratePDF,
     onEmailPDF,
+    onGenerateDiscoveryReport,
     userEmail,
     activeTools = []
 }) => {
@@ -344,7 +346,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                     </button>
                   )}
 
-                  {(onGeneratePDF || onEmailPDF) && (
+                  {(onGeneratePDF || onEmailPDF || onGenerateDiscoveryReport) && (
                     <div className="relative" ref={pdfMenuRef}>
                       <button 
                           onClick={() => setShowPDFMenu(!showPDFMenu)}
@@ -357,7 +359,23 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                       
                       {/* PDF Export Dropdown Menu */}
                       {showPDFMenu && items.length > 0 && (
-                        <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg border backdrop-blur-lg z-50 overflow-hidden ${isDarkMode ? 'bg-black/90 border-white/10' : 'bg-white/90 border-black/10'}`}>
+                        <div className={`absolute right-0 top-full mt-2 w-56 rounded-lg shadow-lg border backdrop-blur-lg z-50 overflow-hidden ${isDarkMode ? 'bg-black/90 border-white/10' : 'bg-white/90 border-black/10'}`}>
+                          {/* Discovery Report - Primary Option */}
+                          {onGenerateDiscoveryReport && (
+                            <button
+                              onClick={() => {
+                                onGenerateDiscoveryReport();
+                                setShowPDFMenu(false);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'text-white hover:bg-white/10 border-white/5' : 'text-black hover:bg-black/5 border-black/5'}`}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+                              <div className="text-left">
+                                <div className="font-semibold">AI Discovery Report</div>
+                                <div className={`text-[10px] ${isDarkMode ? 'text-white/50' : 'text-black/50'}`}>McKinsey-style insights</div>
+                              </div>
+                            </button>
+                          )}
                           {onGeneratePDF && (
                             <button
                               onClick={() => {
@@ -367,7 +385,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                               className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${isDarkMode ? 'text-white/80 hover:bg-white/10' : 'text-black/80 hover:bg-black/5'}`}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                              Download PDF
+                              Download Transcript
                             </button>
                           )}
                           {onEmailPDF && (

@@ -4,7 +4,7 @@ import { toolExecutor } from '../tools/tool-executor.js';
 import { getChatToolDefinitions } from '../tools/unified-tool-registry.js';
 import { z } from 'zod';
 import type { AgentContext, ChatMessage } from './types.js';
-import { GEMINI_MODELS } from '../../config/constants.js';
+import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js';
 
 // src/core/agents/closer-agent.ts — FINAL UPGRADED VERSION
 // Uses unified tool registry + agent-specific tools
@@ -71,7 +71,7 @@ Respond to the user's last message and close.`;
       }
     },
     create_calendar_widget: {
-      description: 'Show booking calendar',
+      description: 'Generate a calendar booking link widget for the user. IMPORTANT: This provides a LINK for the user to click - you CANNOT book on their behalf or send calendar invites.',
       parameters: z.object({
         title: z.string().default("Book Your Free Strategy Call"),
         description: z.string().optional(),
@@ -84,15 +84,17 @@ Respond to the user's last message and close.`;
           agent: 'Closer Agent',
           inputs: args,
           handler: async () => Promise.resolve({
-            type: 'calendar_widget',
+            type: 'calendar_link',
             title: args.title,
             description: args.description,
-            url: args.url || 'https://cal.com/farzad/strategy-call',
-            rendered: true
+            url: args.url || CALENDAR_CONFIG.DEFAULT,
+            message: `Here's your booking link: ${args.url || CALENDAR_CONFIG.DEFAULT}`,
+            rendered: true,
+            actuallyBooked: false // BE EXPLICIT: we did NOT book a meeting
           }),
           cacheable: false
         });
-        if (!result.success) throw new Error('Calendar failed');
+        if (!result.success) throw new Error('Calendar widget failed');
         return result.data;
       }
     }

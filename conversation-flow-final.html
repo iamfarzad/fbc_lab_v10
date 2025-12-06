@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Conversation Flow: Workshop vs Consulting</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    h1 {
+      color: #2563eb;
+      border-bottom: 3px solid #2563eb;
+      padding-bottom: 10px;
+      margin-top: 0;
+      page-break-after: avoid;
+    }
+    h2 {
+      color: #1e40af;
+      margin-top: 40px;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 5px;
+      page-break-after: avoid;
+    }
+    h3 {
+      color: #3b82f6;
+      margin-top: 30px;
+      page-break-after: avoid;
+    }
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #1f2937;
+      color: #f9fafb;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      page-break-inside: avoid;
+    }
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 20px 0;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: #1e40af;
+    }
+    tr:nth-child(even) {
+      background: #f9fafb;
+    }
+    hr {
+      border: none;
+      border-top: 2px solid #e5e7eb;
+      margin: 30px 0;
+    }
+    ul, ol {
+      margin: 15px 0;
+      padding-left: 30px;
+    }
+    li {
+      margin: 8px 0;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+      background: #d1fae5;
+      color: #065f46;
+    }
+    @media print {
+      body {
+        padding: 20px;
+      }
+      h1, h2, h3 {
+        page-break-after: avoid;
+      }
+      table, pre {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Conversation Flow: Workshop vs Consulting Routing</h1>
+  <p><strong>Generated:</strong> 12/6/2025, 7:47:29 PM</p>
+  <p><strong>Status:</strong> <span class="status">✅ Production-Ready</span></p>
+  
+  <p><h1>Conversation Flow: Workshop vs Consulting Routing</h1></p><p><strong>Date:</strong> 2025-12-06  <br><strong>Status:</strong> ✅ <strong>Fully Implemented</strong></p><p><h2>Executive Summary</h2></p><p>The system automatically routes leads to <strong>Workshop</strong> or <strong>Consulting</strong> pitches based on fit scores calculated during the scoring phase. The decision is made automatically, but can be influenced by explicit user preferences.</p><p><hr></p><p><h2>Flow Overview</h2></p><p><pre><code>START<br>  ↓<br>DISCOVERY (Discovery Agent)<br>  ↓ Collects: goals, pain, data, readiness, budget, success<br>  ↓<br>SCORING (Scoring Agent)<br>  ↓ Calculates: leadScore (0-100), fitScore.workshop (0-1), fitScore.consulting (0-1)<br>  ↓<br>determinePitchType()<br>  ↓<br>  ├─→ WORKSHOP_PITCH (if workshop fit > 0.7 and > consulting + 0.1)<br>  │   └─→ Workshop Sales Agent<br>  │<br>  ├─→ CONSULTING_PITCH (if consulting fit > 0.7 and > workshop + 0.1)<br>  │   └─→ Consulting Sales Agent<br>  │<br>  └─→ PITCHING (if unclear fit)<br>      └─→ Unified Pitch Agent (auto-detects based on fit scores)<br>  ↓<br>OBJECTION? (if detected)<br>  ↓ Objection Agent<br>  ↓<br>CLOSING (Closer Agent)<br>  ↓<br>BOOKED / SUMMARY<br></code></pre></p><p><hr></p><p><h2>Stage 1: DISCOVERY</h2></p><p><strong>Agent:</strong> <code>discoveryAgent</code>  <br><strong>Purpose:</strong> Systematically qualify leads across 6 categories</p><p><strong>Categories Covered:</strong><br><ul><li><strong>GOALS</strong> - What are they trying to achieve with AI?</li><br><li><strong>PAIN</strong> - What's broken or frustrating?</li><br><li><strong>DATA</strong> - Where is their data? How organized?</li><br><li><strong>READINESS</strong> - Team buy-in? Change management concerns?</li><br><li><strong>BUDGET</strong> - Timeline? Investment range?</li><br><li><strong>SUCCESS</strong> - What metrics would make this worthwhile?</li></ul></p><p><strong>Key Signals Collected:</strong><br><ul><li>Role seniority (C-level, VP, Director, Manager, IC)</li><br><li>Company size (startup, small, mid-market, enterprise)</li><br><li>Budget signals (explicit mentions, urgency, timeline)</li><br><li>Intent keywords:</li></ul><br>  - <strong>Workshop signals:</strong> "training", "teach team", "upskilling", "workshop", "learn"<br>  - <strong>Consulting signals:</strong> "custom build", "implementation", "integrate", "scale", "automation"</p><p><strong>Exit Conditions:</strong><br><ul><li>Enough context collected (4+ categories covered)</li><br><li>Moves to SCORING stage</li></ul></p><p><hr></p><p><h2>Stage 2: SCORING</h2></p><p><strong>Agent:</strong> <code>scoringAgent</code>  <br><strong>Purpose:</strong> Calculate lead score and fit scores for workshop vs consulting</p><p><h3>Lead Score Calculation (0-100)</h3></p><p><strong>Components:</strong><br><ul><li><strong>Role Seniority (30 points max):</strong></li></ul><br>   - C-level/Founder: 30<br>   - VP/Director: 20<br>   - Manager: 10<br>   - Individual contributor: 5</p><p><ul><li><strong>Company Signals (25 points max):</strong></li></ul><br>   - Enterprise (500+ employees): 25<br>   - Mid-market (50-500): 15<br>   - Small (10-50): 10<br>   - Startup (<10): 5</p><p><ul><li><strong>Conversation Quality (25 points max):</strong></li></ul><br>   - All 6 categories covered: 25<br>   - 4-5 categories: 15<br>   - 2-3 categories: 10<br>   - 1 category: 5</p><p><ul><li><strong>Budget Signals (20 points max):</strong></li></ul><br>   - Explicit budget mentioned: 20<br>   - Timeline urgency (Q1/Q2): 15<br>   - Just exploring: 5</p><p><ul><li><strong>Multimodal Bonuses:</strong></li></ul><br>   - Voice used: +10 points (commitment signal)<br>   - Screen shared: +15 points (HIGH INTENT - showing pain points)<br>   - Webcam shown: +5 points (comfort/trust)<br>   - Documents uploaded: +10 points (prepared/serious)</p><p><h3>Fit Score Calculation (0.0 - 1.0)</h3></p><p><strong>Workshop Fit Indicators:</strong><br><ul><li>Manager/Team Lead role (not C-level)</li><br><li>Mid-size company (50-500 employees)</li><br><li>Mentions: "training", "teach team", "upskilling", "workshop"</li><br><li>Budget range: $5K-$15K signals</li></ul></p><p><strong>Consulting Fit Indicators:</strong><br><ul><li>C-level/VP role</li><br><li>Enterprise or well-funded startup</li><br><li>Mentions: "custom build", "implementation", "integrate", "scale"</li><br><li>Budget range: $50K+ signals</li></ul></p><p><strong>Output:</strong><br><pre><code>{<br>  "leadScore": 75,<br>  "fitScore": {<br>    "workshop": 0.3,<br>    "consulting": 0.8<br>  },<br>  "reasoning": "C-level executive at enterprise company seeking custom implementation"<br>}<br></code></pre></p><p><hr></p><p><h2>Stage 3: Pitch Type Determination</h2></p><p><strong>Function:</strong> <code>determinePitchType()</code>  <br><strong>Location:</strong> <code>src/core/agents/client-orchestrator.ts</code></p><p><strong>Logic:</strong><br><pre><code>function determinePitchType(): 'WORKSHOP_PITCH' <tr><td>'CONSULTING_PITCH'</td></tr> 'PITCHING' {<br>  if (!flowState.fitScore) return 'PITCHING'<br>  <br>  const { workshop, consulting } = flowState.fitScore<br>  <br>  // Clear workshop fit<br>  if (workshop > 0.7 && workshop > consulting + 0.1) {<br>    return 'WORKSHOP_PITCH'<br>  }<br>  <br>  // Clear consulting fit<br>  if (consulting > 0.7 && consulting > workshop + 0.1) {<br>    return 'CONSULTING_PITCH'<br>  }<br>  <br>  // Use generic pitch for unclear fit<br>  return 'PITCHING'<br>}<br></code></pre></p><p><strong>Decision Matrix:</strong></p><p><tr><td>Workshop Score</td><td>Consulting Score</td><td>Result</td></tr></p><p><tr><td>> 0.7</td><td>< workshop + 0.1</td><td><code>WORKSHOP_PITCH</code></td></tr><br><tr><td>< consulting + 0.1</td><td>> 0.7</td><td><code>CONSULTING_PITCH</code></td></tr><br><tr><td>Otherwise</td><td>Otherwise</td><td><code>PITCHING</code> (unified)</td></tr></p><p><hr></p><p><h2>Stage 4: Pitching</h2></p><p><h3>Option A: WORKSHOP_PITCH</h3></p><p><strong>Agent:</strong> <code>workshopSalesAgent</code>  <br><strong>Target:</strong> Mid-size companies, team leads/managers, $5K-$15K budget</p><p><strong>Pitch Structure:</strong><br><ul><li>Acknowledge pain from discovery</li><br><li>Position workshop as solution (hands-on training)</li><br><li>Show concrete value (e.g., "Training 10 people = $50K in productivity gains")</li><br><li>Soft CTA with calendar link</li></ul></p><p><strong>Workshop Packages:</strong><br><ul><li><strong>AI Fundamentals (1 day)</strong> - $5,000</li></ul><br>   - For teams new to AI<br>   - Covers: prompting, tools overview, use case identification</p><p><ul><li><strong>AI Implementation (2 days)</strong> - $10,000</li></ul><br>   - For teams ready to build<br>   - Covers: workflow automation, custom GPTs, integration planning</p><p><ul><li><strong>AI Leadership (1 day)</strong> - $7,500</li></ul><br>   - For executives and managers<br>   - Covers: strategy, ROI measurement, governance, team enablement</p><p><strong>Calendar Link:</strong> <code>CALENDAR_CONFIG.WORKSHOP</code></p><p><strong>Key Constraints:</strong><br><ul><li>Don't mention consulting (different product)</li><br><li>Keep pricing ranges, finalize in call</li><br><li>Create urgency: "Next workshop is in [timeframe], spots are limited"</li><br><li>Reference multimodal moments naturally</li></ul></p><p><hr></p><p><h3>Option B: CONSULTING_PITCH</h3></p><p><strong>Agent:</strong> <code>consultingSalesAgent</code>  <br><strong>Target:</strong> C-level/VPs, enterprise companies, $50K+ budget</p><p><strong>Pitch Structure:</strong><br><ul><li>Acknowledge pain from discovery</li><br><li>Position custom solution (implementation/integration)</li><br><li>Show concrete ROI (e.g., "Automating this process = $200K/year savings")</li><br><li>Strong CTA with calendar link</li></ul></p><p><strong>Consulting Engagement Tiers:</strong></p><p><ul><li><strong>Strategy & Assessment</strong> ($15K - $25K)</li></ul><br>   - 2-4 week engagement<br>   - AI readiness assessment<br>   - Implementation roadmap<br>   - Technology recommendations</p><p><ul><li><strong>Pilot Implementation</strong> ($50K - $100K)</li></ul><br>   - 8-12 week engagement<br>   - Single workflow automation<br>   - Proof of concept<br>   - Team training included</p><p><ul><li><strong>Full Implementation</strong> ($150K - $500K+)</li></ul><br>   - 3-6 month engagement<br>   - Enterprise-wide AI transformation<br>   - Multiple system integrations<br>   - Ongoing support & optimization</p><p><strong>Calendar Link:</strong> <code>CALENDAR_CONFIG.CONSULTING</code></p><p><strong>Key Constraints:</strong><br><ul><li>Don't mention workshops (for smaller leads)</li><br><li>Be direct about pricing: "Engagements typically start at $50K"</li><br><li>Reference similar clients: "We did something similar for [industry] company"</li><br><li>Executive-level, ROI-focused, direct</li></ul></p><p><hr></p><p><h3>Option C: PITCHING (Unified)</h3></p><p><strong>Agent:</strong> <code>pitchAgent</code>  <br><strong>Purpose:</strong> Auto-detects primary product when fit is unclear</p><p><strong>Logic:</strong><br><pre><code>const workshopScore = intelligenceContext.fitScore?.workshop || 0<br>const consultingScore = intelligenceContext.fitScore?.consulting || 0<br>const isWorkshop = workshopScore > consultingScore<br>const product = isWorkshop ? 'workshop' : 'consulting'<br></code></pre></p><p><strong>Features:</strong><br><ul><li>Dynamic ROI calculation using <code>calculateRoi()</code> tool</li><br><li>References multimodal context naturally</li><br><li>Uses exact company/role context</li><br><li>Price guidance: only reveal if high interest (>0.75) or asked directly</li></ul></p><p><strong>Product Config:</strong><br><ul><li><strong>Workshop:</strong> $8K–$18K, 2–3 days, intensive hands-on</li><br><li><strong>Consulting:</strong> $80K–$400K+, 3–12 months, strategic partnership</li></ul></p><p><hr></p><p><h2>Stage 5: Objection Handling (if detected)</h2></p><p><strong>Agent:</strong> <code>objectionAgent</code>  <br><strong>Trigger:</strong> Objection detected with confidence > 0.7</p><p><strong>Objection Types:</strong><br><ul><li><code>price</code> - Budget concerns</li><br><li><code>timing</code> - Not the right time</li><br><li><code>authority</code> - Need to check with team/boss</li><br><li><code>need</code> - Not sure if we need this</li><br><li><code>trust</code> - Credibility questions</li></ul></p><p><strong>Flow:</strong><br><ul><li>Handles objection with contextual rebuttal</li><br><li>After 2+ objections → moves to CLOSING</li><br><li>Otherwise → returns to PITCHING</li></ul></p><p><hr></p><p><h2>Stage 6: CLOSING</h2></p><p><strong>Agent:</strong> <code>closerAgent</code>  <br><strong>Purpose:</strong> Close the deal, provide booking link</p><p><strong>Tools Available:</strong><br><ul><li><code>calculate_roi</code> - Calculate ROI based on investment</li><br><li><code>create_calendar_widget</code> - Generate booking link</li><br><li><code>extract_action_items</code> - Extract key outcomes</li><br><li><code>generate_summary_preview</code> - Generate conversation summary</li></ul></p><p><strong>Key Rules:</strong><br><ul><li>Reference multimodal experience: "You've already seen what our AI can do live"</li><br><li>Create urgency: "Slots are filling fast"</li><br><li>Remove friction: "Free call, no commitment"</li><br><li><strong>CRITICAL:</strong> Calendar widget returns <code>actuallyBooked: false</code> - only provides LINK</li></ul></p><p><hr></p><p><h2>Stage 7: BOOKED / SUMMARY</h2></p><p><strong>Agent:</strong> <code>summaryAgent</code>  <br><strong>Purpose:</strong> Wrap up conversation, generate summary</p><p><strong>Output:</strong><br><ul><li>Structured conversation summary</li><br><li>Multimodal interaction details</li><br><li>Recommended solutions (workshop or consulting)</li><br><li>Next steps</li></ul></p><p><hr></p><p><h2>User Preference Override</h2></p><p><strong>Current Status:</strong> ⚠️ <strong>Not explicitly implemented</strong></p><p><strong>How it works now:</strong><br><ul><li>System determines pitch type automatically based on fit scores</li><br><li>User can express preference during discovery, which influences fit scores</li><br><li>Explicit mentions like "I want a workshop" or "We need consulting" are captured in discovery</li></ul></p><p><strong>Potential Enhancement:</strong><br><ul><li>Add explicit preference detection in discovery agent</li><br><li>Override fit scores if user explicitly states preference</li><br><li>Example: "I want a workshop" → force <code>WORKSHOP_PITCH</code> even if consulting fit is higher</li></ul></p><p><hr></p><p><h2>Example Flows</h2></p><p><h3>Example 1: Workshop Lead</h3></p><p><pre><code>User: "I'm a team lead at a 50-person company. We want to train our team on AI."</p><p>DISCOVERY:<br><ul><li>Role: Manager</li><br><li>Company: 50 employees (mid-market)</li><br><li>Goal: Team training</li><br><li>Budget: $10K mentioned</li></ul></p><p>SCORING:<br><ul><li>leadScore: 65</li><br><li>fitScore: { workshop: 0.85, consulting: 0.25 }</li></ul></p><p>determinePitchType():<br><ul><li>workshop (0.85) > 0.7 ✅</li><br><li>workshop (0.85) > consulting (0.25) + 0.1 ✅</li><br><li>Result: WORKSHOP_PITCH</li></ul></p><p>WORKSHOP_PITCH:<br><ul><li>Pitches AI Implementation Workshop (2 days, $10K)</li><br><li>Focuses on hands-on training, team upskilling</li><br><li>Calendar link: CALENDAR_CONFIG.WORKSHOP</li></ul><br></code></pre></p><p><h3>Example 2: Consulting Lead</h3></p><p><pre><code>User: "I'm the CTO at a 500-person company. We need to automate our customer service workflows."</p><p>DISCOVERY:<br><ul><li>Role: C-Level</li><br><li>Company: 500 employees (enterprise)</li><br><li>Goal: Custom automation</li><br><li>Budget: $100K+ mentioned</li></ul></p><p>SCORING:<br><ul><li>leadScore: 90</li><br><li>fitScore: { workshop: 0.2, consulting: 0.9 }</li></ul></p><p>determinePitchType():<br><ul><li>consulting (0.9) > 0.7 ✅</li><br><li>consulting (0.9) > workshop (0.2) + 0.1 ✅</li><br><li>Result: CONSULTING_PITCH</li></ul></p><p>CONSULTING_PITCH:<br><ul><li>Pitches Pilot Implementation ($50K-$100K)</li><br><li>Focuses on custom automation, ROI ($200K/year savings)</li><br><li>Calendar link: CALENDAR_CONFIG.CONSULTING</li></ul><br></code></pre></p><p><h3>Example 3: Unclear Fit</h3></p><p><pre><code>User: "We're exploring AI for our business. Not sure what we need."</p><p>DISCOVERY:<br><ul><li>Role: Director</li><br><li>Company: 100 employees</li><br><li>Goal: General exploration</li><br><li>Budget: Not mentioned</li></ul></p><p>SCORING:<br><ul><li>leadScore: 55</li><br><li>fitScore: { workshop: 0.5, consulting: 0.5 }</li></ul></p><p>determinePitchType():<br><ul><li>Neither score > 0.7</li><br><li>Result: PITCHING (unified)</li></ul></p><p>PITCHING:<br><ul><li>Auto-detects: workshop (0.5) vs consulting (0.5) → defaults to consulting</li><br><li>Presents both options or asks clarifying questions</li><br><li>Uses dynamic ROI calculation</li></ul><br></code></pre></p><p><hr></p><p><h2>Key Files</h2></p><p><tr><td>File</td><td>Purpose</td></tr></p><p><tr><td><code>src/core/agents/scoring-agent.ts</code></td><td>Calculates lead and fit scores</td></tr><br><tr><td><code>src/core/agents/client-orchestrator.ts</code></td><td>Routes to appropriate pitch type</td></tr><br><tr><td><code>src/core/agents/workshop-sales-agent.ts</code></td><td>Pitches workshops</td></tr><br><tr><td><code>src/core/agents/consulting-sales-agent.ts</code></td><td>Pitches consulting</td></tr><br><tr><td><code>src/core/agents/pitch-agent.ts</code></td><td>Unified pitch (unclear fit)</td></tr><br><tr><td><code>src/core/types/funnel-stage.ts</code></td><td>Stage definitions</td></tr></p><p><hr></p><p><h2>Configuration</h2></p><p><strong>Calendar Links:</strong><br><ul><li>Workshop: <code>CALENDAR_CONFIG.WORKSHOP</code></li><br><li>Consulting: <code>CALENDAR_CONFIG.CONSULTING</code></li><br><li>Default: <code>CALENDAR_CONFIG.DEFAULT</code></li></ul></p><p><strong>Fit Score Thresholds:</strong><br><ul><li>Clear fit: > 0.7</li><br><li>Margin: > 0.1 difference between scores</li><br><li>Default: Use unified pitch agent</li></ul></p><p><hr></p><p><h2>Summary</h2></p><p>✅ <strong>System automatically routes based on fit scores</strong>  <br>✅ <strong>Workshop vs Consulting decision made during SCORING stage</strong>  <br>✅ <strong>Three pitch paths: WORKSHOP_PITCH, CONSULTING_PITCH, PITCHING (unified)</strong>  <br>✅ <strong>User preferences captured during discovery influence fit scores</strong>  <br>⚠️ <strong>Explicit preference override not yet implemented (but can be added)</strong></p><p><strong>Status:</strong> Production-ready ✅</p><p></p>
+  
+  <div style="margin-top: 60px; padding-top: 20px; border-top: 2px solid #e5e7eb; color: #6b7280; font-size: 0.9em;">
+    <p><strong>F.B/c AI Consultation System</strong></p>
+    <p>This document describes the automated conversation flow routing system.</p>
+    <p>For questions or updates, contact the development team.</p>
+  </div>
+</body>
+</html>
+  

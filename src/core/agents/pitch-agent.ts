@@ -91,17 +91,24 @@ CRITICAL CONTEXT:
 - Budget signals: ${intelligenceContext.budget?.hasExplicit ? 'explicit' : 'inferred'} ${intelligenceContext.budget?.minUsd ? `($${intelligenceContext.budget.minUsd}k+)` : ''}
 - Fit score (${product}): ${isWorkshop ? workshopScore.toFixed(2) : consultingScore.toFixed(2)}
 - Interest level: ${(intelligenceContext.interestLevel || 0.7).toFixed(2)}
-- ROI projection: ${roi.projectedRoi}x in ${roi.paybackMonths} months
+- CALCULATED ROI: ${roi.projectedRoi}x return in ${roi.paybackMonths} months
+
+CRITICAL ROI RULES:
+- You may ONLY mention the ROI above: ${roi.projectedRoi}x 
+- NEVER make up other ROI numbers like 100x, 200x, or any high multiples
+- If asked about ROI, refer ONLY to the ${roi.projectedRoi}x figure above
+- If you don't have ROI data, say "we'd need to calculate that based on your specifics"
 
 RECENT MULTIMODAL INSIGHTS:
 ${multimodalContext?.recentAnalyses?.slice(0, 3).map((a: string) => `- ${a}`).join('\n') || 'None'}
 
 PITCH RULES:
-- Never mention the other product unless asked
+- FIRST: Answer any direct questions the user asked
 - Use exact company/role context naturally
 - Reference what they showed on screen/webcam/uploaded
 - Create urgency without sounding salesy
 - End with a clear next step (book call or ask for budget/timeline)
+- Keep responses concise (2-3 sentences max for voice mode)
 
 Price guidance: ${productInfo.priceRange} — only reveal if they show high interest (>0.75) or ask directly.
 

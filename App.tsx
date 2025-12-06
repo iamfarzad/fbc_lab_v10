@@ -19,9 +19,11 @@ import { unifiedContext } from './services/unifiedContext';
 import { LiveConnectionState, TranscriptItem, VisualState, VisualShape, GroundingMetadata, ResearchResult } from './types';
 import { GEMINI_MODELS } from "src/config/constants";
 import { generatePDF } from './utils/pdfUtils';
+import { buildDiscoveryReportFromClient, generateDiscoveryReportHTMLClient, createDiscoveryReportTranscriptItem } from './utils/discoveryReportUtils';
 import { Tool, Type } from '@google/genai';
 import { logger } from 'src/lib/logger-client'
 import { useToast } from './context/ToastContext';
+import { buildContextSources } from './components/chat/ContextSources';
 
 // Routing Logic Types
 interface ModelRoute {
@@ -1235,6 +1237,39 @@ export const App: React.FC = () => {
         }));
     }, []);
 
+    // --- Discovery Report Generation ---
+    const handleGenerateDiscoveryReport = useCallback(() => {
+        try {
+            // Build report data from current session
+            const reportData = buildDiscoveryReportFromClient({
+                sessionId,
+                transcript,
+                userProfile,
+                researchContext: researchResultRef.current,
+                voiceMinutes: voiceStatsRef.current?.totalMinutes || 0,
+                screenMinutes: screenShare.isActive ? 5 : 0, // Estimate
+                filesUploaded: transcript.filter(t => t.attachment?.type === 'file').length
+            });
+
+            // Generate HTML content for preview
+            const htmlContent = generateDiscoveryReportHTMLClient(reportData);
+
+            // Create transcript item with report
+            const reportItem = createDiscoveryReportTranscriptItem(reportData, htmlContent);
+
+            // Add to transcript
+            setTranscript(prev => [...prev, reportItem]);
+
+            showToast('Discovery Report generated! Review your insights below.', 'success');
+        } catch (err) {
+            console.error('Failed to generate discovery report:', err);
+            showToast('Failed to generate Discovery Report. Please try again.', 'error');
+        }
+    }, [sessionId, transcript, userProfile, screenShare.isActive, showToast]);
+
+    // Ref to track voice stats (to be populated by voice service)
+    const voiceStatsRef = useRef<{ totalMinutes: number }>({ totalMinutes: 0 });
+
     const handleSendMessage = useCallback(async (text: string, file?: { mimeType: string, data: string }) => {
         const route = smartRouteModel(text, !!file);
         setActiveRoute(route);
@@ -1426,6 +1461,24 @@ export const App: React.FC = () => {
                 });
 
                 if (!agentResponse.success) {
+                    // Handle error case - create error transcript item
+                    const errorMessage = agentResponse.error || 'Unknown error occurred';
+                    setTranscript(prev => prev.map(item =>
+                        item.id === loadingId.toString()
+                            ? {
+                                ...item,
+                                text: errorMessage,
+                                status: 'error',
+                                error: {
+                                    type: 'server',
+                                    message: errorMessage,
+                                    retryable: true
+                                },
+                                isFinal: true
+                            }
+                            : item
+                    ));
+                    
                     // Fallback to StandardChatService if agent fails
                     console.warn('[App] Agent system failed, falling back to standard chat:', agentResponse.error);
                     setBackendStatus({
@@ -1449,6 +1502,19 @@ export const App: React.FC = () => {
                             message: 'StandardChat response used (agent unavailable)',
                             severity: 'warn'
                         });
+                        // Build context sources for fallback response
+                        const fallbackContextSources = buildContextSources({
+                            company: unifiedSnapshotForFallback.intelligenceContext?.company,
+                            person: unifiedSnapshotForFallback.intelligenceContext?.person,
+                            // Location only has lat/lng, not city/country
+                            hasConversation: transcriptRef.current.length > 0,
+                            uploadedFiles: transcriptRef.current
+                                .filter(item => item.attachment?.type === 'file')
+                                .map(item => item.attachment?.name || 'file'),
+                            hasWebcam: isWebcamActive,
+                            hasScreen: screenShare.isActive
+                        });
+                        
                         // Handle standard response (same as before)
                         setTranscript(prev => prev.map(item =>
                             item.id === loadingId.toString()
@@ -1457,6 +1523,7 @@ export const App: React.FC = () => {
                                     text: response.text,
                                     ...(response.reasoning !== undefined && { reasoning: response.reasoning }),
                                     ...(response.groundingMetadata !== undefined && { groundingMetadata: response.groundingMetadata }),
+                                    ...(fallbackContextSources.length > 0 ? { contextSources: fallbackContextSources } : {}),
                                     isFinal: true,
                                     status: 'complete'
                                 }
@@ -1479,7 +1546,22 @@ export const App: React.FC = () => {
                         severity: 'warn'
                     });
 
+                    const unifiedSnapshotForError = unifiedContext.getSnapshot();
                     const response = await standardChatRef.current.sendMessage(currentHistory, text, file, route.id);
+                    
+                    // Build context sources for error fallback response
+                    const errorFallbackContextSources = buildContextSources({
+                        company: unifiedSnapshotForError.intelligenceContext?.company,
+                        person: unifiedSnapshotForError.intelligenceContext?.person,
+                        // Location only has lat/lng, not city/country
+                        hasConversation: transcriptRef.current.length > 0,
+                        uploadedFiles: transcriptRef.current
+                            .filter(item => item.attachment?.type === 'file')
+                            .map(item => item.attachment?.name || 'file'),
+                        hasWebcam: isWebcamActive,
+                        hasScreen: screenShare.isActive
+                    });
+                    
                     setTranscript(prev => prev.map(item =>
                         item.id === loadingId.toString()
                             ? {
@@ -1487,6 +1569,7 @@ export const App: React.FC = () => {
                                 text: response.text,
                                 ...(response.reasoning !== undefined && { reasoning: response.reasoning }),
                                 ...(response.groundingMetadata !== undefined && { groundingMetadata: response.groundingMetadata }),
+                                ...(errorFallbackContextSources.length > 0 ? { contextSources: errorFallbackContextSources } : {}),
                                 isFinal: true,
                                 status: 'complete'
                             }
@@ -1519,7 +1602,22 @@ export const App: React.FC = () => {
                             standardChatRef.current.setResearchContext(unifiedSnapshotForFallback.researchContext);
                         }
 
+                        const unifiedSnapshotForEmpty = unifiedContext.getSnapshot();
                         const response = await standardChatRef.current.sendMessage(currentHistory, text, file, route.id);
+                        
+                        // Build context sources for empty response fallback
+                        const emptyFallbackContextSources = buildContextSources({
+                            company: unifiedSnapshotForEmpty.intelligenceContext?.company,
+                            person: unifiedSnapshotForEmpty.intelligenceContext?.person,
+                            // Location only has lat/lng, not city/country
+                            hasConversation: transcriptRef.current.length > 0,
+                            uploadedFiles: transcriptRef.current
+                                .filter(item => item.attachment?.type === 'file')
+                                .map(item => item.attachment?.name || 'file'),
+                            hasWebcam: isWebcamActive,
+                            hasScreen: screenShare.isActive
+                        });
+                        
                         setTranscript(prev => prev.map(item =>
                             item.id === loadingId.toString()
                                 ? {
@@ -1527,6 +1625,7 @@ export const App: React.FC = () => {
                                     text: response.text,
                                     ...(response.reasoning !== undefined && { reasoning: response.reasoning }),
                                     ...(response.groundingMetadata !== undefined && { groundingMetadata: response.groundingMetadata }),
+                                    ...(emptyFallbackContextSources.length > 0 ? { contextSources: emptyFallbackContextSources } : {}),
                                     isFinal: true,
                                     status: 'complete'
                                 }
@@ -1603,6 +1702,32 @@ export const App: React.FC = () => {
                     chunks: enhancedGroundingMetadata?.groundingChunks
                 });
                 
+                // Build context sources from available context
+                const unifiedSnapshotForContext = unifiedContext.getSnapshot();
+                const contextSources = buildContextSources({
+                    company: intelligenceContextRef.current?.company || unifiedSnapshotForContext.intelligenceContext?.company,
+                    person: intelligenceContextRef.current?.person || unifiedSnapshotForContext.intelligenceContext?.person,
+                    // Location only has lat/lng, not city/country - skip for now
+                    // location: unifiedSnapshotForContext.location ? {
+                    //     city: (unifiedSnapshotForContext.location as any).city,
+                    //     country: (unifiedSnapshotForContext.location as any).country
+                    // } : undefined,
+                    hasConversation: transcriptRef.current.length > 0,
+                    uploadedFiles: transcriptRef.current
+                        .filter(item => item.attachment?.type === 'file')
+                        .map(item => item.attachment?.name || 'file'),
+                    hasWebcam: isWebcamActive,
+                    hasScreen: screenShare.isActive,
+                    ...(enhancedGroundingMetadata?.groundingChunks ? {
+                        webSources: enhancedGroundingMetadata.groundingChunks
+                            .filter((chunk: any) => chunk.web)
+                            .map((chunk: any) => ({
+                                title: chunk.web.title,
+                                url: chunk.web.uri
+                            }))
+                    } : {})
+                });
+                
                 setTranscript(prev => prev.map(item =>
                     item.id === loadingId.toString()
                         ? {
@@ -1617,6 +1742,7 @@ export const App: React.FC = () => {
                                     ...(enhancedGroundingMetadata.searchEntryPoint && { searchEntryPoint: enhancedGroundingMetadata.searchEntryPoint })
                                 } as GroundingMetadata
                             } : {}),
+                            ...(contextSources.length > 0 ? { contextSources } : {}),
                             isFinal: true,
                             status: 'complete'
                         }
@@ -1975,6 +2101,7 @@ export const App: React.FC = () => {
                                     researchContext: researchResultRef.current
                                 });
                             }}
+                            onGenerateDiscoveryReport={handleGenerateDiscoveryReport}
                             onEmailPDF={async () => {
                                 if (!userProfile?.email) {
                                     alert('No email address available. Please provide your email first.');

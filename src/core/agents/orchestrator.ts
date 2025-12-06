@@ -4,9 +4,11 @@ import { objectionAgent } from './objection-agent.js'
 import { closerAgent } from './closer-agent.js'
 import { summaryAgent } from './summary-agent.js'
 import { detectObjection } from './utils/detect-objections.js'
+import { validateAgentResponse, quickValidate, generateValidationReport } from './response-validator.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
 import type { AgentResult, AgentContext, ChatMessage } from './types.js'
 import { GEMINI_MODELS } from '../../config/constants.js'
+import { logger } from '../../lib/logger.js'
 
 /**
  * Simplified Multi-Agent Orchestrator - Routes conversations to specialized agents
@@ -83,23 +85,95 @@ export async function routeToAgent(params: {
         }
 
   // === NORMAL FLOW ===
+  let result: AgentResult
+
   switch (currentStage) {
     case 'DISCOVERY':
-      return discoveryAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      result = await discoveryAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      break
 
     case 'SCORING':
     case 'PITCHING':
-      return pitchAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      result = await pitchAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      break
 
-      case 'CLOSING':
-      return closerAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+    case 'CLOSING':
+      result = await closerAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      break
 
-      case 'SUMMARY':
-      return summaryAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+    case 'SUMMARY':
+      result = await summaryAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      break
 
-      default:
+    default:
       // Fallback to pitch for any unknown stage
-      return pitchAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      result = await pitchAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+  }
+
+  // === RESPONSE VALIDATION ===
+  return validateAndReturn(result, lastMessage, currentStage, sessionId)
+}
+
+/**
+ * Validate agent response and handle critical issues
+ */
+function validateAndReturn(
+  result: AgentResult,
+  userMessage: string,
+  stage: FunnelStage,
+  sessionId: string
+): AgentResult {
+  // Extract tools used from metadata (ensure it's an array)
+  const rawToolsUsed = result.metadata?.toolsUsed
+  const toolsUsed: string[] = Array.isArray(rawToolsUsed) ? rawToolsUsed : []
+
+  // Quick validation for performance
+  const quickCheck = quickValidate(result.output, toolsUsed)
+
+  if (quickCheck.hasCriticalIssue) {
+    logger.warn('Critical validation issue detected', {
+      agent: result.agent,
+      stage,
+      issue: quickCheck.issue,
+      sessionId
+    })
+
+    // Full validation for detailed report
+    const fullValidation = validateAgentResponse(result.output, {
+      toolsUsed,
+      userQuestion: userMessage,
+      agentName: result.agent,
+      stage
+    })
+
+    logger.debug(generateValidationReport(fullValidation, {
+      toolsUsed,
+      userQuestion: userMessage,
+      agentName: result.agent,
+      stage
+    }))
+
+    // Add warning to metadata but don't block response
+    // (Blocking can cause bad UX - better to log and improve prompts)
+    return {
+      ...result,
+      metadata: {
+        ...result.metadata,
+        validationIssues: fullValidation.issues.map(i => ({
+          type: i.type,
+          severity: i.severity
+        })),
+        validationPassed: false
+      }
+    }
+  }
+
+  return {
+    ...result,
+    metadata: {
+      ...result.metadata,
+      validationPassed: true
+    }
   }
 }
 
@@ -112,7 +186,7 @@ export async function routeToAgent(params: {
 export function getCurrentStage(context: AgentContext): FunnelStage {
   // Simple determination based on context
   if (context.stage) {
-    return context.stage as FunnelStage
+    return context.stage
   }
 
   const intelligenceContext = context.intelligenceContext

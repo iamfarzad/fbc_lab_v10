@@ -171,6 +171,20 @@ export const LIVE_FUNCTION_DECLARATIONS = [
       properties: {},
     },
   },
+  {
+    name: 'get_booking_link',
+    description: 'Get the Cal.com booking link to share with the user. IMPORTANT: This provides a LINK for the user to click - you CANNOT book on their behalf or send calendar invites. The user must click the link themselves.',
+    parameters: {
+      type: 'object',
+      properties: {
+        meetingType: {
+          type: 'string',
+          enum: ['consultation', 'workshop', 'strategy-call'],
+          description: 'Type of meeting (all redirect to same Cal.com link)'
+        }
+      }
+    }
+  },
 ] as const;
 
 export const ADMIN_LIVE_FUNCTION_DECLARATIONS = [

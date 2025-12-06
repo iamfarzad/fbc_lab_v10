@@ -3,27 +3,28 @@ import React from 'react';
 import { TranscriptItem } from 'types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { CalendarWidget } from './CalendarWidget';
+import { DiscoveryReportPreview } from './DiscoveryReportPreview';
 import ContextSources from './ContextSources';
 import ErrorMessage from './ErrorMessage';
 import { User } from 'lucide-react';
+import { CONTACT_CONFIG } from 'src/config/constants';
 
 interface ChatMessageProps {
     item: TranscriptItem;
     onPreview: (attachment: any) => void;
+    onDownloadReport?: () => void;
+    onEmailReport?: () => void;
+    onBookCall?: () => void;
     isDarkMode?: boolean;
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ item, 
-    // onPreview, // retained for future use or pass through if needed, though strictly unused in render currently? Ah, I see I passed it to Lightbox in Parent, but here? 
-    // Wait, onPreview IS used in the parent MultimodalChat, but inside ChatMessage... 
-    // I see I used to have a click handler for attachments.
-    // Let me check if I used onPreview in the previous step.
-    // In step 373, I used onPreview={setPreviewItem} in parent, but inside ChatMessage I did NOT use onPreview.
-    // I should probably wire it up to the attachment click if I want it to work.
-    // OR just remove it if I'm simplifying.
-    // I'll wire it up because it's good UX.
+const ChatMessage: React.FC<ChatMessageProps> = ({ 
+    item, 
     onPreview, 
-    // isDarkMode = false 
+    onDownloadReport,
+    onEmailReport,
+    onBookCall,
+    isDarkMode = false 
 }) => {
     const isUser = item.role === 'user';
 
@@ -86,6 +87,20 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item,
                         title={item.attachment.name || "Schedule a Call"}
                         description="Book a free consultation to discuss your AI strategy."
                         {...(item.attachment.url ? { url: item.attachment.url } : {})}
+                    />
+                )}
+
+                {/* 1c. Discovery Report Attachment */}
+                {item.attachment && item.attachment.type === 'discovery_report' && item.attachment.htmlContent && (
+                    <DiscoveryReportPreview 
+                        htmlContent={item.attachment.htmlContent}
+                        {...(item.attachment.data ? { pdfDataUrl: item.attachment.data } : {})}
+                        reportName={item.attachment.name || "AI Discovery Report"}
+                        bookingUrl={item.attachment.url || CONTACT_CONFIG.SCHEDULING.BOOKING_URL}
+                        {...(onDownloadReport ? { onDownload: onDownloadReport } : {})}
+                        {...(onEmailReport ? { onEmail: onEmailReport } : {})}
+                        {...(onBookCall ? { onBookCall: onBookCall } : {})}
+                        isDarkMode={isDarkMode}
                     />
                 )}
 

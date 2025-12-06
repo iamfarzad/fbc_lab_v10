@@ -1,9 +1,28 @@
 import { WebSocket } from 'ws'
 import { serverLogger } from '../utils/env-setup'
+import { safeSend } from '../utils/websocket-helpers'
+import { MESSAGE_TYPES } from '../message-types'
 
 interface OrchestratorSyncClient {
   ws: WebSocket
   userTurnCount?: number
+}
+
+interface AgentStageResponse {
+  success: boolean
+  stage: string
+  agent: string
+  conversationFlow?: Record<string, unknown>
+  recommendedNext?: string | null
+  metadata?: {
+    leadScore?: number
+    fitScore?: { workshop: number; consulting: number }
+    categoriesCovered?: number
+    multimodalUsed?: boolean
+    triggerBooking?: boolean
+    processingTime?: number
+  }
+  error?: string
 }
 
 /**
@@ -36,8 +55,9 @@ export async function syncVoiceToOrchestrator(
       })
       .map((entry: any) => {
         const speaker = entry.metadata?.speaker || (entry.modality === 'text' ? 'user' : 'assistant')
+        const role: 'user' | 'assistant' = speaker === 'user' ? 'user' : 'assistant'
         return {
-          role: (speaker === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          role,
           content: entry.content || ''
         }
       })
@@ -80,23 +100,17 @@ export async function syncVoiceToOrchestrator(
       content: msg.content
     }))
 
-    serverLogger.info('Voice sync calling orchestrator API', {
-      url: `${apiUrl}/api/chat`,
+    // Use metadata-only endpoint to sync with orchestrator (no duplicate responses)
+    serverLogger.info('Voice sync calling agent-stage API', {
+      url: `${apiUrl}/api/agent-stage`,
       messageCount: formattedMessages.length
     });
 
-    // CRITICAL FIX: Temporarily disabled to prevent "two voices" issue
-    // The /api/chat call generates a text response while Gemini Live API generates audio
-    // This causes users to hear duplicate responses
-    // TODO: Create a separate /api/agent-stage endpoint for metadata-only updates
-    /*
     try {
-      const response = await fetch(`${apiUrl}/api/chat`, {
+      const response = await fetch(`${apiUrl}/api/agent-stage`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Add auth header if needed in future
-          // 'Authorization': `Bearer ${process.env.API_AUTH_TOKEN}` 
         },
         body: JSON.stringify({
           messages: formattedMessages,
@@ -105,41 +119,46 @@ export async function syncVoiceToOrchestrator(
           intelligenceContext: dbContext?.intelligence_context,
           trigger: 'voice'
         }),
-        // Timeout after 10s to avoid blocking voice loop too long
-        signal: AbortSignal.timeout(10000)
+        // Timeout after 5s - metadata endpoint should be fast
+        signal: AbortSignal.timeout(5000)
       });
 
       if (!response.ok) {
-        throw new Error(`Orchestrator API call failed: ${response.status} ${response.statusText}`);
+        throw new Error(`Agent stage API call failed: ${response.status} ${response.statusText}`);
       }
 
-      const agentResult = await response.json();
+      const stageResult = await response.json() as AgentStageResponse;
 
-      // Send stage update to client (non-blocking)
-      if (agentResult.metadata?.stage) {
-        safeSend(client.ws, JSON.stringify({
-          type: MESSAGE_TYPES.STAGE_UPDATE,
-          payload: {
-            stage: agentResult.metadata.stage,
-            agent: agentResult.agent,
-            flow: agentResult.metadata.enhancedConversationFlow
-          }
-        }))
+      if (!stageResult.success) {
+        throw new Error(stageResult.error || 'Agent stage API returned failure');
       }
 
-      serverLogger.info('Voice synced to orchestrator', {
+      // Send stage update to client via WebSocket
+      safeSend(_client.ws, JSON.stringify({
+        type: MESSAGE_TYPES.STAGE_UPDATE,
+        payload: {
+          stage: stageResult.stage,
+          agent: stageResult.agent,
+          flow: stageResult.conversationFlow,
+          recommendedNext: stageResult.recommendedNext,
+          metadata: stageResult.metadata
+        }
+      }))
+
+      serverLogger.info('Voice synced to orchestrator (metadata only)', {
         connectionId,
-        agent: agentResult.agent,
-        stage: agentResult.metadata?.stage
+        agent: stageResult.agent,
+        stage: stageResult.stage,
+        processingTime: stageResult.metadata?.processingTime
       })
 
     } catch (apiError) {
-      serverLogger.error('Voice orchestrator API call failed', apiError instanceof Error ? apiError : undefined, { connectionId });
+      serverLogger.warn('Voice orchestrator sync failed (non-fatal)', { 
+        connectionId, 
+        error: apiError instanceof Error ? apiError.message : String(apiError) 
+      });
       // Non-fatal - voice session continues even if sync fails
     }
-    */
-
-    serverLogger.info('Voice orchestrator sync disabled (preventing duplicate responses)', { connectionId })
   } catch (error) {
     serverLogger.error('Voice orchestrator sync failed', error instanceof Error ? error : undefined, { connectionId })
     // Non-fatal - don't interrupt voice session

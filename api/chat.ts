@@ -22,16 +22,17 @@ function determineCurrentStage(
   if (trigger === 'booking') return 'CLOSING'
   if (trigger === 'admin') return 'PITCHING' // Will be handled by orchestrator
 
-  const isQualified =
+  // ONLY fast-track if ALL THREE criteria are met (not just one)
+  // This prevents skipping Discovery just because we know the company website
+  const isFullyQualified =
     intelligenceContext?.company?.size &&
     intelligenceContext.company.size !== 'unknown' &&
     intelligenceContext?.budget?.hasExplicit &&
     ['C-Level', 'VP', 'Director'].includes((intelligenceContext?.person?.seniority || '') as string)
 
-  // Bonus: if we have URL context or multimodal proof, fast-track even harder
-  const hasStrongSignal = isQualified || intelligenceContext?.company?.website
-
-  return hasStrongSignal ? 'SCORING' : 'DISCOVERY'
+  // ALWAYS start with DISCOVERY unless fully qualified
+  // Having a website alone is NOT enough to skip discovery
+  return isFullyQualified ? 'SCORING' : 'DISCOVERY'
 }
 
 /**

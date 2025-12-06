@@ -52,11 +52,12 @@ export interface TranscriptItem {
     url?: string;
   }>;
   attachment?: {
-    type: 'image' | 'file' | 'research-card' | 'calendar_widget'; // Added research-card and calendar_widget
+    type: 'image' | 'file' | 'research-card' | 'calendar_widget' | 'discovery_report'; // Added discovery_report for AI Discovery Report PDF
     url?: string; // base64 data url or blob url for UI, or booking URL for calendar_widget
     mimeType?: string;
-    data?: string; // Raw base64 string for API or JSON string for research-card/calendar_widget
+    data?: string; // Raw base64 string for API or JSON string for research-card/calendar_widget/discovery_report
     name?: string;
+    htmlContent?: string; // HTML content for discovery_report inline preview
   };
   groundingMetadata?: GroundingMetadata;
 }

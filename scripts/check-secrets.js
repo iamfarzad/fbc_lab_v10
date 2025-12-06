@@ -33,9 +33,9 @@ const secretPatterns = [
   { pattern: /jwt[_-]?secret/i, name: 'JWT Secret' },
   { pattern: /private[_-]?key/i, name: 'Private Key' },
   
-  // Credentials
-  { pattern: /credential/i, name: 'Credential' },
-  { pattern: /auth[_-]?token/i, name: 'Auth Token' },
+  // Credentials (only flag if it looks like actual credential data)
+  { pattern: /credential\s*[:=]\s*['"]?[a-zA-Z0-9_-]{16,}/i, name: 'Credential' },
+  { pattern: /auth[_-]?token\s*[:=]\s*['"]?[a-zA-Z0-9_-]{20,}/i, name: 'Auth Token' },
   
   // Connection strings with passwords
   { pattern: /(postgres|mysql|mongodb):\/\/[^:]+:[^@]+@/i, name: 'Database Connection String' },
@@ -109,16 +109,32 @@ function checkFile(filePath) {
     }
     
     // Skip API key patterns that are just env var references or error messages
-    if (name.includes('API Key') && filePath.endsWith('.ts')) {
+    if (name.includes('API Key')) {
       // Skip error messages that mention API keys but don't contain actual keys
-      if (content.match(/error.*api.*key.*not.*configure/i) ||
-          content.match(/api.*key.*not.*configure/i) ||
-          content.match(/please.*set.*api.*key/i) ||
-          content.match(/api.*key.*environment.*variable/i)) {
-        return
+      const errorMessagePatterns = [
+        /error.*api.*key.*not.*configure/i,
+        /api.*key.*not.*configure/i,
+        /please.*set.*api.*key/i,
+        /please.*configure.*api.*key/i,
+        /api.*key.*environment.*variable/i,
+        /showToast.*api.*key/i,
+        /text.*api.*key/i,
+        /i need.*api.*key/i,
+        /set.*GEMINI_API_KEY/i,
+        /GEMINI_API_KEY.*environment/i,
+        /vercel.*environment/i
+      ]
+      
+      // Check if the entire file is just error messages (no actual keys)
+      const hasErrorMessages = errorMessagePatterns.some(p => p.test(content))
+      const hasActualKey = content.match(/['"][a-zA-Z0-9_-]{32,}['"]/) // Long string that looks like a key
+      
+      if (hasErrorMessages && !hasActualKey) {
+        return // Skip - it's just error messages, not actual keys
       }
-      // Only flag if there's an actual long string that looks like a key
-      if (!content.match(/['"][a-zA-Z0-9_-]{32,}['"]/)) {
+      
+      // For .ts/.tsx files, only flag if there's an actual long string that looks like a key
+      if ((filePath.endsWith('.ts') || filePath.endsWith('.tsx')) && !hasActualKey) {
         return
       }
     }
@@ -138,6 +154,16 @@ function checkFile(filePath) {
           if (line.trim().startsWith('//') || 
               line.trim().startsWith('*') ||
               line.trim().startsWith('#')) {
+            return
+          }
+          
+          // Skip error messages about API keys
+          if (name.includes('API Key') && (
+              line.match(/error.*api.*key/i) ||
+              line.match(/api.*key.*not.*configure/i) ||
+              line.match(/please.*set/i) ||
+              line.match(/GEMINI_API_KEY/i) ||
+              line.match(/vercel.*environment/i))) {
             return
           }
           

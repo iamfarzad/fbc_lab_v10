@@ -2,14 +2,83 @@ import { Modality } from '@google/genai'
 import { serverLogger } from '../utils/env-setup.js'
 import { DEBUG_MODE } from '../utils/turn-completion.js'
 import { isAdmin } from '../utils/permissions.js'
-import { GEMINI_CONFIG, VOICE_CONFIG } from 'src/config/constants.js'
+import { VOICE_CONFIG } from 'src/config/constants.js'
 import { LIVE_FUNCTION_DECLARATIONS, ADMIN_LIVE_FUNCTION_DECLARATIONS } from 'src/config/live-tools.js'
+import type { FunnelStage } from 'src/core/types/funnel-stage.js'
 
 export interface LocationData {
   latitude: number
   longitude: number
   city?: string
   country?: string
+}
+
+/**
+ * Get stage-specific prompt supplement for voice mode
+ * This aligns voice behavior with the current funnel stage
+ */
+function getStagePromptSupplement(stage: FunnelStage, conversationFlow?: Record<string, unknown>): string {
+  const covered = conversationFlow?.covered as Record<string, boolean> | undefined
+  const coveredCount = covered ? Object.values(covered).filter(Boolean).length : 0
+  const uncoveredCategories = covered 
+    ? Object.entries(covered).filter(([, v]) => !v).map(([k]) => k.toUpperCase())
+    : ['GOALS', 'PAIN', 'DATA', 'READINESS', 'BUDGET', 'SUCCESS']
+
+  switch (stage) {
+    case 'DISCOVERY':
+      return `\n\nCURRENT FOCUS: Discovery Phase
+- Categories covered: ${coveredCount}/6
+- Still need: ${uncoveredCategories.join(', ')}
+- Priority: Ask about ${uncoveredCategories[0] || 'their goals'} naturally
+- DO NOT pitch yet - focus on understanding their needs`
+
+    case 'SCORING':
+      return `\n\nCURRENT FOCUS: Qualification Assessment
+- You have enough discovery data
+- Assess fit for Workshop vs Consulting
+- If strong fit (score > 70), prepare to transition to pitch
+- Share a relevant insight from what you've learned`
+
+    case 'PITCHING':
+    case 'WORKSHOP_PITCH':
+    case 'CONSULTING_PITCH':
+      return `\n\nCURRENT FOCUS: Value Presentation
+- Lead is qualified - time to present solutions
+- Use calculate_roi tool before mentioning ANY numbers
+- Focus on their specific pain points discovered earlier
+- Be ready for objections`
+
+    case 'OBJECTION':
+      return `\n\nCURRENT FOCUS: Objection Handling
+- Acknowledge their concern genuinely
+- Address with specific evidence or reframe
+- Don't be defensive - be consultative
+- Guide back to value when addressed`
+
+    case 'CLOSING':
+      return `\n\nCURRENT FOCUS: Booking
+- They're interested - help them take action
+- Provide booking LINK using get_booking_link tool
+- CRITICAL: You can ONLY provide a link, NOT book for them
+- Keep momentum high - "Here's the link, what time works for you?"`
+
+    case 'BOOKED':
+    case 'BOOKING_REQUESTED':
+      return `\n\nCURRENT FOCUS: Post-Booking
+- Meeting is scheduled (or link shared)
+- Confirm details and set expectations
+- Answer any final questions
+- Keep conversation warm but don't oversell`
+
+    case 'SUMMARY':
+      return `\n\nCURRENT FOCUS: Conversation Wrap-up
+- Summarize key points discovered
+- Confirm next steps
+- Thank them for their time`
+
+    default:
+      return '' // No supplement for unrecognized stages
+  }
 }
 
 /**
@@ -48,9 +117,41 @@ YOUR TOOLS IN VOICE MODE:
 - search_web(): Search the web for current information.
 - capture_screen_snapshot() and capture_webcam_snapshot(): Access visual context.`
   } else {
-    // Client voice uses client personality
-    fullInstruction = GEMINI_CONFIG.SYSTEM_PROMPT
-    fullInstruction += `\n\nNever identify yourself as Gemini, Google's AI, or any other AI assistant. You are F.B/c AI, created specifically for Farzad Bayat Consulting.`
+    // Client voice uses Discovery Agent structure for proper lead qualification
+    fullInstruction = `You are F.B/c Discovery AI - a sharp, friendly lead qualification specialist.
+
+CRITICAL RULES:
+- ALWAYS answer the user's direct questions before continuing with discovery
+- NEVER fabricate ROI numbers - only mention ROI if you use the calculate_roi tool
+- Keep responses to 2 sentences maximum for voice clarity
+- Ask ONE focused question at a time
+- NEVER give the same response twice - vary your approach
+
+PERSONALIZATION (use these in EVERY response when available):
+[Will be injected from context below]
+
+DISCOVERY MISSION:
+Systematically discover lead's needs across 6 categories:
+1. GOALS - What are they trying to achieve with AI?
+2. PAIN - What's broken or frustrating in their current process?
+3. DATA - Where is their data? How organized?
+4. READINESS - Team buy-in? Change management concerns?
+5. BUDGET - Timeline? Investment range?
+6. SUCCESS - What metrics would make this worthwhile?
+
+TOOL LIMITATIONS (be honest about what you can do):
+- You can provide calendar LINKS for booking
+- You CANNOT actually book meetings or send emails
+- You can search the web for current information
+- You can see webcam and screen share when active
+
+STYLE:
+- Sound like a sharp, friendly consultant (no fluff)
+- Mirror the user's language style and build on their latest message
+- Natural integration of visual context (e.g., "I noticed your dashboard shows...")
+- If they ask meta-questions like "who are you?" or "what is your source?", answer directly first
+
+Never identify yourself as Gemini, Google's AI, or any other AI assistant. You are F.B/c AI, created specifically for Farzad Bayat Consulting.`
   }
 
   // ADD VOICE-SPECIFIC GUIDANCE (applies to both admin and client)
@@ -72,7 +173,10 @@ YOUR TOOLS IN VOICE MODE:
     serverLogger.debug('Added location to system instruction', { sessionId, location: locationStr })
   }
 
-  // ADD PERSONALIZED CONTEXT (if sessionId available - full context from DB)
+  // ADD PERSONALIZED CONTEXT AND STAGE-SPECIFIC GUIDANCE (if sessionId available)
+  let currentStage: FunnelStage = 'DISCOVERY'
+  let conversationFlow: Record<string, unknown> | undefined
+  
   if (sessionId && sessionId !== 'anonymous') {
     try {
       const { ContextStorage } = await import('../../src/core/context/context-storage.js')
@@ -80,6 +184,10 @@ YOUR TOOLS IN VOICE MODE:
       const sessionContext = await storage.get(sessionId)
 
       if (sessionContext) {
+        // Extract stage and conversation flow for dynamic prompting
+        currentStage = (sessionContext.last_stage as FunnelStage) || 'DISCOVERY'
+        conversationFlow = sessionContext.conversation_flow as Record<string, unknown> | undefined
+        
         const companyCtx = sessionContext.company_context as Record<string, unknown> | undefined
         const companyName = companyCtx?.name && typeof companyCtx.name === 'string' ? String(companyCtx.name) : undefined
         const companyIndustry = companyCtx?.industry && typeof companyCtx.industry === 'string' ? String(companyCtx.industry) : undefined
@@ -103,35 +211,48 @@ YOUR TOOLS IN VOICE MODE:
         } as Parameters<typeof buildPersonalizationContext>[0])
 
         fullInstruction += personalizedContext
+        
+        serverLogger.debug('Loaded session context for voice', {
+          sessionId,
+          stage: currentStage,
+          hasConversationFlow: !!conversationFlow
+        })
       }
     } catch (error) {
       serverLogger.warn('Failed to load personalized context', { sessionId, error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error) })
       // Continue without personalized context
     }
   }
+  
+  // ADD STAGE-SPECIFIC PROMPT SUPPLEMENT (non-admin only)
+  if (!isAdminSession) {
+    const stageSupplement = getStagePromptSupplement(currentStage, conversationFlow)
+    if (stageSupplement) {
+      fullInstruction += stageSupplement
+    }
+  }
 
 
-  // ADD MULTIMODAL CONTEXT SNAPSHOT (if available)
+  // ADD ENHANCED MULTIMODAL CONTEXT SNAPSHOT (if available)
   if (sessionId && sessionId !== 'anonymous') {
     try {
       const { multimodalContextManager } = await import('src/core/context/multimodal-context')
-      // Admin: can load broader context (analytics, transcripts across sessions)
-      // Client: only own multimodal context
-      const contextData = await multimodalContextManager.prepareChatContext(
-        sessionId,
-        false, // Don't include visual for initial prompt (too large)
-        false  // Don't include audio
-      )
-
-      if (contextData.multimodalContext?.recentAnalyses?.length > 0) {
-        const recentSummary = contextData.multimodalContext.recentAnalyses
-          .slice(0, 2) // Last 2 analyses only
-          .join('; ')
-
-        if (recentSummary.length > 0 && recentSummary.length <= 300) {
-          fullInstruction += `\n\nRECENT MULTIMODAL CONTEXT: ${recentSummary}`
-        }
+      
+      // Use voice-optimized multimodal summary
+      const { promptSupplement, flags } = await multimodalContextManager.getVoiceMultimodalSummary(sessionId)
+      
+      if (promptSupplement) {
+        fullInstruction += promptSupplement
       }
+      
+      // Log multimodal engagement for analytics
+      serverLogger.debug('Voice multimodal context loaded', {
+        sessionId,
+        hasVisual: flags.hasVisualContext,
+        hasAudio: flags.hasAudioContext,
+        hasUploads: flags.hasUploads,
+        engagement: flags.engagementLevel
+      })
     } catch (error) {
       serverLogger.warn('Failed to load multimodal context', { sessionId, error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : String(error) })
     }

@@ -1230,6 +1230,310 @@ export class MultimodalContextManager {
       totalMessages
     }
   }
+
+  /**
+   * Get enhanced voice-ready multimodal summary for prompt injection
+   * Optimized for voice mode - concise but contextually rich
+   */
+  async getVoiceMultimodalSummary(sessionId: string): Promise<{
+    promptSupplement: string
+    flags: {
+      hasVisualContext: boolean
+      hasAudioContext: boolean
+      hasUploads: boolean
+      recentAnalyses: number
+      engagementLevel: 'low' | 'medium' | 'high'
+    }
+  }> {
+    const context = await this.getContext(sessionId)
+    if (!context) {
+      return {
+        promptSupplement: '',
+        flags: {
+          hasVisualContext: false,
+          hasAudioContext: false,
+          hasUploads: false,
+          recentAnalyses: 0,
+          engagementLevel: 'low'
+        }
+      }
+    }
+
+    // Calculate engagement level based on multimodal usage
+    const modalityCount = context.metadata.modalitiesUsed.length
+    const messageCount = context.conversationHistory.length
+    const visualCount = context.visualContext.length
+    const uploadCount = context.uploadContext?.length || 0
+    
+    const engagementScore = modalityCount + (visualCount * 2) + (uploadCount * 2) + Math.floor(messageCount / 5)
+    const engagementLevel: 'low' | 'medium' | 'high' = 
+      engagementScore >= 8 ? 'high' : 
+      engagementScore >= 4 ? 'medium' : 'low'
+
+    // Build voice-optimized prompt supplement
+    const parts: string[] = []
+
+    // Recent visual analyses (last 2, summarized)
+    if (context.visualContext.length > 0) {
+      const recentVisual = context.visualContext.slice(-2)
+      const visualSummaries = recentVisual.map(v => {
+        const shortAnalysis = v.analysis.length > 100 
+          ? v.analysis.substring(0, 100) + '...' 
+          : v.analysis
+        return `${v.type}: ${shortAnalysis}`
+      })
+      parts.push(`VISUAL CONTEXT:\n${visualSummaries.join('\n')}`)
+    }
+
+    // Recent uploads (last 2, with key insights)
+    if (context.uploadContext && context.uploadContext.length > 0) {
+      const recentUploads = context.uploadContext.slice(-2)
+      const uploadSummaries = recentUploads.map(u => {
+        const keyInsight = u.summary 
+          ? u.summary.substring(0, 80) + (u.summary.length > 80 ? '...' : '')
+          : u.analysis.substring(0, 80) + (u.analysis.length > 80 ? '...' : '')
+        return `${u.filename}: ${keyInsight}`
+      })
+      parts.push(`UPLOADED DOCUMENTS:\n${uploadSummaries.join('\n')}`)
+    }
+
+    // Conversation intelligence (if available)
+    if (messageCount >= 5) {
+      try {
+        const [entities, topics] = await Promise.all([
+          this.extractEntitiesFromContext(sessionId),
+          this.extractTopicsFromContext(sessionId)
+        ])
+
+        if (entities.length > 0 || topics.length > 0) {
+          const keyEntities = entities.slice(0, 3).map(e => e.value).join(', ')
+          const keyTopics = topics.slice(0, 3).map(t => t.name).join(', ')
+          
+          if (keyEntities || keyTopics) {
+            parts.push(`CONVERSATION INTEL:\n` +
+              (keyEntities ? `Key mentions: ${keyEntities}\n` : '') +
+              (keyTopics ? `Topics: ${keyTopics}` : ''))
+          }
+        }
+      } catch (err) {
+        // Non-fatal - intelligence extraction is optional
+        logger.debug('Intelligence extraction skipped:', { error: err })
+      }
+    }
+
+    const promptSupplement = parts.length > 0 
+      ? `\n\nMULTIMODAL CONTEXT SNAPSHOT:\n${parts.join('\n\n')}`
+      : ''
+
+    return {
+      promptSupplement,
+      flags: {
+        hasVisualContext: context.visualContext.length > 0,
+        hasAudioContext: context.audioContext.length > 0,
+        hasUploads: (context.uploadContext?.length || 0) > 0,
+        recentAnalyses: context.visualContext.length + (context.uploadContext?.length || 0),
+        engagementLevel
+      }
+    }
+  }
+
+  /**
+   * Get all tools used during the session for Discovery Report
+   */
+  async getToolsUsed(sessionId: string): Promise<Array<{
+    name: string
+    timestamp: string
+    args: Record<string, unknown>
+    id?: string
+  }>> {
+    const context = await this.getContext(sessionId)
+    if (!context?.conversationTurns) return []
+
+    const toolCalls: Array<{
+      name: string
+      timestamp: string
+      args: Record<string, unknown>
+      id?: string
+    }> = []
+
+    for (const turn of context.conversationTurns) {
+      if (turn.toolCall) {
+        toolCalls.push({
+          name: turn.toolCall.name,
+          timestamp: turn.timestamp,
+          args: turn.toolCall.args,
+          ...(turn.toolCall.id ? { id: turn.toolCall.id } : {})
+        })
+      }
+    }
+
+    return toolCalls
+  }
+
+  /**
+   * Get session engagement metrics for Discovery Report
+   */
+  async getSessionEngagementMetrics(sessionId: string): Promise<{
+    messageCount: number
+    voiceMinutes: number
+    screenMinutes: number
+    filesUploaded: number
+    toolsUsed: number
+  }> {
+    const context = await this.getContext(sessionId)
+    if (!context) {
+      return {
+        messageCount: 0,
+        voiceMinutes: 0,
+        screenMinutes: 0,
+        filesUploaded: 0,
+        toolsUsed: 0
+      }
+    }
+
+    // Calculate voice minutes from audio context
+    let voiceMinutes = 0
+    for (const audio of context.audioContext) {
+      if (audio.data.isFinal && audio.metadata.size) {
+        // Estimate duration from size (rough calculation)
+        voiceMinutes += (audio.metadata.size / 32000) / 60 // 16-bit stereo @ 16kHz
+      }
+    }
+
+    // Calculate screen minutes from visual context (screen type)
+    const screenEntries = context.visualContext.filter(v => v.type === 'screen')
+    // Estimate 30 seconds per screen analysis
+    const screenMinutes = (screenEntries.length * 0.5)
+
+    // Count tool calls from conversation turns
+    let toolsUsed = 0
+    for (const turn of context.conversationTurns) {
+      if (turn.toolCall) toolsUsed++
+    }
+
+    return {
+      messageCount: context.conversationHistory.length,
+      voiceMinutes: Math.round(voiceMinutes * 10) / 10,
+      screenMinutes: Math.round(screenMinutes * 10) / 10,
+      filesUploaded: context.uploadContext?.length || 0,
+      toolsUsed
+    }
+  }
+
+  /**
+   * Get multimodal observations for Discovery Report
+   */
+  async getMultimodalObservations(sessionId: string): Promise<Array<{
+    type: 'voice' | 'screen' | 'file' | 'webcam'
+    summary: string
+  }>> {
+    const context = await this.getContext(sessionId)
+    if (!context) return []
+
+    const observations: Array<{ type: 'voice' | 'screen' | 'file' | 'webcam'; summary: string }> = []
+
+    // Voice summary
+    const voiceTranscripts = context.audioContext.filter(a => a.data.isFinal && a.data.transcript)
+    if (voiceTranscripts.length > 0) {
+      const voiceDuration = voiceTranscripts.length * 0.5 // Rough estimate
+      const topTopics = await this.extractTopicsFromContext(sessionId)
+      const topicNames = topTopics.slice(0, 2).map(t => t.name).join(', ')
+      observations.push({
+        type: 'voice',
+        summary: `${Math.round(voiceDuration)} minutes discussing ${topicNames || 'AI strategy and implementation'}`
+      })
+    }
+
+    // Screen share observations
+    const screenEntries = context.visualContext.filter(v => v.type === 'screen')
+    if (screenEntries.length > 0) {
+      const latestScreen = screenEntries[screenEntries.length - 1]
+      if (latestScreen) {
+        const summary = latestScreen.analysis.length > 100
+          ? latestScreen.analysis.substring(0, 100) + '...'
+          : latestScreen.analysis
+        observations.push({
+          type: 'screen',
+          summary
+        })
+      }
+    }
+
+    // File uploads
+    if (context.uploadContext && context.uploadContext.length > 0) {
+      for (const upload of context.uploadContext.slice(-3)) {
+        const summary = upload.summary || upload.analysis
+        const shortSummary = summary.length > 80 ? summary.substring(0, 80) + '...' : summary
+        observations.push({
+          type: 'file',
+          summary: `${upload.filename}: ${shortSummary}`
+        })
+      }
+    }
+
+    // Webcam observations
+    const webcamEntries = context.visualContext.filter(v => v.type === 'webcam')
+    if (webcamEntries.length > 0) {
+      const latestWebcam = webcamEntries[webcamEntries.length - 1]
+      if (latestWebcam) {
+        const summary = latestWebcam.analysis.length > 100
+          ? latestWebcam.analysis.substring(0, 100) + '...'
+          : latestWebcam.analysis
+        observations.push({
+          type: 'webcam',
+          summary
+        })
+      }
+    }
+
+    return observations
+  }
+
+  /**
+   * Get data for Discovery Report generation
+   */
+  async getDiscoveryReportData(sessionId: string): Promise<{
+    sessionId: string
+    leadInfo: { name: string; email: string; company: string; role?: string }
+    engagementMetrics: {
+      messageCount: number
+      voiceMinutes: number
+      screenMinutes: number
+      filesUploaded: number
+      toolsUsed: number
+    }
+    toolsUsed: Array<{ name: string; timestamp: string; args: Record<string, unknown> }>
+    observations: Array<{ type: 'voice' | 'screen' | 'file' | 'webcam'; summary: string }>
+    conversationSummary?: string
+    modalitiesUsed: string[]
+  }> {
+    const context = await this.getContext(sessionId)
+    
+    const [metrics, tools, observations] = await Promise.all([
+      this.getSessionEngagementMetrics(sessionId),
+      this.getToolsUsed(sessionId),
+      this.getMultimodalObservations(sessionId)
+    ])
+
+    // Build modalities list
+    const modalitiesUsed: string[] = ['text']
+    if (metrics.voiceMinutes > 0) modalitiesUsed.push('voice')
+    if (metrics.screenMinutes > 0) modalitiesUsed.push('screen')
+    if (metrics.filesUploaded > 0) modalitiesUsed.push('upload')
+
+    return {
+      sessionId,
+      leadInfo: {
+        name: context?.leadContext?.name || 'Unknown',
+        email: context?.leadContext?.email || '',
+        company: context?.leadContext?.company || ''
+      },
+      engagementMetrics: metrics,
+      toolsUsed: tools,
+      observations,
+      modalitiesUsed
+    }
+  }
 }
 
 // Export singleton instance

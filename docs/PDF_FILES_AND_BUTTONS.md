@@ -478,6 +478,259 @@
 
 ---
 
+---
+
+## 8. Post-Conversation Summary PDF (Similar to "Quota PDF")
+
+### Overview
+Yes, there IS a similar concept to a "quota PDF" - it's a **Consultation Summary/Certificate PDF** that users can download or receive via email after completing a conversation.
+
+### 8.1 Summary PDF Generation System
+
+**Location:** `src/core/agents/summary-agent.ts`
+
+**Trigger Conditions:**
+- Conversation ends (`conversation_end` trigger)
+- Exit intent: `WRAP_UP`
+- Force exit after frustration
+- Timeout or limits reached
+- User says goodbye
+
+**Process:**
+1. **Summary Agent** analyzes full conversation
+2. Generates structured JSON summary
+3. PDF generated with conversation transcript + insights
+4. User can download or receive via email
+
+---
+
+### 8.2 PDF Content Structure
+
+**File:** `utils/pdfUtils.ts` (client-side) and `src/core/pdf/generator.ts` (server-side)
+
+**Sections Included:**
+
+1. **Executive Summary & Context**
+   - Branding header ("F.B/c CONSULTATION REPORT")
+   - Session metadata (date, session ID)
+   - Client profile (name, email)
+   - Strategic context (role, company, industry from research)
+
+2. **Full Conversation Transcript**
+   - All messages with timestamps
+   - User vs F.B/c Consultant labels
+   - Visual attachments (images) embedded
+   - Markdown stripped for clean text
+
+3. **Proposed Offer / Quotation Section**
+   - Service type (e.g., "AI Consulting & Strategy Workshop")
+   - Investment/pricing information
+   - Timeline
+   - Next steps
+   - CTA: Booking link
+
+4. **Footer**
+   - GDPR notice: "Voice transcripts & visual captures are deleted after 7 days"
+   - Branding: "F.B/c AI Consultation"
+   - Page numbers
+
+---
+
+### 8.3 PDF Delivery Methods
+
+#### Method 1: Download PDF (Client-Side)
+**Location:** `utils/pdfUtils.ts`, `App.tsx` → `onGeneratePDF()`
+
+**Trigger:**
+- User clicks "Download PDF" button in header dropdown
+- Tool suggestion: "Generate a PDF summary" (for workshop leads)
+
+**Process:**
+- PDF generated client-side using jsPDF library
+- Browser-based generation (no server required)
+- Direct download via `doc.save(filename)`
+- Filename format: `FBC-Consultation-{Name}-{Date}.pdf`
+
+**Visual:**
+```
+User clicks "Download PDF" → PDF downloads immediately
+```
+
+#### Method 2: Email PDF (Server-Side)
+**Location:** `api/send-pdf-summary/route.ts`
+
+**Trigger:**
+- User clicks "Email PDF" button in header dropdown
+- Tool suggestion: "Finish & Email Summary" (for consulting leads)
+- Recommended when `recommendedSolution === 'consulting'`
+
+**Process:**
+1. PDF generated client-side or server-side
+2. Base64 PDF data sent to `/api/send-pdf-summary`
+3. Email sent with PDF attachment
+4. Email includes:
+   - Subject: "Your F.B/c AI Consultation Report"
+   - HTML body with summary
+   - PDF attachment: `FBC-Consultation-{Name}-{Date}.pdf`
+
+**Email Content:**
+- Greeting with recipient name
+- Summary of what's included:
+  - Executive summary
+  - Full conversation transcript
+  - Key insights and recommendations
+- CTA for follow-up questions
+- F.B/c Team signature
+
+**Visual:**
+```
+User clicks "Email PDF" → PDF sent to user's email address
+```
+
+---
+
+### 8.4 Summary Agent Output Structure
+
+**File:** `src/core/agents/summary-agent.ts`
+
+**JSON Structure Generated:**
+```json
+{
+  "executiveSummary": "2-3 sentences covering what was discussed",
+  "multimodalInteractionSummary": {
+    "voice": "duration and key topics (if used)",
+    "screenShare": "what was shown (if used)",
+    "documentsReviewed": ["filename: key insight"],
+    "engagementScore": "High/Medium/Low"
+  },
+  "keyFindings": {
+    "goals": "from discovery",
+    "painPoints": ["prioritized list"],
+    "currentSituation": "what they're doing now",
+    "dataReality": "where their data lives",
+    "teamReadiness": "change management signals",
+    "budgetSignals": "timeline and investment indicators"
+  },
+  "recommendedSolution": "workshop" | "consulting",
+  "solutionRationale": "why this solution fits",
+  "expectedROI": "specific outcome projection",
+  "pricingBallpark": "e.g. $5K-$15K or $50K-$150K",
+  "nextSteps": "primary CTA: book call, secondary: reply with questions"
+}
+```
+
+---
+
+### 8.5 PDF Generation Engines
+
+#### Engine 1: Client-Side (jsPDF)
+**File:** `utils/pdfUtils.ts`
+
+**Features:**
+- Browser-based generation
+- No server required
+- Fast generation
+- Limited formatting options
+- Used for immediate downloads
+
+#### Engine 2: Server-Side (Puppeteer)
+**File:** `src/core/pdf/renderers/puppeteer-renderer.ts`
+
+**Features:**
+- Full HTML/CSS rendering
+- Professional formatting
+- Chart/image support
+- Used for email attachments
+- Falls back to pdf-lib if Puppeteer fails
+
+#### Engine 3: Server-Side (pdf-lib)
+**File:** `src/core/pdf/renderers/pdf-lib-renderer.ts`
+
+**Features:**
+- Programmatic PDF generation
+- Reliable fallback
+- Good for structured documents
+- Used when Puppeteer unavailable
+
+---
+
+### 8.6 Tool Suggestions for PDF Generation
+
+**Location:** `src/core/intelligence/tool-suggestion-engine.ts`
+
+**Suggestions Based on Intent:**
+
+1. **Consulting Intent:**
+   - Tool: "Finish & Email Summary"
+   - Capability: `exportPdf`
+   - Action: Email PDF to user
+
+2. **Workshop/Other Intent:**
+   - Tool: "Generate a PDF summary"
+   - Capability: `exportPdf`
+   - Action: Download PDF
+
+---
+
+### 8.7 PDF Storage & Access
+
+**Database Fields:**
+- `pdf_url` - URL to generated PDF (stored in Supabase)
+- `pdf_generated_at` - Timestamp of PDF generation
+
+**Admin Dashboard:**
+- View generated PDFs for failed conversations
+- "View PDF" button opens PDF URL in new tab
+- Location: `components/admin/sections/FailedConversationsSection.tsx`
+
+---
+
+### 8.8 Comparison: "Quota PDF" vs Current System
+
+| Feature | "Quota PDF" Concept | Current F.B/c System |
+|---------|---------------------|---------------------|
+| **Trigger** | After conversation/quota complete | After conversation ends |
+| **Content** | Summary/certificate | Full transcript + insights + offer |
+| **Delivery** | Download | Download OR Email |
+| **Format** | Certificate-style | Professional consultation report |
+| **Includes** | Summary only | Transcript + insights + proposal |
+| **Purpose** | Proof of completion | Consultation record + next steps |
+
+**Similarities:**
+- ✅ Generated after conversation completes
+- ✅ Downloadable document
+- ✅ Summary of interaction
+- ✅ Professional format
+- ✅ Can be shared with stakeholders
+
+**Differences:**
+- Current system includes FULL transcript (not just summary)
+- Current system includes proposed offer/quotation
+- Current system has email delivery option
+- Current system is more comprehensive (certificate vs report)
+
+---
+
+### 8.9 Usage Flow
+
+**Example User Journey:**
+
+1. User has conversation with F.B/c AI
+2. Conversation ends (goodbye, timeout, etc.)
+3. Summary Agent analyzes conversation
+4. User sees tool suggestion: "Finish & Email Summary" or "Generate a PDF summary"
+5. User clicks suggestion OR clicks "Export PDF" button in header
+6. PDF generated with:
+   - Full transcript
+   - Executive summary
+   - Key findings
+   - Proposed offer
+   - Next steps
+7. PDF downloaded or emailed to user
+8. User can share PDF with stakeholders
+
+---
+
 **Last Updated:** 2025-01-27  
 **Maintained By:** Development Team
 

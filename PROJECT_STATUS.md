@@ -1,8 +1,8 @@
 # Project Status
 
-**Last Updated:** 2025-12-04
-**Current Phase:** Documentation ✅
-**Session:** Created comprehensive agents documentation
+**Last Updated:** 2025-12-06
+**Current Phase:** AI Discovery Report PDF ✅
+**Session:** McKinsey-style Lead Magnet Implementation
 
 ## 🎯 Current Objective
 
@@ -10,10 +10,163 @@
 ✅ **COMPLETED:** UI/UX integration and responsive layout fixes
 ✅ **COMPLETED:** All TypeScript errors resolved for Vercel build
 ✅ **COMPLETED:** Comprehensive agents documentation created
+✅ **COMPLETED:** Phase 1 Fixes (Voice prompt alignment, anti-hallucination rules)
+✅ **COMPLETED:** Phase 2 Implementation (Voice/Orchestrator integration)
 
-## ✨ Latest Session (2025-12-04)
+## ✨ Latest Session (2025-12-06)
 
-### Documentation
+### AI Discovery Report PDF Implementation ✅
+
+**Summary:** Implemented a McKinsey/BCG-style AI Discovery Report PDF that serves as a lead magnet to drive 30-min booking conversions. The report features inline chat preview, engagement graphs, tools timeline, and a clear CTA.
+
+**Completed Tasks:**
+
+1. ✅ **Type Definitions** (`src/core/pdf/utils/discovery-report-types.ts`)
+   - `DiscoveryReportData` interface with all report fields
+   - `EngagementMetrics`, `ToolUsageRecord`, `MultimodalObservation` types
+   - Helper functions: `calculateEngagementLevel()`, `calculateEngagementMetrics()`
+   - Tool label and icon mappings
+
+2. ✅ **SVG Chart Generators** (`src/core/pdf/charts/`)
+   - `roi-chart.ts` - Investment vs Savings bar chart
+   - `engagement-radar.ts` - 4-axis radar chart (Text/Voice/Screen/Files)
+   - `tools-timeline.ts` - Horizontal timeline with tool icons
+
+3. ✅ **HTML Template** (`src/core/pdf/templates/discovery-report-template.ts`)
+   - McKinsey-style single-page layout
+   - Sections: Header, Client Info, Insights, Observations, Timeline, Charts, CTA
+   - Professional color scheme (navy, orange accent, gray tones)
+   - Print-optimized CSS
+
+4. ✅ **PDF Generator** (`src/core/pdf/discovery-report-generator.ts`)
+   - `buildDiscoveryReportData()` - Builds report data from session
+   - `generateDiscoveryReportPDF()` - Puppeteer rendering
+   - `generateDiscoveryReportHTMLString()` - HTML for preview
+
+5. ✅ **Chat Preview Component** (`components/chat/DiscoveryReportPreview.tsx`)
+   - Full embedded scrollable preview in chat
+   - Expand to modal on click
+   - Action bar: Download PDF, Email, Book Call
+   - Dark mode support
+
+6. ✅ **Attachment Type** (`types.ts`)
+   - Added `discovery_report` to attachment types
+   - Added `htmlContent` field for inline preview
+
+7. ✅ **ChatMessage Integration** (`components/chat/ChatMessage.tsx`)
+   - Renders discovery_report attachment type
+   - Passes through download/email/book callbacks
+
+8. ✅ **Multimodal Context Enhancement** (`src/core/context/multimodal-context.ts`)
+   - `getToolsUsed()` - Extract tools from conversation turns
+   - `getSessionEngagementMetrics()` - Calculate engagement scores
+   - `getMultimodalObservations()` - Summarize observations
+   - `getDiscoveryReportData()` - All-in-one data collection
+
+9. ✅ **Client-Side Utilities** (`utils/discoveryReportUtils.ts`)
+   - Client-side report generation (no server roundtrip for preview)
+   - Insight extraction from transcript
+   - Chart SVG generation
+   - `createDiscoveryReportTranscriptItem()` helper
+
+10. ✅ **App Integration** (`App.tsx`, `components/MultimodalChat.tsx`)
+    - `handleGenerateDiscoveryReport()` callback
+    - PDF menu updated with "AI Discovery Report" option
+    - Primary position in dropdown with McKinsey-style badge
+
+**Files Created:**
+- `src/core/pdf/utils/discovery-report-types.ts`
+- `src/core/pdf/charts/roi-chart.ts`
+- `src/core/pdf/charts/engagement-radar.ts`
+- `src/core/pdf/charts/tools-timeline.ts`
+- `src/core/pdf/charts/index.ts`
+- `src/core/pdf/templates/discovery-report-template.ts`
+- `src/core/pdf/discovery-report-generator.ts`
+- `components/chat/DiscoveryReportPreview.tsx`
+- `utils/discoveryReportUtils.ts`
+
+**Files Modified:**
+- `types.ts` - Added discovery_report attachment type
+- `components/chat/ChatMessage.tsx` - Discovery report rendering
+- `components/MultimodalChat.tsx` - PDF menu with discovery report
+- `App.tsx` - Generation handler
+- `src/core/context/multimodal-context.ts` - Tool/engagement tracking
+
+**Design Features (McKinsey/BCG Style):**
+- Clean typography with high contrast
+- Data-driven layout with graphs
+- Professional colors (navy #1a1a2e, orange accent #FF6B35, green #00A878)
+- White space for readability
+- Single clear CTA (Book Call)
+- GDPR compliance note
+
+**Next Steps:**
+- Test inline preview rendering
+- Verify PDF generation with Puppeteer
+- Add email delivery integration
+- Consider server-side report caching
+
+---
+
+### Previous: Phase 2 Voice/Orchestrator Integration ✅
+
+**Summary:** Integrated voice mode with the agent orchestrator system to ensure consistent behavior between text and voice channels, with proper stage tracking and response validation.
+
+**Completed Tasks:**
+
+1. ✅ **Created Metadata-Only Endpoint** (`api/agent-stage.ts`)
+   - New endpoint that routes through orchestrator but returns metadata only (no text)
+   - Prevents "two voices" issue where both Gemini Live and /api/chat generate responses
+   - Returns: stage, agent, conversationFlow, recommendedNext, scores
+   - Fast (5s timeout) - optimized for voice mode
+
+2. ✅ **Updated Voice Orchestrator Sync** (`server/context/orchestrator-sync.ts`)
+   - Now uses `/api/agent-stage` instead of disabled `/api/chat`
+   - Sends stage updates to client via WebSocket
+   - Non-blocking - voice continues even if sync fails
+
+3. ✅ **Dynamic Agent Prompt Injection** (`server/live-api/config-builder.ts`)
+   - Added `getStagePromptSupplement()` function
+   - Injects stage-specific guidance based on funnel stage
+   - DISCOVERY: Focus on uncovered categories
+   - PITCHING: Use calculate_roi before mentioning numbers
+   - CLOSING: Provide booking LINK only, cannot book directly
+   - Loads stage from database for dynamic adaptation
+
+4. ✅ **Enhanced Multimodal Context Injection** (`src/core/context/multimodal-context.ts`)
+   - Added `getVoiceMultimodalSummary()` method
+   - Voice-optimized context with engagement scoring
+   - Includes: visual context, uploads, conversation intelligence
+   - Used by config-builder for richer voice prompts
+
+5. ✅ **Created Response Validation Helper** (`src/core/agents/response-validator.ts`)
+   - Validates agent responses against critical rules
+   - Detects: fabricated ROI, false booking claims, identity leaks, hallucinated actions
+   - `quickValidate()` for fast performance-sensitive checks
+   - `validateAgentResponse()` for full validation with suggestions
+   - Severity levels: warning, error, critical
+
+6. ✅ **Integrated Validation into Agent Flow** (`src/core/agents/orchestrator.ts`)
+   - All agent responses now pass through validation
+   - Critical issues logged with agent/stage context
+   - Validation metadata added to response (validationPassed, validationIssues)
+   - Non-blocking - logs issues but doesn't break UX
+
+**Files Created:**
+- `api/agent-stage.ts` - Metadata-only endpoint
+- `src/core/agents/response-validator.ts` - Response validation helper
+
+**Files Modified:**
+- `server/context/orchestrator-sync.ts` - Uses new endpoint
+- `server/live-api/config-builder.ts` - Dynamic prompts + multimodal
+- `src/core/context/multimodal-context.ts` - Voice summary method
+- `src/core/agents/orchestrator.ts` - Validation integration
+
+**Validation:**
+- ✅ TypeScript build passes (`pnpm tsc --noEmit`)
+- ✅ No lint errors in modified files
+
+### Previous: Documentation & Analysis
 - ✅ Created `docs/AGENTS_DOCUMENTATION.md` - Complete reference for all 13 agents
   - File names and locations
   - Goals and purposes
@@ -21,6 +174,13 @@
   - Agent instructions and prompts
   - Flow diagrams
   - Context and data structures
+- ✅ Created `docs/AGENT_CONVERSATION_ANALYSIS.md` - Analysis of actual conversations vs expected behavior
+  - Comparison framework for expected vs actual agent performance
+  - 10 common failure patterns identified
+  - Specific agent analysis (Discovery, Pitch, Objection, Closer)
+  - Root cause analysis (technical and process issues)
+  - Recommendations prioritized (immediate, high, medium)
+  - Evidence collection template for PDF analysis
 
 ## ✨ Features Implemented This Session
 
