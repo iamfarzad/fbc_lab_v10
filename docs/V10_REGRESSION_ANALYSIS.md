@@ -335,3 +335,4 @@ Earlier unified endpoints streamed SSE for incremental render. Current api/chat.
 **Confidence:** High (based on codebase analysis)
 
 
+

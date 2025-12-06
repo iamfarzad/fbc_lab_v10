@@ -52,14 +52,14 @@ const SOURCE_ICONS: Record<ContextSource['type'], React.ReactNode> = {
 }
 
 const SOURCE_COLORS: Record<ContextSource['type'], string> = {
-  company: 'bg-blue-50 text-blue-600 border-blue-200',
-  person: 'bg-purple-50 text-purple-600 border-purple-200',
-  location: 'bg-green-50 text-green-600 border-green-200',
-  conversation: 'bg-gray-50 text-gray-600 border-gray-200',
-  file: 'bg-amber-50 text-amber-600 border-amber-200',
-  webcam: 'bg-cyan-50 text-cyan-600 border-cyan-200',
-  screen: 'bg-indigo-50 text-indigo-600 border-indigo-200',
-  web: 'bg-orange-50 text-orange-600 border-orange-200',
+  company: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
+  person: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
+  location: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800',
+  conversation: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
+  file: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
+  webcam: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800',
+  screen: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800',
+  web: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
 }
 
 const ContextSources: React.FC<ContextSourcesProps> = ({

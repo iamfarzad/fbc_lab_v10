@@ -3,7 +3,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Tooltip, isTextMime } from './UIHelpers';
 import { LiveConnectionState } from 'types';
 import { StagingArea } from './Attachments';
-import { Mic, Camera, CameraOff, Monitor, MonitorOff, Paperclip, X, ArrowUp } from 'lucide-react';
+import { Mic, Camera, CameraOff, Monitor, MonitorOff, Paperclip, X, ArrowUp, AudioLines } from 'lucide-react';
 
 interface ChatInputDockProps {
     inputValue: string;
@@ -238,7 +238,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                     </button>
                                 </Tooltip>
 
-                                <Tooltip text={isListening ? "Stop Dictation" : "Voice Dictation"}>
+                                <Tooltip text={isListening ? "Stop Dictation" : "Dictate to Text"}>
                                     <button
                                         onClick={toggleDictation}
                                         className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
@@ -247,7 +247,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                                 : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'
                                         }`}
                                     >
-                                        <Mic className="w-4 h-4" />
+                                        <AudioLines className="w-4 h-4" />
                                     </button>
                                 </Tooltip>
                             </div>
@@ -288,6 +288,30 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                     </button>
                                 </Tooltip>
                             )}
+
+                            {/* Voice Session Button (Expanded State) */}
+                            <Tooltip text={isConnected ? "Disconnect Voice" : "Start Voice Session"}>
+                                <button 
+                                    onClick={handleVoiceToggle}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${
+                                        isConnected 
+                                            ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.4)]' 
+                                            : isConnecting
+                                                ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-500 animate-pulse'
+                                                : 'text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600'
+                                    }`}
+                                >
+                                    {isConnected ? (
+                                        <div className="flex gap-0.5 items-end justify-center h-4">
+                                            <div className="w-0.5 bg-white rounded-full animate-[bounce_1s_infinite] h-2"></div>
+                                            <div className="w-0.5 bg-white rounded-full animate-[bounce_1s_infinite_0.1s] h-3"></div>
+                                            <div className="w-0.5 bg-white rounded-full animate-[bounce_1s_infinite_0.2s] h-2"></div>
+                                        </div>
+                                    ) : (
+                                        <Mic className="w-4 h-4" />
+                                    )}
+                                </button>
+                            </Tooltip>
 
                             <div className="flex-1" />
 

@@ -3,6 +3,8 @@ import React from 'react';
 import { TranscriptItem } from 'types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { CalendarWidget } from './CalendarWidget';
+import ContextSources from './ContextSources';
+import ErrorMessage from './ErrorMessage';
 import { User } from 'lucide-react';
 
 interface ChatMessageProps {
@@ -153,6 +155,29 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ item,
                     <div className="flex items-center gap-2 pl-2">
                          <span className="text-[11px] text-zinc-400">Thinking...</span>
                     </div>
+                )}
+
+                {/* 6. Error State */}
+                {item.status === 'error' && item.error && (
+                    <ErrorMessage 
+                        error={{
+                            type: item.error.type,
+                            message: item.error.message,
+                            ...(item.error.details ? { details: item.error.details } : {}),
+                            ...(item.error.retryable !== undefined ? { retryable: item.error.retryable } : {})
+                        }}
+                        compact
+                        className="mt-2"
+                    />
+                )}
+
+                {/* 7. Context Sources (compact badges for AI messages) */}
+                {!isUser && item.contextSources && item.contextSources.length > 0 && (
+                    <ContextSources 
+                        sources={item.contextSources}
+                        compact
+                        className="mt-2"
+                    />
                 )}
 
             </div>

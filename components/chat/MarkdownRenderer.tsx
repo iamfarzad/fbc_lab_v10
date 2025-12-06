@@ -1,6 +1,7 @@
 
 import React from 'react';
 import CodeBlock from './CodeBlock';
+import MarkdownTable, { isMarkdownTable } from './MarkdownTable';
 
 const formatInline = (text: string): React.ReactNode[] => {
     const codeParts = text.split(/(`.*?`)/g);
@@ -19,7 +20,7 @@ const formatInline = (text: string): React.ReactNode[] => {
                         href={linkMatch[2]} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-blue-600 hover:underline hover:text-blue-800 font-medium"
+                        className="text-orange-600 hover:underline hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 font-medium"
                     >
                         {linkMatch[1]}
                     </a>
@@ -57,6 +58,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser }) 
     let listBuffer: React.ReactNode[] = [];
     let codeBlockBuffer: string[] | null = null;
     let codeLanguage = "";
+    let tableBuffer: string[] = [];
 
     const flushList = () => {
         if (listBuffer.length > 0) {
@@ -79,10 +81,28 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser }) 
         }
     };
 
+    const flushTable = () => {
+        if (tableBuffer.length >= 2) {
+            const tableContent = tableBuffer.join('\n');
+            if (isMarkdownTable(tableContent)) {
+                elements.push(
+                    <MarkdownTable key={`table-${elements.length}`} content={tableContent} className="my-4" />
+                );
+            } else {
+                // Not a valid table, render as paragraphs
+                tableBuffer.forEach((line, idx) => {
+                    elements.push(<p key={`table-fallback-${elements.length}-${idx}`} className="mb-2.5 last:mb-0">{line}</p>);
+                });
+            }
+        }
+        tableBuffer = [];
+    };
+
     lines.forEach((line, i) => {
         const trimmed = line.trim();
         
         if (trimmed.startsWith('```')) {
+            flushTable();
             if (codeBlockBuffer !== null) {
                 flushCodeBlock(); 
             } else {
@@ -96,6 +116,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser }) 
         if (codeBlockBuffer !== null) {
             codeBlockBuffer.push(line);
             return;
+        }
+
+        // Table detection: lines starting with |
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+            flushList();
+            tableBuffer.push(trimmed);
+            return;
+        } else if (tableBuffer.length > 0) {
+            // Line doesn't start with |, flush accumulated table
+            flushTable();
         }
 
         if (trimmed.startsWith('### ')) {
@@ -123,6 +153,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser }) 
     
     flushList();
     flushCodeBlock();
+    flushTable();
 
     return <div className="markdown-body">{elements}</div>;
 };

@@ -37,8 +37,20 @@ export interface TranscriptItem {
   timestamp: Date;
   isFinal: boolean;
   reasoning?: string; // For Chain of Thought UI
-  status?: 'streaming' | 'complete'; // For Shimmer UI
+  status?: 'streaming' | 'complete' | 'error'; // For Shimmer UI and error states
   processingTime?: number; // Response time in milliseconds
+  error?: {
+    type: 'network' | 'rate_limit' | 'auth' | 'quota' | 'timeout' | 'server' | 'unknown';
+    message: string;
+    details?: string;
+    retryable?: boolean;
+  };
+  contextSources?: Array<{
+    type: 'company' | 'person' | 'location' | 'conversation' | 'file' | 'webcam' | 'screen' | 'web';
+    label: string;
+    value?: string;
+    url?: string;
+  }>;
   attachment?: {
     type: 'image' | 'file' | 'research-card' | 'calendar_widget'; // Added research-card and calendar_widget
     url?: string; // base64 data url or blob url for UI, or booking URL for calendar_widget

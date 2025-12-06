@@ -52,43 +52,43 @@ const ERROR_CONFIG: Record<ErrorType, {
   network: {
     icon: <WifiOff className="w-4 h-4" />,
     title: 'Connection Lost',
-    color: 'text-red-500 bg-red-50 border-red-200',
+    color: 'text-zinc-700 bg-zinc-100 border-zinc-300 dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700',
     suggestion: 'Check your internet connection and try again.'
   },
   rate_limit: {
     icon: <Clock className="w-4 h-4" />,
     title: 'Too Many Requests',
-    color: 'text-amber-600 bg-amber-50 border-amber-200',
+    color: 'text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-900/20 dark:border-orange-800',
     suggestion: 'Please wait a moment before trying again.'
   },
   auth: {
     icon: <AlertTriangle className="w-4 h-4" />,
     title: 'Authentication Error',
-    color: 'text-red-500 bg-red-50 border-red-200',
+    color: 'text-zinc-700 bg-zinc-100 border-zinc-300 dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700',
     suggestion: 'Your session may have expired. Try refreshing the page.'
   },
   quota: {
     icon: <AlertTriangle className="w-4 h-4" />,
     title: 'Usage Limit Reached',
-    color: 'text-amber-600 bg-amber-50 border-amber-200',
+    color: 'text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-900/20 dark:border-orange-800',
     suggestion: 'Daily usage limit reached. Try again tomorrow or upgrade your plan.'
   },
   timeout: {
     icon: <Clock className="w-4 h-4" />,
     title: 'Request Timeout',
-    color: 'text-amber-600 bg-amber-50 border-amber-200',
+    color: 'text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-900/20 dark:border-orange-800',
     suggestion: 'The request took too long. Try again with a simpler query.'
   },
   server: {
     icon: <AlertTriangle className="w-4 h-4" />,
     title: 'Server Error',
-    color: 'text-red-500 bg-red-50 border-red-200',
+    color: 'text-zinc-700 bg-zinc-100 border-zinc-300 dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700',
     suggestion: 'Something went wrong on our end. Please try again shortly.'
   },
   unknown: {
     icon: <HelpCircle className="w-4 h-4" />,
     title: 'Something Went Wrong',
-    color: 'text-gray-600 bg-gray-50 border-gray-200',
+    color: 'text-zinc-600 bg-zinc-100 border-zinc-300 dark:text-zinc-400 dark:bg-zinc-800 dark:border-zinc-700',
     suggestion: 'An unexpected error occurred. Please try again.'
   }
 }
