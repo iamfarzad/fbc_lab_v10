@@ -14,15 +14,14 @@ export const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({
 };
 
 export const Shimmer: React.FC = () => (
-  <div className="w-full max-w-[240px] p-5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm flex flex-col gap-3 mt-2 border border-white/40 dark:border-white/10 shadow-sm animate-pulse">
+  <div className="w-full max-w-[240px] p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 flex flex-col gap-3 mt-2 border border-zinc-200 dark:border-zinc-800 shadow-sm animate-pulse">
     <div className="flex items-center gap-2">
-        <div className="w-2 h-2 bg-orange-400 rounded-full animate-ping"></div>
-        <span className="text-[10px] font-mono uppercase tracking-widest text-orange-700 dark:text-orange-400 font-semibold">Thinking...</span>
+        <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-ping"></div>
+        <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 dark:text-zinc-600 font-medium">Thinking...</span>
     </div>
-    <div className="space-y-2">
-        <div className="h-1.5 bg-black/5 dark:bg-white/10 rounded w-full"></div>
-        <div className="h-1.5 bg-black/5 dark:bg-white/10 rounded w-5/6"></div>
-        <div className="h-1.5 bg-black/5 dark:bg-white/10 rounded w-4/6"></div>
+    <div className="space-y-1.5">
+        <div className="h-1 bg-zinc-200 dark:bg-zinc-800 rounded w-full"></div>
+        <div className="h-1 bg-zinc-200 dark:bg-zinc-800 rounded w-3/4"></div>
     </div>
   </div>
 );

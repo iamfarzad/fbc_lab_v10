@@ -1,3 +1,4 @@
+
 /**
  * Message Metadata Component
  * 
@@ -76,7 +77,7 @@ const MessageMetadata: React.FC<MessageMetadataProps> = ({
     return (
       <div 
         className={`
-          group flex items-center gap-2 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer
+          group flex items-center gap-2 text-[10px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer
           ${className}
         `}
         onClick={() => expandable && hasDetails && setExpanded(true)}
@@ -103,16 +104,16 @@ const MessageMetadata: React.FC<MessageMetadataProps> = ({
   // Expanded view
   return (
     <div className={`
-      mt-2 p-3 rounded-xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5 backdrop-blur-sm
-      animate-fade-in-up space-y-3 text-[10px] text-slate-500 dark:text-slate-400
+      mt-2 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 backdrop-blur-sm
+      animate-fade-in-up space-y-3 text-[10px] text-zinc-500 dark:text-zinc-400
       ${className}
     `}>
       {/* Header with collapse button */}
-      <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/5">
+      <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
         <span className="font-medium tracking-wide uppercase text-[9px] opacity-70">Message Details</span>
         <button 
           onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
-          className="p-1 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full transition-colors"
+          className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors"
         >
           <ChevronUp className="w-3 h-3" />
         </button>
@@ -176,7 +177,7 @@ const MessageMetadata: React.FC<MessageMetadataProps> = ({
 
       {/* Tools Used */}
       {meta.toolsUsed && meta.toolsUsed.length > 0 && (
-        <div className="pt-2 border-t border-slate-100 dark:border-white/5">
+        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center gap-1.5 mb-2 opacity-70">
             <Wrench className="w-3 h-3" />
             <span>Tools</span>
@@ -185,7 +186,7 @@ const MessageMetadata: React.FC<MessageMetadataProps> = ({
             {meta.toolsUsed.map((tool, i) => (
               <span 
                 key={i}
-                className="px-2 py-1 bg-slate-100 dark:bg-white/10 rounded-md font-mono text-[9px]"
+                className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-md font-mono text-[9px]"
               >
                 {tool.replace(/_/g, ' ')}
               </span>
@@ -206,7 +207,7 @@ export const InlineTimestamp: React.FC<{
   className?: string
 }> = ({ date, showIcon = false, className = '' }) => (
   <span 
-    className={`text-[10px] text-gray-400 ${className}`}
+    className={`text-[10px] text-zinc-400 ${className}`}
     title={formatAbsoluteTime(date)}
   >
     {showIcon && <Clock className="w-2.5 h-2.5 inline mr-0.5" />}
@@ -221,15 +222,12 @@ export const ResponseTimeBadge: React.FC<{
   ms: number
   className?: string
 }> = ({ ms, className = '' }) => {
-  const isSlowResponse = ms > 5000
   return (
     <span 
       className={`
         text-[10px] px-1.5 py-0.5 rounded-full
-        ${isSlowResponse 
-          ? 'bg-amber-50 text-amber-600' 
-          : 'bg-green-50 text-green-600'
-        }
+        bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800
+        text-zinc-500 dark:text-zinc-400
         ${className}
       `}
     >
@@ -240,4 +238,3 @@ export const ResponseTimeBadge: React.FC<{
 }
 
 export default MessageMetadata
-

@@ -17,6 +17,7 @@ import {
   Check,
   AlertTriangle
 } from 'lucide-react'
+import { formatBytes } from './UIHelpers'
 
 export interface UploadingFile {
   id: string
@@ -47,16 +48,11 @@ const FILE_ICONS: Record<string, typeof File> = {
 }
 
 function getFileIcon(mimeType: string): typeof File {
-  if (mimeType.startsWith('image/')) return FILE_ICONS['image'] ?? File
-  if (mimeType.startsWith('text/')) return FILE_ICONS['text'] ?? File
-  return FILE_ICONS[mimeType] ?? FILE_ICONS['default'] ?? File
+  if (mimeType.startsWith('image')) return FILE_ICONS['image'] || File
+  if (mimeType.startsWith('text')) return FILE_ICONS['text'] || File
+  return FILE_ICONS[mimeType] || FILE_ICONS['default'] || File
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 const FileUpload: React.FC<FileUploadProps> = ({
   onFilesSelected,
@@ -86,7 +82,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           file,
           progress: 0,
           status: 'error',
-          error: `File too large (max ${formatFileSize(maxSize)})`
+          error: `File too large (max ${formatBytes(maxSize)})`
         })
       } else {
         newFiles.push({
@@ -198,7 +194,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
               {isDragging ? 'Drop files here' : 'Click or drag files to upload'}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Max {formatFileSize(maxSize)} per file • Up to {maxFiles} files
+              Max {formatBytes(maxSize)} per file • Up to {maxFiles} files
             </p>
           </div>
         </div>
@@ -232,7 +228,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                     {file.file.name}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {formatFileSize(file.file.size)}
+                    {formatBytes(file.file.size)}
                   </p>
                   
                   {/* Progress Bar */}

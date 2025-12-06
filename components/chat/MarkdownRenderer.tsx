@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import CodeBlock from './CodeBlock';
 
 const formatInline = (text: string): React.ReactNode[] => {
     const codeParts = text.split(/(`.*?`)/g);
@@ -43,46 +44,7 @@ const formatInline = (text: string): React.ReactNode[] => {
     });
 };
 
-const CodeBlock: React.FC<{ language: string, code: string }> = ({ language, code }) => {
-    const [copied, setCopied] = useState(false);
-
-    const handleCopy = () => {
-        void navigator.clipboard.writeText(code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    return (
-        <div className="my-3 rounded-lg overflow-hidden bg-[#1e1e1e] border border-white/10 shadow-sm group">
-            <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
-                <div className="text-[10px] font-mono text-white/40 uppercase tracking-wider">
-                    {language || 'CODE'}
-                </div>
-                <button 
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 text-[10px] text-white/40 hover:text-white transition-colors"
-                >
-                    {copied ? (
-                         <>
-                             <svg className="w-3 h-3 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-                             <span className="text-orange-500">Copied</span>
-                         </>
-                    ) : (
-                        <>
-                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                            <span>Copy</span>
-                        </>
-                    )}
-                </button>
-            </div>
-            <div className="p-3 overflow-x-auto">
-                <pre className="text-xs font-mono text-gray-300 leading-relaxed whitespace-pre">
-                    {code}
-                </pre>
-            </div>
-        </div>
-    );
-}
+// CodeBlock is now imported from './CodeBlock'
 
 interface MarkdownRendererProps {
     content: string;

@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useRef } from 'react';
 import { getDomain, decodeBase64, formatBytes } from './UIHelpers';
 
@@ -16,7 +14,9 @@ export const WebPreviewCard: React.FC<{ title: string; url: string; type: 'web' 
             rel="noopener noreferrer"
             className={`
                 flex flex-col justify-between p-3 rounded-xl border transition-all duration-200 group/card 
-                hover:-translate-y-0.5 hover:shadow-md min-w-[140px] md:min-w-[160px] max-w-[200px] flex-1
+                min-w-[140px] md:min-w-[160px] max-w-[200px] flex-1
+                bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800
+                hover:border-zinc-400 dark:hover:border-zinc-600
                 ${className}
             `}
         >
@@ -26,15 +26,15 @@ export const WebPreviewCard: React.FC<{ title: string; url: string; type: 'web' 
                         <img 
                             src={faviconUrl} 
                             alt="" 
-                            className="w-4 h-4 rounded-sm opacity-80" 
+                            className="w-4 h-4 rounded-sm opacity-80 filter grayscale group-hover/card:grayscale-0 transition-all" 
                             onError={(e) => {e.currentTarget.style.display = 'none'}}
                         />
                     ) : (
-                        <svg className="w-4 h-4 text-orange-600 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <svg className="w-4 h-4 text-zinc-500 group-hover/card:text-zinc-800 dark:group-hover/card:text-zinc-300 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     )}
                     <span className="text-[10px] font-mono opacity-50 truncate w-full">{domain || (type === 'map' ? 'Google Maps' : 'Web Source')}</span>
                 </div>
-                <span className="text-[11px] font-semibold leading-snug line-clamp-2 group-hover/card:text-blue-600 transition-colors">
+                <span className="text-[11px] font-semibold leading-snug line-clamp-2 text-zinc-700 dark:text-zinc-300 group-hover/card:text-black dark:group-hover/card:text-white transition-colors">
                     {title}
                 </span>
             </div>

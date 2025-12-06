@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { TranscriptItem, LiveConnectionState } from 'types';
 import ChatMessage from './chat/ChatMessage';
@@ -6,7 +7,7 @@ import { Lightbox } from './chat/Attachments';
 import { isTextMime } from './chat/UIHelpers';
 import StatusBadges from './StatusBadges';
 import EmptyState from './chat/EmptyState';
-import { ToolCall, FloatingToolIndicator } from './chat/ToolCallIndicator';
+import { FloatingToolIndicator, ToolCall } from './chat/ToolCallIndicator';
 import { ResponseTimeBadge } from './chat/MessageMetadata';
 
 interface MultimodalChatProps {
@@ -41,7 +42,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     items, 
     connectionState,
     onSendMessage,
-    // onSendVideoFrame, // Not used
     onConnect,
     onDisconnect,
     isWebcamActive,
@@ -50,8 +50,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     isScreenShareInitializing,
     onScreenShareToggle,
     isLocationShared,
-    localAiAvailable,
-    onLocalAction,
     onStopGeneration,
     visible = true,
     onToggleVisibility,
@@ -60,9 +58,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onGeneratePDF,
     onEmailPDF,
     userEmail,
-    userName,
     activeTools = []
-    // latency // Reserved for future connection quality indicator
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -71,7 +67,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [showPDFMenu, setShowPDFMenu] = useState(false);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
-
+  
   // Resizable Sidebar State
   const [sidebarWidth, setSidebarWidth] = useState(450);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -102,7 +98,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
       return () => window.removeEventListener('resize', checkDesktop);
   }, []);
 
-  // Close PDF menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (pdfMenuRef.current && !pdfMenuRef.current.contains(e.target as Node)) {
@@ -174,7 +169,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                         base64, 
                         mimeType: file.type,
                         name: file.name,
-                        size: file.size, 
+                        size: file.size,
                         type: isImage ? 'image' : 'file'
                     });
                 }
@@ -198,24 +193,24 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
   const resize = useCallback((e: MouseEvent) => {
       if (isResizingSidebar) {
-          const newWidth = window.innerWidth - e.clientX;
-          if (newWidth > 300 && newWidth < 800) {
+           const newWidth = window.innerWidth - e.clientX;
+           if (newWidth > 300 && newWidth < 800) {
               setSidebarWidth(newWidth);
-          }
+           }
       }
   }, [isResizingSidebar]);
 
   useEffect(() => {
       if (isResizingSidebar) {
-          window.addEventListener('mousemove', resize);
-          window.addEventListener('mouseup', stopResizing);
+           window.addEventListener('mousemove', resize);
+           window.addEventListener('mouseup', stopResizing);
       } else {
-          window.removeEventListener('mousemove', resize);
-          window.removeEventListener('mouseup', stopResizing);
+           window.removeEventListener('mousemove', resize);
+           window.removeEventListener('mouseup', stopResizing);
       }
       return () => {
-          window.removeEventListener('mousemove', resize);
-          window.removeEventListener('mouseup', stopResizing);
+           window.removeEventListener('mousemove', resize);
+           window.removeEventListener('mouseup', stopResizing);
       };
   }, [isResizingSidebar, resize, stopResizing]);
   
@@ -244,7 +239,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
       }
   };
 
-  // Handle Webcam system message
   useEffect(() => {
       if (isWebcamActive && connectionState === LiveConnectionState.CONNECTED && !systemMessageSentRef.current) {
           onSendMessage("[System: Webcam video stream started. User is now sharing their camera feed.]");
@@ -294,12 +288,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
           <div className="w-1 h-full rounded-full transition-all duration-300 bg-transparent group-hover/handle:bg-blue-400/20 group-active/handle:bg-blue-500/40 backdrop-blur-[2px]" />
       </div>
 
-      {/* 
-          MAIN CARD CONTAINER 
-          Constrains all chat elements (Header, Messages, Footer) 
-          - Mobile: Full width/height, solid/opaque background to prevent bleed-through
-          - Desktop: Floating card style
-      */}
       <div 
         className={`
             relative flex flex-col w-full h-full md:h-[calc(100%-3rem)] md:m-6 md:rounded-[32px] overflow-hidden 
@@ -311,7 +299,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-          {/* MOBILE DRAG HANDLE - Visible only on mobile */}
+          {/* MOBILE DRAG HANDLE */}
           <div 
              className="w-full flex justify-center pt-3 pb-2 md:hidden cursor-grab active:cursor-grabbing shrink-0 z-50 bg-white/50 dark:bg-black/50 backdrop-blur-md"
              onTouchStart={handleTouchStart}
@@ -321,7 +309,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
               <div className="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
           </div>
 
-          {/* CHAT HEADER - Inside Card Constraints */}
+          {/* CHAT HEADER */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 shrink-0 z-10 bg-white/40 dark:bg-black/40 backdrop-blur-md gap-4">
               <div className="flex items-center gap-3 min-w-0">
                  {/* Connection Dot & Title */}
@@ -334,7 +322,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
                  <div className="h-4 w-px bg-gray-200 dark:bg-white/10 mx-1"></div>
 
-                 {/* Status Badges (Only generic/location/processing) */}
                  <StatusBadges 
                     isLocationShared={isLocationShared}
                     isProcessing={items.some(i => !i.isFinal)}
@@ -412,19 +399,10 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
               </div>
           </div>
 
-          {/* MESSAGES AREA - Gradient Mask for smooth scrolling fade */}
           <div className="relative flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8 custom-scrollbar mask-image-gradient">
             {items.length === 0 ? (
               <EmptyState 
-                userName={userName}
-                onSuggestionClick={(text) => onSendMessage(text)}
-                onActionClick={(action) => {
-                  if (action === 'webcam') onWebcamChange(!isWebcamActive);
-                  if (action === 'voice') onConnect();
-                }}
-                hasVoice={connectionState !== LiveConnectionState.CONNECTED}
-                hasWebcam={!isWebcamActive}
-                isDarkMode={isDarkMode}
+                onSuggest={(text) => onSendMessage(text)}
               />
             ) : (
               items.map((item, index) => (
@@ -434,7 +412,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                     onPreview={setPreviewItem}
                     isDarkMode={isDarkMode}
                   />
-                  {/* Response Time Badge - show on last model message */}
                   {index === items.length - 1 && item.role === 'model' && item.isFinal && item.processingTime && (
                     <ResponseTimeBadge 
                       ms={item.processingTime}
@@ -447,10 +424,9 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
             <div ref={endRef} />
           </div>
           
-          {/* Floating Tool Indicator */}
           <FloatingToolIndicator tools={activeTools} />
 
-          {/* INPUT DOCK (FOOTER) */}
+          {/* INPUT DOCK */}
           <ChatInputDock 
             inputValue={inputValue}
             setInputValue={setInputValue}
@@ -465,11 +441,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
             connectionState={connectionState}
             onConnect={onConnect}
             onDisconnect={onDisconnect}
-            {...(localAiAvailable !== undefined && { localAiAvailable })}
-            {...(onLocalAction && { onLocalAction })}
-            suggestionsVisible={items.length < 2 && !isWebcamActive}
-            {...(onStopGeneration && { onStopGeneration })}
-            {...(items.some(i => !i.isFinal) !== undefined && { isGenerating: items.some(i => !i.isFinal) })}
+            onStopGeneration={onStopGeneration}
+            isGenerating={items.some(i => !i.isFinal)}
           />
       </div>
 
