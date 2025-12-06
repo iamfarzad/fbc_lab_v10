@@ -1260,10 +1260,10 @@ export const App: React.FC = () => {
             // Add to transcript
             setTranscript(prev => [...prev, reportItem]);
 
-            showToast('Discovery Report generated! Review your insights below.', 'success');
+            showToast('AI Insights Report generated! Review your insights below.', 'success');
         } catch (err) {
-            console.error('Failed to generate discovery report:', err);
-            showToast('Failed to generate Discovery Report. Please try again.', 'error');
+            console.error('Failed to generate insights report:', err);
+            showToast('Failed to generate AI Insights Report. Please try again.', 'error');
         }
     }, [sessionId, transcript, userProfile, screenShare.isActive, showToast]);
 
@@ -1645,6 +1645,20 @@ export const App: React.FC = () => {
                     severity: 'info'
                 });
 
+                // Handle booking trigger - prepare calendar widget attachment
+                let finalResponseText = responseText;
+                let calendarWidgetAttachment: any = undefined;
+                if (agentResponse.metadata?.triggerBooking && agentResponse.metadata?.calendarLink) {
+                    const calendarUrl = String(agentResponse.metadata.calendarLink);
+                    // Remove booking link from text if it's in there
+                    finalResponseText = responseText.replace(new RegExp(calendarUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '').trim();
+                    calendarWidgetAttachment = {
+                        type: 'calendar_widget',
+                        name: 'Book a Free Consultation',
+                        url: calendarUrl
+                    };
+                }
+
                 // Update conversation flow and intelligence context
                 if (agentResponse.metadata?.conversationFlow) {
                     conversationFlowRef.current = agentResponse.metadata.conversationFlow;
@@ -1732,7 +1746,8 @@ export const App: React.FC = () => {
                     item.id === loadingId.toString()
                         ? {
                             ...item,
-                            text: responseText,
+                            text: finalResponseText,
+                            ...(calendarWidgetAttachment ? { attachment: calendarWidgetAttachment } : {}),
                             ...(agentResponse.metadata?.reasoning && typeof agentResponse.metadata.reasoning === 'string' ? { reasoning: agentResponse.metadata.reasoning } : {}),
                             // Always set groundingMetadata if we have citations, even if empty structure
                             ...(enhancedGroundingMetadata ? { 

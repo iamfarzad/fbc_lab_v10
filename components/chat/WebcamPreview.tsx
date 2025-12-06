@@ -194,7 +194,7 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
 
     return (
         <div 
-            className={`relative w-full h-full bg-black overflow-hidden shadow-2xl animate-fade-in-up group ring-1 ring-black/5 transform transition-all ${className}`}
+            className={`relative w-full h-full bg-black overflow-hidden shadow-2xl animate-fade-in-up group ring-1 ring-white/10 transform transition-all ${className}`}
             style={style}
         >
              {cameraError ? (

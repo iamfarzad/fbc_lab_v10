@@ -159,10 +159,10 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
   }, [code])
   
   return (
-    <div className={`relative rounded-lg overflow-hidden ${colors.background} ${className}`}>
+    <div className={`relative rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 ${colors.background} ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-        <span className="text-xs font-mono text-gray-500">{language}</span>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700/50 bg-gray-50/50 dark:bg-white/5">
+        <span className="text-xs font-mono text-gray-500 font-medium uppercase tracking-wider">{language}</span>
         {showCopy && (
           <button
             onClick={handleCopy}

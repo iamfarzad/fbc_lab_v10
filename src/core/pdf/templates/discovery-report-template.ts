@@ -1,7 +1,7 @@
 /**
- * Discovery Report Template
+ * AI Insights Report Template
  * 
- * McKinsey/BCG-style 1-page AI Discovery Report
+ * Simple, minimal design matching pdfUtils.ts style
  * Lead magnet designed to drive 30-min booking conversions
  */
 
@@ -11,7 +11,7 @@ import { generateEngagementRadar } from '../charts/engagement-radar.js'
 import { generateToolsTimeline } from '../charts/tools-timeline.js'
 
 /**
- * Generate the full HTML content for the Discovery Report
+ * Generate the full HTML content for the AI Insights Report
  */
 export function generateDiscoveryReportHTML(data: DiscoveryReportData): string {
   // Generate chart SVGs
@@ -33,7 +33,7 @@ export function generateDiscoveryReportHTML(data: DiscoveryReportData): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Discovery Report - ${data.client.company || data.client.name}</title>
+  <title>AI Insights Report - ${data.client.company || data.client.name}</title>
   <style>
     * {
       margin: 0;
@@ -361,7 +361,7 @@ export function generateDiscoveryReportHTML(data: DiscoveryReportData): string {
     <div class="header">
       <div class="brand">
         <div class="logo">F.B<span class="logo-slash">/</span>c</div>
-        <div class="report-type">AI Discovery Report</div>
+        <div class="report-type">AI Insights Report</div>
       </div>
       <div class="header-meta">
         <div class="date">${data.reportDate}</div>
@@ -442,6 +442,9 @@ export function generateDiscoveryReportHTML(data: DiscoveryReportData): string {
 /**
  * Generate HTML for observations list
  */
+/**
+ * Generate HTML for observations list with professional SVG icons
+ */
 function generateObservationsHTML(observations: MultimodalObservation[]): string {
   if (!observations || observations.length === 0) {
     return `
@@ -451,11 +454,13 @@ function generateObservationsHTML(observations: MultimodalObservation[]): string
     `
   }
   
+  // Professional SVG Icons
   const iconMap: Record<string, string> = {
-    voice: '🎤',
-    screen: '🖥️',
-    file: '📄',
-    webcam: '📷'
+    voice: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#FF6B35"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`,
+    screen: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#FF6B35"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`,
+    file: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#FF6B35"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`,
+    webcam: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#FF6B35"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`,
+    default: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#FF6B35"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`
   }
   
   const typeLabels: Record<string, string> = {
@@ -467,7 +472,7 @@ function generateObservationsHTML(observations: MultimodalObservation[]): string
   
   return observations.map(obs => `
     <div class="observation-item">
-      <div class="observation-icon">${iconMap[obs.type] || '💡'}</div>
+      <div class="observation-icon">${iconMap[obs.type] || iconMap.default}</div>
       <div class="observation-content">
         <div class="observation-type">${typeLabels[obs.type] || obs.type}</div>
         <div class="observation-summary">${escapeHtml(obs.summary)}</div>
@@ -535,9 +540,9 @@ export function generateSampleDiscoveryReport(): DiscoveryReportData {
       { text: 'Opportunity identified: AI-powered document processing could save $200K annually', category: 'opportunity' }
     ],
     observations: [
-      { type: 'voice', icon: '🎤', summary: '15 minutes discussing AI implementation strategy and team readiness' },
-      { type: 'screen', icon: '🖥️', summary: 'Analyzed CRM dashboard showing customer ticket backlog trends' },
-      { type: 'file', icon: '📄', summary: 'Reviewed budget.xlsx - Q4 projections and resource allocation' }
+      { type: 'voice', icon: '', summary: '15 minutes discussing AI implementation strategy and team readiness' },
+      { type: 'screen', icon: '', summary: 'Analyzed CRM dashboard showing customer ticket backlog trends' },
+      { type: 'file', icon: '', summary: 'Reviewed budget.xlsx - Q4 projections and resource allocation' }
     ],
     toolsUsed: [
       { name: 'search_web', timestamp: new Date().toISOString(), insight: 'Researched industry benchmarks' },

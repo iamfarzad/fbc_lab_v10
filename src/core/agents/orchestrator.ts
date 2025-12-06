@@ -3,11 +3,14 @@ import { pitchAgent } from './pitch-agent.js'
 import { objectionAgent } from './objection-agent.js'
 import { closerAgent } from './closer-agent.js'
 import { summaryAgent } from './summary-agent.js'
+import { adminAgent } from './admin-agent.js'
+import { proposalAgent } from './proposal-agent.js'
+import { retargetingAgent } from './retargeting-agent.js'
 import { detectObjection } from './utils/detect-objections.js'
 import { validateAgentResponse, quickValidate, generateValidationReport } from './response-validator.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
 import type { AgentResult, AgentContext, ChatMessage } from './types.js'
-import { GEMINI_MODELS } from '../../config/constants.js'
+// GEMINI_MODELS removed as unused
 import { logger } from '../../lib/logger.js'
 
 /**
@@ -27,6 +30,7 @@ export async function routeToAgent(params: {
   intelligenceContext: any
   multimodalContext: any
   trigger?: string
+  conversationFlow?: any // Added conversationFlow
 }): Promise<AgentResult> {
   const {
     messages,
@@ -35,6 +39,7 @@ export async function routeToAgent(params: {
     intelligenceContext,
     multimodalContext,
     trigger,
+    conversationFlow
   } = params
 
   const lastMessage = messages[messages.length - 1]?.content || ''
@@ -45,11 +50,29 @@ export async function routeToAgent(params: {
   }
 
   if (trigger === 'conversation_end') {
-    return summaryAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+    return summaryAgent(messages, { intelligenceContext, multimodalContext, sessionId, conversationFlow })
   }
 
   if (trigger === 'admin') {
-    return { output: 'Admin mode active', agent: 'Admin', model: GEMINI_MODELS.DEFAULT_CHAT }
+    return adminAgent(messages, { sessionId })
+  }
+
+  if (trigger === 'proposal_request') {
+    return proposalAgent(messages, { 
+      intelligenceContext, 
+      multimodalContext, 
+      sessionId, 
+      conversationFlow 
+    })
+  }
+
+  if (trigger === 'retargeting') {
+    // Retargeting agent has a specific signature
+    return retargetingAgent({
+      leadContext: intelligenceContext,
+      conversationSummary: conversationFlow?.summary || 'No summary available',
+      scenario: 'no_booking_low_score' // Default scenario, ideally passed in trigger metadata
+    })
   }
 
   // === OBJECTION OVERRIDE (highest priority) ===
@@ -71,43 +94,78 @@ export async function routeToAgent(params: {
     }
   }
 
-  // === FAST-TRACK: QUALIFIED LEADS SKIP DISCOVERY ===
-  const seniority = String(intelligenceContext?.person?.seniority || '')
-  const isQualified =
-    intelligenceContext?.company?.size &&
-    intelligenceContext.company.size !== 'unknown' &&
-    intelligenceContext?.budget?.hasExplicit &&
-    ['C-Level', 'VP', 'Director'].includes(seniority)
+  // === STAGE-BASED ROUTING ===
+  logger.info(`[Orchestrator] Routing based on stage: ${currentStage}`)
 
-  if (isQualified && currentStage === 'DISCOVERY') {
-    intelligenceContext.interestLevel = Math.max(Number(intelligenceContext.interestLevel) || 0.7, 0.9)
-    return pitchAgent(messages, { intelligenceContext, multimodalContext, sessionId })
-        }
-
-  // === NORMAL FLOW ===
   let result: AgentResult
 
   switch (currentStage) {
     case 'DISCOVERY':
-      result = await discoveryAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      result = await discoveryAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId,
+        conversationFlow 
+      })
       break
 
     case 'SCORING':
+       // Scoring is internal, usually transitions to Pitching immediately
+       // But if we need to chat during scoring:
+      result = await discoveryAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId,
+        conversationFlow 
+      }) 
+      break
+
     case 'PITCHING':
-      result = await pitchAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      // Pitch agent needs to know if it's Workshop or Consulting
+      // This logic is inside pitchAgent usually? OR we determine it here
+      result = await pitchAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId,
+        conversationFlow 
+      })
+      break
+
+    case 'OBJECTION':
+      result = await objectionAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId,
+        conversationFlow 
+      })
       break
 
     case 'CLOSING':
-      result = await closerAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      result = await closerAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId,
+        conversationFlow 
+      })
       break
 
     case 'SUMMARY':
-      result = await summaryAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      result = await summaryAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId,
+        conversationFlow 
+      })
       break
 
     default:
-      // Fallback to pitch for any unknown stage
-      result = await pitchAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+      // Fallback to Discovery
+      result = await discoveryAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId,
+        conversationFlow 
+      })
   }
 
   // === RESPONSE VALIDATION ===

@@ -28,7 +28,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onSuggest }) => {
          <div className="absolute inset-0 bg-gradient-to-tr from-zinc-200 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900 rounded-[32px] rotate-3 blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-1000"></div>
          <div className="relative w-20 h-20 bg-white dark:bg-black rounded-2xl flex items-center justify-center shadow-2xl border border-zinc-100 dark:border-zinc-800">
             <span className="font-serif text-2xl tracking-tighter italic font-bold text-black dark:text-white">
-               F.B<span className="text-orange-500">/</span>c
+               F.B<span className="text-black dark:text-white">/</span>c
             </span>
          </div>
       </div>

@@ -9,6 +9,8 @@ import StatusBadges from './StatusBadges';
 import EmptyState from './chat/EmptyState';
 import { FloatingToolIndicator, ToolCall } from './chat/ToolCallIndicator';
 import { ResponseTimeBadge } from './chat/MessageMetadata';
+import WebcamPreview from './chat/WebcamPreview';
+import ScreenSharePreview from './chat/ScreenSharePreview';
 
 interface MultimodalChatProps {
   items: TranscriptItem[];
@@ -37,12 +39,16 @@ interface MultimodalChatProps {
   userName?: string | undefined;
   activeTools?: ToolCall[];
   latency?: number | undefined;
+  // Screen Share Props
+  screenShareStream?: MediaStream | null;
+  screenShareError?: string | null;
 }
 
 const MultimodalChat: React.FC<MultimodalChatProps> = ({ 
     items, 
     connectionState,
     onSendMessage,
+    onSendVideoFrame,
     onConnect,
     onDisconnect,
     isWebcamActive,
@@ -60,7 +66,9 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onEmailPDF,
     onGenerateDiscoveryReport,
     userEmail,
-    activeTools = []
+    activeTools = [],
+    screenShareStream,
+    screenShareError
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -69,6 +77,9 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [showPDFMenu, setShowPDFMenu] = useState(false);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Camera State
+  const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
   
   // Resizable Sidebar State
   const [sidebarWidth, setSidebarWidth] = useState(450);
@@ -301,6 +312,39 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+          {/* VIDEO PREVIEW STACK (Fixed Top-Right) */}
+          <div className="absolute top-20 right-6 z-50 flex flex-col gap-4 items-end pointer-events-none">
+            {/* Webcam Preview */}
+            <div className={`
+                pointer-events-auto transition-all duration-500 ease-spring
+                ${isWebcamActive ? 'w-48 h-36 opacity-100 translate-y-0' : 'w-0 h-0 opacity-0 translate-y-4 overflow-hidden'}
+            `}>
+                <WebcamPreview 
+                    isWebcamActive={isWebcamActive}
+                    facingMode={cameraFacingMode}
+                    onFacingModeToggle={() => setCameraFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
+                    onClose={() => onWebcamChange(false)}
+                    onSendFrame={onSendVideoFrame}
+                    className="rounded-2xl shadow-2xl border border-white/10 ring-1 ring-black/5"
+                />
+            </div>
+
+            {/* Screen Share Preview */}
+            <div className={`
+                pointer-events-auto transition-all duration-500 ease-spring
+                ${isScreenShareActive || isScreenShareInitializing ? 'w-64 h-40 opacity-100 translate-y-0' : 'w-0 h-0 opacity-0 translate-y-4 overflow-hidden'}
+            `}>
+                <ScreenSharePreview 
+                    isScreenShareActive={!!isScreenShareActive}
+                    isInitializing={!!isScreenShareInitializing}
+                    stream={screenShareStream || null}
+                    error={screenShareError || null}
+                    onToggle={onScreenShareToggle || (() => {})}
+                    className="rounded-2xl shadow-2xl border border-white/10 ring-1 ring-black/5 bg-zinc-900"
+                />
+            </div>
+          </div>
+
           {/* MOBILE DRAG HANDLE */}
           <div 
              className="w-full flex justify-center pt-3 pb-2 md:hidden cursor-grab active:cursor-grabbing shrink-0 z-50 bg-white/50 dark:bg-black/50 backdrop-blur-md"
@@ -360,7 +404,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                       {/* PDF Export Dropdown Menu */}
                       {showPDFMenu && items.length > 0 && (
                         <div className={`absolute right-0 top-full mt-2 w-56 rounded-lg shadow-lg border backdrop-blur-lg z-50 overflow-hidden ${isDarkMode ? 'bg-black/90 border-white/10' : 'bg-white/90 border-black/10'}`}>
-                          {/* Discovery Report - Primary Option */}
+                          {/* AI Insights Report - Primary Option */}
                           {onGenerateDiscoveryReport && (
                             <button
                               onClick={() => {
@@ -371,8 +415,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
                               <div className="text-left">
-                                <div className="font-semibold">AI Discovery Report</div>
-                                <div className={`text-[10px] ${isDarkMode ? 'text-white/50' : 'text-black/50'}`}>McKinsey-style insights</div>
+                                <div className="font-semibold">AI Insights Report</div>
+                                <div className={`text-[10px] ${isDarkMode ? 'text-white/50' : 'text-black/50'}`}>Structured insights and recommendations</div>
                               </div>
                             </button>
                           )}
@@ -426,11 +470,16 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
               </div>
           </div>
 
-          <div className="relative flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8 custom-scrollbar mask-image-gradient">
+          <div className={`
+                relative flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8 custom-scrollbar mask-image-gradient
+                ${items.length === 0 ? 'flex flex-col justify-center' : ''} 
+            `}>
             {items.length === 0 ? (
-              <EmptyState 
-                onSuggest={(text) => onSendMessage(text)}
-              />
+              <div className="w-full animate-fade-in-up">
+                <EmptyState 
+                    onSuggest={(text) => onSendMessage(text)}
+                />
+              </div>
             ) : (
               items.map((item, index) => (
                 <div key={item.id + index}>

@@ -124,16 +124,42 @@ export class AIBrainService {
             if (!response.ok) {
                 const errorText = await response.text();
                 let errorMsg = `Server error: ${response.status}`;
+                let errorDetails;
+                
+                // Try to parse as JSON first
                 try {
                     const errorJson = JSON.parse(errorText);
                     errorMsg = errorJson.error || errorJson.message || errorMsg;
+                    errorDetails = errorJson.details;
                 } catch {
-                    // ignore parse error
+                    // Not JSON - might be HTML or plain text
+                    // Try to extract error from HTML if it's an error page
+                    if (errorText.includes('<title>') || errorText.includes('Error')) {
+                        // Extract text content from HTML body
+                        const textMatch = errorText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                        if (textMatch && textMatch[1]) {
+                            // Strip HTML tags and limit length
+                            errorMsg = textMatch[1].replace(/<[^>]+>/g, '').trim().substring(0, 200);
+                        }
+                    } else {
+                        // Plain text error
+                        errorMsg = errorText.substring(0, 200);
+                    }
+                    console.error('[AIBrainService] Non-JSON error response:', {
+                        status: response.status,
+                        contentType: response.headers.get('content-type'),
+                        preview: errorText.substring(0, 500)
+                    });
                 }
-                throw new Error(errorMsg);
+                
+                return {
+                    success: false,
+                    error: errorMsg,
+                    ...(errorDetails && { details: errorDetails })
+                };
             }
 
-            const data = await response.json();
+            const data = (await response.json() || {}) as any;
             return {
                 success: true,
                 text: data.text || data.message, // Handle different response formats

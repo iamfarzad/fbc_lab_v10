@@ -9,6 +9,7 @@ import React from 'react'
 interface MarkdownTableProps {
   content: string
   className?: string
+  isDarkMode?: boolean
 }
 
 interface ParsedTable {
@@ -62,7 +63,8 @@ function parseMarkdownTable(content: string): ParsedTable | null {
 
 const MarkdownTable: React.FC<MarkdownTableProps> = ({
   content,
-  className = ''
+  className = '',
+  isDarkMode = false
 }) => {
   const table = parseMarkdownTable(content)
   
@@ -81,15 +83,15 @@ const MarkdownTable: React.FC<MarkdownTableProps> = ({
   }
 
   return (
-    <div className={`overflow-x-auto ${className}`}>
+    <div className={`overflow-x-auto rounded-xl border ${isDarkMode ? 'border-zinc-800 bg-zinc-900/50 backdrop-blur-sm' : 'border-zinc-200 bg-white/50 backdrop-blur-sm'} ${className}`}>
       <table className="min-w-full border-collapse text-sm">
         <thead>
-          <tr className="bg-gray-50 border-b border-gray-200">
+          <tr className={`${isDarkMode ? 'bg-white/5 border-zinc-700' : 'bg-gray-50/80 border-gray-200'} border-b`}>
             {table.headers.map((header, i) => (
               <th 
                 key={i}
                 className={`
-                  px-4 py-2 font-semibold text-gray-700
+                  px-4 py-3 font-semibold ${isDarkMode ? 'text-zinc-200' : 'text-gray-700'}
                   ${getAlignment(i)}
                 `}
               >
@@ -103,16 +105,17 @@ const MarkdownTable: React.FC<MarkdownTableProps> = ({
             <tr 
               key={rowIndex}
               className={`
-                border-b border-gray-100
-                ${rowIndex % 2 === 1 ? 'bg-gray-50/50' : ''}
-                hover:bg-gray-50
+                border-b ${isDarkMode ? 'border-zinc-800' : 'border-gray-100'}
+                ${rowIndex % 2 === 1 ? (isDarkMode ? 'bg-white/5' : 'bg-gray-50/50') : ''}
+                ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-gray-50'}
+                transition-colors
               `}
             >
               {row.map((cell, cellIndex) => (
                 <td 
                   key={cellIndex}
                   className={`
-                    px-4 py-2 text-gray-600
+                    px-4 py-2.5 ${isDarkMode ? 'text-zinc-400' : 'text-gray-600'}
                     ${getAlignment(cellIndex)}
                   `}
                 >

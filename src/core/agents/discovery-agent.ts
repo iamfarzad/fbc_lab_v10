@@ -8,6 +8,7 @@ import { PHRASE_BANK } from '../chat/conversation-phrases.js'
 import { extractCompanySize, extractBudgetSignals, extractTimelineUrgency } from './utils/index.js'
 import { analyzeUrl } from '../intelligence/url-context-tool.js'
 import { extractGeminiMetadata } from '../../lib/extract-gemini-metadata.js'
+import { logger } from '../../lib/logger.js'
 
 /**
  * Discovery Agent - Systematically qualifies leads through conversation
@@ -34,7 +35,7 @@ export async function discoveryAgent(
     if (exitIntent === 'BOOKING') {
       const calendarLink = CALENDAR_CONFIG.getLink('consultation')
       return {
-        output: `Absolutely! Here's our booking link: ${calendarLink}\n\nYou can schedule a time that works for you. What specific areas would you like to focus on in our consultation?`,
+        output: `Absolutely! Here's your booking link.\n\nYou can schedule a time that works for you. What specific areas would you like to focus on in our consultation?`,
         agent: 'Discovery Agent (Booking Mode)',
         metadata: {
           stage: 'BOOKING_REQUESTED' as FunnelStage,
@@ -275,32 +276,28 @@ ${conversationFlow?.shouldOfferRecap
     // If empty, use fallback
     if (!generatedText || generatedText.trim() === '') {
       console.warn('[Discovery Agent] generateText returned empty, using fallback')
-      const fallbackQuestion = conversationFlow?.recommendedNext && PHRASE_BANK[conversationFlow.recommendedNext] && PHRASE_BANK[conversationFlow.recommendedNext][0]
+      const fallbackQuestion = (conversationFlow?.recommendedNext && PHRASE_BANK[conversationFlow.recommendedNext]?.[0])
         ? PHRASE_BANK[conversationFlow.recommendedNext][0]
         : "What's the main goal you're trying to achieve with AI?"
       generatedText = fallbackQuestion || "What's the main goal you're trying to achieve with AI?"
     }
   } catch (error) {
-    console.error('[Discovery Agent] generateText failed:', error)
+    // Enhanced error logging
+    logger.error(
+        '[Discovery Agent] generateText failed',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+            sessionId: context.sessionId,
+            messageCount: messages.length,
+            hasConversationFlow: !!conversationFlow
+        }
+    );
     
-    // Log detailed error info for debugging
-    if (error && typeof error === 'object' && 'prompt' in error) {
-      console.error('[Discovery Agent] Error prompt structure:', {
-        hasSystem: !!systemPrompt,
-        messagesCount: messages.length,
-        messagesStructure: messages.map(m => ({
-          role: m.role,
-          hasContent: !!m.content,
-          contentType: typeof m.content,
-          hasAttachments: !!(m && typeof m === 'object' && 'attachments' in m && m.attachments)
-        }))
-      })
-    }
-    
-    // Fallback question - but don't loop
-    const fallbackQuestion = conversationFlow?.recommendedNext && PHRASE_BANK[conversationFlow.recommendedNext] && PHRASE_BANK[conversationFlow.recommendedNext][0]
+    // Always return a valid question
+    const fallbackQuestion = conversationFlow?.recommendedNext && PHRASE_BANK[conversationFlow.recommendedNext]?.[0]
       ? PHRASE_BANK[conversationFlow.recommendedNext][0]
       : "What's the main goal you're trying to achieve with AI?"
+    
     generatedText = fallbackQuestion || "What's the main goal you're trying to achieve with AI?"
     
     // Mark this as an error so frontend knows not to retry

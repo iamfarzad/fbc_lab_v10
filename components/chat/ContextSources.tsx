@@ -24,6 +24,7 @@ import {
   ExternalLink,
   Info
 } from 'lucide-react'
+import { Tooltip } from './UIHelpers'
 
 export interface ContextSource {
   type: 'company' | 'person' | 'location' | 'conversation' | 'file' | 'webcam' | 'screen' | 'web'
@@ -72,32 +73,36 @@ const ContextSources: React.FC<ContextSourcesProps> = ({
   if (!sources.length) return null
 
   if (compact) {
-    // Just show icons
+    // Just show icons with tooltips
     return (
-      <div className={`flex items-center gap-1 ${className}`}>
-        <Info className="w-3 h-3 text-gray-400" />
+      <div className={`flex items-center gap-1.5 ${className}`}>
+        <Tooltip text="Context sources">
+          <Info className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+        </Tooltip>
         {sources.slice(0, 4).map((source, i) => (
-          <div 
-            key={i}
-            className={`p-1 rounded ${SOURCE_COLORS[source.type]} border`}
-            title={`${source.label}: ${source.value || 'Active'}`}
-          >
-            {SOURCE_ICONS[source.type]}
-          </div>
+          <Tooltip key={i} text={`${source.label}: ${source.value || 'Active'}`}>
+            <div 
+              className={`p-1.5 rounded ${SOURCE_COLORS[source.type]} border cursor-help hover:scale-110 transition-transform`}
+            >
+              {SOURCE_ICONS[source.type]}
+            </div>
+          </Tooltip>
         ))}
         {sources.length > 4 && (
-          <span className="text-xs text-gray-400">+{sources.length - 4}</span>
+          <Tooltip text={`${sources.length - 4} more context sources`}>
+            <span className="text-xs text-zinc-400 dark:text-zinc-500 cursor-help font-medium">+{sources.length - 4}</span>
+          </Tooltip>
         )}
       </div>
     )
   }
 
   return (
-    <div className={`rounded-lg border border-gray-200 bg-white overflow-hidden ${className}`}>
+    <div className={`rounded-lg border border-gray-200/50 dark:border-zinc-800/50 bg-white/50 dark:bg-black/40 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:bg-white/80 dark:hover:bg-black/60 ${className}`}>
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-gray-400" />

@@ -66,7 +66,7 @@ export function buildDiscoveryReportData(input: SessionDataInput): DiscoveryRepo
   if (input.multimodalContext?.voiceSummary) {
     observations.push({
       type: 'voice',
-      icon: '🎤',
+      icon: '', // Icon handled by template
       summary: input.multimodalContext.voiceSummary
     })
   }
@@ -74,7 +74,7 @@ export function buildDiscoveryReportData(input: SessionDataInput): DiscoveryRepo
   if (input.multimodalContext?.screenSummary) {
     observations.push({
       type: 'screen',
-      icon: '🖥️',
+      icon: '', // Icon handled by template
       summary: input.multimodalContext.screenSummary
     })
   }
@@ -83,7 +83,7 @@ export function buildDiscoveryReportData(input: SessionDataInput): DiscoveryRepo
     input.multimodalContext.filesReviewed.forEach(file => {
       observations.push({
         type: 'file',
-        icon: '📄',
+        icon: '', // Icon handled by template
         summary: `${file.filename}: ${file.analysis}`
       })
     })
@@ -92,7 +92,7 @@ export function buildDiscoveryReportData(input: SessionDataInput): DiscoveryRepo
   if (input.multimodalContext?.webcamSummary) {
     observations.push({
       type: 'webcam',
-      icon: '📷',
+      icon: '', // Icon handled by template
       summary: input.multimodalContext.webcamSummary
     })
   }

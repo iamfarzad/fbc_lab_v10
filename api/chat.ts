@@ -181,33 +181,58 @@ export default async function handler(
             }
         }
 
-        // Route to appropriate agent with validated messages
-        const result = await routeToAgent({
-            messages: validMessages as ChatMessage[],
-            sessionId: sessionId || `session-${Date.now()}`,
-            currentStage,
-            intelligenceContext: intelligenceContext || {},
-            multimodalContext: finalMultimodalContext || {
-                hasRecentImages: false,
-                hasRecentAudio: false,
-                hasRecentUploads: false,
-                recentAnalyses: [],
-                recentUploads: []
-            },
-            trigger: trigger || 'chat'
-        });
+        try {
+            // Extract conversationFlow if provided (crucial for Discovery Agent)
+            const conversationFlow = req.body.conversationFlow || null;
 
-        // Return agent response
-        return res.status(200).json({
-            success: true,
-            output: result.output,
-            agent: result.agent,
-            model: result.model,
-            metadata: result.metadata
-        });
+            // Route to appropriate agent with validated messages
+            const result = await routeToAgent({
+                messages: validMessages as ChatMessage[],
+                sessionId: sessionId || `session-${Date.now()}`,
+                currentStage,
+                intelligenceContext: intelligenceContext || {},
+                multimodalContext: finalMultimodalContext || {
+                    hasRecentImages: false,
+                    hasRecentAudio: false,
+                    hasRecentUploads: false,
+                    recentAnalyses: [],
+                    recentUploads: []
+                },
+                trigger: trigger || 'chat',
+                conversationFlow // Pass flow context to orchestrator
+            });
+
+            // Return agent response
+            return res.status(200).json({
+                success: true,
+                output: result.output,
+                agent: result.agent,
+                model: result.model,
+                metadata: result.metadata
+            });
+        } catch (error) {
+            // Enhanced error logging
+            logger.error(
+                '[API /chat] Agent routing failed',
+                error instanceof Error ? error : new Error(String(error)),
+                {
+                    sessionId,
+                    currentStage,
+                    messageCount: validMessages.length,
+                    hasIntelligenceContext: !!intelligenceContext
+                }
+            );
+
+            // Always return JSON error to prevent parsing failures on client
+            return res.status(500).json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Internal server error executing agent',
+                agent: 'Orchestrator (Error Fallback)'
+            });
+        }
 
     } catch (error) {
-        console.error('[API /chat] Error:', error);
+        console.error('[API /chat] Global Error:', error);
         if (error instanceof Error && error.stack) {
             console.error('[API /chat] Stack:', error.stack);
         }
@@ -219,8 +244,7 @@ export default async function handler(
             error: error instanceof Error ? error.message : 'Internal server error',
             ...(isDev && error instanceof Error && {
                 details: error.stack,
-                name: error.name,
-                cause: (error as any).cause
+                name: error.name
             })
         });
     }

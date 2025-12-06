@@ -128,18 +128,6 @@ export const TOOL_LABELS: Record<string, string> = {
   'get_dashboard_stats': 'Dashboard Stats'
 }
 
-// Tool name to icon mapping (for timeline)
-export const TOOL_ICONS: Record<string, string> = {
-  'search_web': '🔍',
-  'get_weather': '🌤️',
-  'search_companies_by_location': '🏢',
-  'calculate_roi': '📊',
-  'extract_action_items': '✅',
-  'generate_summary_preview': '📋',
-  'draft_follow_up_email': '✉️',
-  'generate_proposal_draft': '📄',
-  'capture_screen_snapshot': '🖥️',
-  'capture_webcam_snapshot': '📷',
-  'get_dashboard_stats': '📈'
-}
+// Tool icons handled by chart generators directly
+export const TOOL_ICONS: Record<string, string> = {}
 

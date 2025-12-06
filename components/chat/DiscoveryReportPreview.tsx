@@ -1,7 +1,7 @@
 /**
- * Discovery Report Preview Component
+ * AI Insights Report Preview Component
  * 
- * Renders an inline preview of the AI Discovery Report in the chat
+ * Renders an inline preview of the AI Insights Report in the chat
  * Full embedded scrollable viewer with download/email actions
  */
 
@@ -22,7 +22,7 @@ interface DiscoveryReportPreviewProps {
 export function DiscoveryReportPreview({
   htmlContent,
   pdfDataUrl,
-  reportName = 'AI Discovery Report',
+  reportName = 'AI Insights Report',
   bookingUrl,
   onDownload,
   onEmail,
@@ -43,6 +43,20 @@ export function DiscoveryReportPreview({
       }
     }
   }, [htmlContent])
+
+  // ESC key handler to close modal
+  useEffect(() => {
+    if (!isExpanded) return
+    
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsExpanded(false)
+      }
+    }
+    
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isExpanded])
   
   const handleDownload = () => {
     if (onDownload) {
@@ -68,17 +82,29 @@ export function DiscoveryReportPreview({
   // Expanded modal view
   if (isExpanded) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in-up">
+      <div 
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in-up"
+        onClick={(e) => {
+          // Close when clicking the backdrop (not the iframe container)
+          if (e.target === e.currentTarget) {
+            setIsExpanded(false)
+          }
+        }}
+      >
         {/* Close button */}
         <button
           onClick={() => setIsExpanded(false)}
           className="absolute top-4 right-4 p-3 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-all z-[101]"
+          aria-label="Close report"
         >
           <X className="w-6 h-6" />
         </button>
         
         {/* Full screen iframe */}
-        <div className="w-[90vw] h-[90vh] bg-white rounded-xl overflow-hidden shadow-2xl">
+        <div 
+          className="w-[90vw] h-[90vh] bg-white rounded-xl overflow-hidden shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           <iframe
             ref={iframeRef}
             title={reportName}
@@ -87,11 +113,18 @@ export function DiscoveryReportPreview({
           />
         </div>
         
-        {/* Actions bar */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 bg-black/70 backdrop-blur-md rounded-full">
+        {/* Actions bar - Match inline button styles */}
+        <div 
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-full shadow-xl border border-zinc-200 dark:border-zinc-800"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             onClick={handleDownload}
-            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm font-medium transition-colors"
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              isDarkMode
+                ? 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900'
+            }`}
           >
             <Download className="w-4 h-4" />
             Download PDF
@@ -99,7 +132,11 @@ export function DiscoveryReportPreview({
           {onEmail && (
             <button
               onClick={onEmail}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm font-medium transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 ${
+                isDarkMode
+                  ? 'bg-zinc-800 hover:bg-zinc-700 text-white shadow-sm'
+                  : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900 shadow-sm'
+              }`}
             >
               <Mail className="w-4 h-4" />
               Email Report
@@ -119,11 +156,11 @@ export function DiscoveryReportPreview({
   
   // Inline preview (in chat)
   return (
-    <div className={`w-full max-w-[500px] rounded-xl overflow-hidden border ${
+    <div className={`w-full max-w-[500px] rounded-xl overflow-hidden border transition-all duration-300 ${
       isDarkMode 
-        ? 'bg-zinc-900 border-zinc-800' 
-        : 'bg-white border-zinc-200'
-    } shadow-lg`}>
+        ? 'bg-zinc-900/50 border-zinc-800 backdrop-blur-md' 
+        : 'bg-white/60 border-zinc-200 backdrop-blur-md'
+    } shadow-lg hover:shadow-xl`}>
       {/* Header */}
       <div className={`flex items-center justify-between px-4 py-3 border-b ${
         isDarkMode ? 'border-zinc-800 bg-zinc-900/50' : 'border-zinc-100 bg-zinc-50'

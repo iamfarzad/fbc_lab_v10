@@ -247,7 +247,16 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                                 : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'
                                         }`}
                                     >
-                                        <AudioLines className="w-4 h-4" />
+                                        {isListening ? (
+                                            <div className="flex gap-0.5 items-end justify-center h-3">
+                                                <div className="w-0.5 bg-white rounded-full animate-[bounce_0.8s_infinite] h-2"></div>
+                                                <div className="w-0.5 bg-white rounded-full animate-[bounce_0.8s_infinite_0.1s] h-3"></div>
+                                                <div className="w-0.5 bg-white rounded-full animate-[bounce_0.8s_infinite_0.2s] h-1.5"></div>
+                                                <div className="w-0.5 bg-white rounded-full animate-[bounce_0.8s_infinite_0.15s] h-2.5"></div>
+                                            </div>
+                                        ) : (
+                                            <AudioLines className="w-4 h-4" />
+                                        )}
                                     </button>
                                 </Tooltip>
                             </div>
@@ -299,7 +308,8 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                             : isConnecting
                                                 ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-500 animate-pulse'
                                                 : 'text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600'
-                                    }`}
+                                    } hover:scale-105 active:scale-95`
+                                    }
                                 >
                                     {isConnected ? (
                                         <div className="flex gap-0.5 items-end justify-center h-4">

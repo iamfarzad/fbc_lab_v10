@@ -162,14 +162,17 @@ export class StandardChatService {
                 "Do not just answer questions; research them using Google Search, plan your response, and synthesize information. ";
 
             // INJECT RESEARCH CONTEXT (from instance or snapshot)
+            // INJECT RESEARCH CONTEXT (from instance or snapshot)
             const activeResearch = this.researchContext || snapshot.researchContext;
             if (activeResearch) {
                 const rc = activeResearch;
-                systemInstruction += `\n\n[CRITICAL CONTEXT: INTERLOCUTOR PROFILE]\n` +
-                    `You are speaking with: ${rc.person.fullName} (${rc.role})\n` +
-                    `Company: ${rc.company.name} (${rc.company.industry || 'Industry unknown'}, ${rc.company.size || 'Size unknown'})\n` +
+                systemInstruction += `\n\n[CONTEXT: You know about this person]\n` +
+                    `Person: ${rc.person.fullName} (${rc.role})\n` +
+                    `Company: ${rc.company.name} (${rc.company.industry || 'Industry unknown'})\n` +
                     `Summary: ${rc.company.summary || 'N/A'}\n` +
-                    `Tailor your responses to this person's role and industry context.\n\n`;
+                    `\nIMPORTANT: Don't just summarize what you know. Use this context to ask relevant questions.\n` +
+                    `Instead of "I understand you are...", ask "Since ${rc.company.name} is in ${rc.company.industry || 'your industry'}, what's your biggest challenge with...?"\n` +
+                    `Be conversational and discovery-focused, not informational.\n`;
             }
 
             // Determine if Tools are supported by the model

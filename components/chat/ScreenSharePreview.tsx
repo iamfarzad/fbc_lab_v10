@@ -57,7 +57,7 @@ const ScreenSharePreview: React.FC<ScreenSharePreviewProps> = ({
 
     return (
         <div 
-            className={`relative w-full h-full bg-gray-900 overflow-hidden shadow-2xl animate-fade-in-up group ring-1 ring-purple-500/20 transform transition-all ${className}`}
+            className={`relative w-full h-full bg-gray-900 overflow-hidden shadow-2xl animate-fade-in-up group ring-1 ring-white/10 transform transition-all ${className}`}
             style={style}
         >
             {error ? (

@@ -6,7 +6,7 @@
  */
 
 import type { ToolUsageRecord } from '../utils/discovery-report-types.js'
-import { TOOL_LABELS, TOOL_ICONS } from '../utils/discovery-report-types.js'
+import { TOOL_LABELS } from '../utils/discovery-report-types.js'
 
 export interface TimelineChartOptions {
   width?: number
@@ -27,11 +27,20 @@ function getToolLabel(toolName: string): string {
   return TOOL_LABELS[toolName] || toolName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
+const TOOL_SVG_PATHS: Record<string, string> = {
+  'search_web': '<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  'calculate_roi': '<path d="M12 20V10m6 10V4M6 20v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 
+  'capture_screen_snapshot': '<rect x="2" y="3" width="20" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2"/>',
+  'capture_webcam_snapshot': '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/>',
+  'default': '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 8v4l3 3" stroke="currentColor" stroke-width="2"/>'
+}
+
 /**
- * Get icon for tool
+ * Get SVG content for tool
  */
-function getToolIcon(toolName: string): string {
-  return TOOL_ICONS[toolName] || '⚡'
+function getToolSVG(toolName: string): string {
+  const path = TOOL_SVG_PATHS[toolName] || TOOL_SVG_PATHS['default']
+  return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="icon">${path}</svg>`
 }
 
 /**
@@ -69,7 +78,7 @@ export function generateToolsTimeline(tools: ToolUsageRecord[], options: Timelin
     const x = displayTools.length === 1 
       ? width / 2 
       : padding.left + (index * spacing)
-    const icon = getToolIcon(tool.name)
+    const svgIcon = getToolSVG(tool.name)
     const label = getToolLabel(tool.name)
     
     return `
@@ -78,8 +87,10 @@ export function generateToolsTimeline(tools: ToolUsageRecord[], options: Timelin
         <!-- Node circle -->
         <circle cx="0" cy="0" r="${nodeRadius}" fill="${bgColor}" stroke="${accentColor}" stroke-width="2"/>
         
-        <!-- Icon (as text for simplicity) -->
-        <text x="0" y="5" text-anchor="middle" font-size="12">${icon}</text>
+        <!-- Icon (SVG) -->
+        <g transform="translate(-7, -7)" style="color: ${accentColor}">
+           ${svgIcon}
+        </g>
         
         <!-- Label below -->
         <text x="0" y="${nodeRadius + 14}" text-anchor="middle" fill="${mutedColor}" font-family="system-ui, sans-serif" font-size="8" font-weight="500">
@@ -159,9 +170,8 @@ export function generateToolsList(tools: ToolUsageRecord[], maxDisplay: number =
   const hasMore = tools.length > maxDisplay
   
   const items = displayTools.map(tool => {
-    const icon = getToolIcon(tool.name)
     const label = getToolLabel(tool.name)
-    return `<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #fff7ed; border-radius: 12px; font-size: 10px; color: #1a1a2e;">${icon} ${label}</span>`
+    return `<span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: #fff7ed; border-radius: 12px; font-size: 10px; color: #1a1a2e; border: 1px solid #FF6B35;">${label}</span>`
   })
   
   if (hasMore) {

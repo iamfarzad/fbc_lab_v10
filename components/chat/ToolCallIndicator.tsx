@@ -43,8 +43,10 @@ const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
             flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium font-mono
             transition-all duration-200
             ${tool.status === 'running' 
-                ? 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100' 
-                : 'text-zinc-500 dark:text-zinc-500'}
+                ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' 
+                : tool.status === 'complete'
+                    ? 'bg-zinc-50 dark:bg-zinc-900/30 border-transparent text-green-600 dark:text-green-400'
+                    : 'bg-zinc-50 dark:bg-zinc-900/30 border-transparent text-zinc-500'}
           `}
         >
           {/* Icon State */}

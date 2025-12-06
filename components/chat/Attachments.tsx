@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { getDomain, decodeBase64, formatBytes } from './UIHelpers';
+import { X } from 'lucide-react';
 
 // --- WebPreviewCard ---
 export const WebPreviewCard: React.FC<{ title: string; url: string; type: 'web' | 'map'; className?: string }> = ({ title, url, type, className }) => {
@@ -84,9 +85,9 @@ export const Lightbox: React.FC<{ attachment: any; onClose: () => void }> = ({ a
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in-up" onClick={onClose}>
             <button 
                 onClick={onClose}
-                className="absolute top-6 right-6 p-3 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all z-[101]"
+                className="absolute top-6 right-6 p-2 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all z-[101]"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                <X className="w-6 h-6" />
             </button>
 
             <div 
@@ -148,7 +149,7 @@ export const StagingArea: React.FC<StagingAreaProps> = ({ selectedFile, onRemove
     
     return (
         <div className="w-full animate-fade-in-up">
-             <div className="flex items-center gap-4 p-3 bg-white/50 dark:bg-black/40 backdrop-blur-sm rounded-xl border border-white/40 dark:border-white/10 shadow-[0_2px_12px_rgba(0,0,0,0.04)] ring-1 ring-black/5 mx-auto max-w-full">
+             <div className="flex items-center gap-4 p-3 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-xl border border-white/40 dark:border-white/10 shadow-sm ring-1 ring-black/5 mx-auto max-w-full group">
                  {/* Preview Icon/Image */}
                  <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
                      {selectedFile.type === 'image' ? (
@@ -171,10 +172,10 @@ export const StagingArea: React.FC<StagingAreaProps> = ({ selectedFile, onRemove
                  {/* Remove Action */}
                  <button 
                     onClick={onRemove}
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                    className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                     title="Remove file"
                  >
-                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                     <X className="w-4 h-4" />
                  </button>
              </div>
         </div>

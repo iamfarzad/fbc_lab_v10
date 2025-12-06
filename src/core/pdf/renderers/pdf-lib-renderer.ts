@@ -3,7 +3,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { PDF_DESIGN_TOKENS, getRgbColor } from '../../pdf-design-tokens.js'
 import { CONTACT_CONFIG } from '../../../config/constants.js'
 import { FALLBACK_PRICING } from '../utils/constants.js'
-import { formatDate, shortenText, toPrintable } from '../utils/formatting.js'
+import { formatDate, shortenText, toPrintable, sanitizeTextForPdf } from '../utils/formatting.js'
 import { generateApproveMailtoLink } from '../templates/proposal-template.js'
 import { generateROIChartsImages, isValidROIData } from './chart-renderer.js'
 import { buildConversationPairs } from '../utils/conversation.js'
@@ -14,7 +14,7 @@ import type { SummaryData } from '../utils/types.js'
  * Lightweight text helper until the Gemini translator is migrated.
  */
 function translateText(text: string) {
-  return text
+  return sanitizeTextForPdf(text)
 }
 
 /**

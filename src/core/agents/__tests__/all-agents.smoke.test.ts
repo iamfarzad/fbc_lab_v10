@@ -22,6 +22,21 @@ async function* mockTextStream() {
   yield ' response'
 }
 
+// Mock the 'ai' package for safeGenerateText
+vi.mock('ai', () => ({
+  generateText: vi.fn().mockResolvedValue({
+    text: 'Mocked response',
+    response: {
+      text: () => 'Mocked response'
+    },
+    toolCalls: []
+  }),
+  streamText: vi.fn().mockResolvedValue({
+    textStream: mockTextStream(),
+    text: async () => 'Mocked response'
+  })
+}))
+
 // Mock AI client to return successful responses
 vi.mock('@/lib/ai-client', () => ({
   google: vi.fn(() => ({
@@ -115,7 +130,15 @@ describe('All Agents Smoke', () => {
         shouldOfferRecap: false
       }
     }
-    const res = await routeToAgent({ messages, context, trigger: 'chat' })
+    const res = await routeToAgent({ 
+      messages, 
+      sessionId,
+      currentStage: 'CLOSING',
+      intelligenceContext: context.intelligenceContext,
+      multimodalContext: {},
+      conversationFlow: context.conversationFlow,
+      trigger: 'chat' 
+    })
     expect(res.agent).toBe('Closer Agent')
     expect(res.metadata?.stage).toBe('CLOSING')
   })
@@ -143,7 +166,15 @@ describe('All Agents Smoke', () => {
         shouldOfferRecap: false
       }
     }
-    const res = await routeToAgent({ messages, context, trigger: 'conversation_end' })
+    const res = await routeToAgent({ 
+      messages, 
+      sessionId,
+      currentStage: 'SUMMARY',
+      intelligenceContext: {},
+      multimodalContext: {},
+      conversationFlow: context.conversationFlow,
+      trigger: 'conversation_end' 
+    })
     expect(res.agent).toBe('Summary Agent')
     expect(res.metadata?.stage).toBe('SUMMARY')
   })
@@ -154,10 +185,10 @@ describe('All Agents Smoke', () => {
     ]
     const res = await routeToAgent({
       messages,
-      context: {
-        sessionId: 'admin-session',
-        intelligenceContext: { email: 'admin@example.com', name: 'Admin' }
-      } as AgentContext,
+      sessionId: 'admin-session',
+      currentStage: 'DISCOVERY', // Ignored by trigger
+      intelligenceContext: { email: 'admin@example.com', name: 'Admin' },
+      multimodalContext: {},
       trigger: 'admin'
     })
     expect(res.agent).toBe('Admin AI Agent')
@@ -192,7 +223,15 @@ describe('All Agents Smoke', () => {
         shouldOfferRecap: false
       }
     }
-    const res = await routeToAgent({ messages, context, trigger: 'proposal_request' })
+    const res = await routeToAgent({ 
+      messages, 
+      sessionId,
+      currentStage: 'PITCHING', // Likely stage
+      intelligenceContext: context.intelligenceContext,
+      multimodalContext: {},
+      conversationFlow: context.conversationFlow,
+      trigger: 'proposal_request' 
+    })
     expect(res.agent).toBe('Proposal Agent')
     expect(res.metadata?.stage).toBe('PROPOSAL')
   })
@@ -225,8 +264,15 @@ describe('All Agents Smoke', () => {
         shouldOfferRecap: false
       }
     }
-    // @ts-expect-error: retargeting is supported at runtime
-    const res = await routeToAgent({ messages, context, trigger: 'retargeting' })
+    const res = await routeToAgent({ 
+      messages, 
+      sessionId,
+      currentStage: 'DISCOVERY', // Doesn't matter
+      intelligenceContext: context.intelligenceContext,
+      multimodalContext: {},
+      conversationFlow: context.conversationFlow,
+      trigger: 'retargeting' 
+    })
     expect(res.agent).toBe('Retargeting Agent')
     expect(res.metadata?.stage).toBe('RETARGETING')
   })

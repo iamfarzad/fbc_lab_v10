@@ -6,8 +6,9 @@ import { CalendarWidget } from './CalendarWidget';
 import { DiscoveryReportPreview } from './DiscoveryReportPreview';
 import ContextSources from './ContextSources';
 import ErrorMessage from './ErrorMessage';
-import { User } from 'lucide-react';
+import { User, ChevronDown, Sparkles } from 'lucide-react';
 import { CONTACT_CONFIG } from 'src/config/constants';
+import { useState } from 'react';
 
 interface ChatMessageProps {
     item: TranscriptItem;
@@ -27,8 +28,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     isDarkMode = false 
 }) => {
     const isUser = item.role === 'user';
+    const [isThinkingOpen, setIsThinkingOpen] = useState(false);
 
-    // Handle System Messages
+    // Handle System Messages - hide text if attachment exists (attachment is the real content)
     if (item.text.startsWith('[System:') && !item.attachment) {
         return (
             <div className="flex justify-center w-full my-4 animate-fade-in-up">
@@ -38,13 +40,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             </div>
         );
     }
+    // If system message has attachment, hide the system text (attachment is the content)
+    if (item.text.startsWith('[System:') && item.attachment) {
+        // Don't return early - continue to render attachment
+        // Just skip the system text display
+    }
 
     // Helper: Avatar Component
     const Avatar = () => (
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border shadow-sm transition-all duration-300 ${
             isUser 
-                ? 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400' 
-                : 'bg-black dark:bg-white border-transparent text-white dark:text-black'
+                ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400' 
+                : 'bg-gradient-to-br from-black to-zinc-800 dark:from-white dark:to-zinc-200 border-transparent text-white dark:text-black shadow-md'
         }`}>
             {isUser ? <User className="w-4 h-4" /> : <span className="text-[10px] font-bold tracking-tighter">FB</span>}
         </div>
@@ -90,12 +97,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     />
                 )}
 
-                {/* 1c. Discovery Report Attachment */}
+                {/* 1c. AI Insights Report Attachment */}
                 {item.attachment && item.attachment.type === 'discovery_report' && item.attachment.htmlContent && (
                     <DiscoveryReportPreview 
                         htmlContent={item.attachment.htmlContent}
                         {...(item.attachment.data ? { pdfDataUrl: item.attachment.data } : {})}
-                        reportName={item.attachment.name || "AI Discovery Report"}
+                        reportName={item.attachment.name || "AI Insights Report"}
                         bookingUrl={item.attachment.url || CONTACT_CONFIG.SCHEDULING.BOOKING_URL}
                         {...(onDownloadReport ? { onDownload: onDownloadReport } : {})}
                         {...(onEmailReport ? { onEmail: onEmailReport } : {})}
@@ -104,23 +111,37 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     />
                 )}
 
-                {/* 2. Reasoning (Monochrome) */}
+                {/* 2. Reasoning (Animated Accordion) */}
                 {item.reasoning && (
-                    <div className="w-full">
-                         <details className="group/details mb-2">
-                            <summary className="list-none cursor-pointer flex items-center gap-2 text-[10px] font-medium text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors uppercase tracking-wider">
-                                <span>Thinking Process</span>
-                                <div className="h-px bg-zinc-200 dark:bg-zinc-800 flex-1"></div>
-                            </summary>
-                            <div className="mt-2 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400 font-mono pl-2 border-l border-zinc-200 dark:border-zinc-800">
-                                {item.reasoning}
+                    <div className="w-full mb-3">
+                        <button 
+                            onClick={() => setIsThinkingOpen(!isThinkingOpen)}
+                            className="flex items-center gap-2 group/btn select-none"
+                        >
+                            <div className={`p-1 rounded-md transition-colors ${isThinkingOpen ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-500' : 'text-zinc-400 group-hover/btn:text-zinc-600 dark:group-hover/btn:text-zinc-300'}`}>
+                                <Sparkles className="w-3.5 h-3.5" />
                             </div>
-                        </details>
+                            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 tracking-wide">
+                                {isThinkingOpen ? 'Reasoning Process' : 'Show Reasoning'}
+                            </span>
+                            <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-300 ${isThinkingOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <div 
+                            className={`grid transition-[grid-template-rows] duration-300 ease-out ${isThinkingOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+                        >
+                            <div className="overflow-hidden">
+                                <div className="mt-3 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300 font-mono bg-zinc-50/50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm relative">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-orange-400/50 to-transparent"></div>
+                                    {item.reasoning}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
-                {/* 3. Message Bubble */}
-                {item.text ? (
+                {/* 3. Message Bubble - Skip if system message with attachment */}
+                {item.text && !(item.text.startsWith('[System:') && item.attachment) ? (
                     <div className={`
                         relative px-5 py-3.5 text-[14px] leading-relaxed
                         ${isUser 
@@ -129,11 +150,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                         }
                     `}>
                         {!isUser && (
-                             <div className="bg-white dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
-                                <MarkdownRenderer content={item.text} isUser={isUser} />
+                             <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-sm border border-zinc-100 dark:border-zinc-800 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md">
+                                <MarkdownRenderer content={item.text} isUser={isUser} isDarkMode={isDarkMode} />
                              </div>
                         )}
-                        {isUser && <MarkdownRenderer content={item.text} isUser={isUser} />}
+                        {isUser && <MarkdownRenderer content={item.text} isUser={isUser} isDarkMode={isDarkMode} />}
 
                     </div>
                 ) : null}

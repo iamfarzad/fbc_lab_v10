@@ -32,7 +32,7 @@ const Badge: React.FC<BadgeProps> = ({
       className={`
         group relative inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium tracking-wide
         border transition-all duration-300
-        bg-zinc-100 dark:bg-zinc-900 
+        bg-zinc-100/80 dark:bg-zinc-900/80 backdrop-blur-sm
         border-zinc-200 dark:border-zinc-800
         text-zinc-600 dark:text-zinc-300
       `}

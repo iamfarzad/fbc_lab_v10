@@ -153,6 +153,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
       className={`
         rounded-lg border p-4 space-y-3
         ${config.color}
+        backdrop-blur-sm shadow-sm transition-all duration-300
         ${className}
       `}
     >
