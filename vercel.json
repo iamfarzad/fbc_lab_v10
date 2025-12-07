@@ -1,8 +1,6 @@
 {
 	"buildCommand": "pnpm build",
-	"devCommand": "pnpm dev",
 	"installCommand": "pnpm install",
-	"framework": "vite",
 	"functions": {
 		"api/**/*.ts": {
 			"maxDuration": 30,

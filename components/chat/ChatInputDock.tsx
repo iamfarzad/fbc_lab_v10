@@ -5,6 +5,7 @@ import { LiveConnectionState } from 'types';
 import { StagingArea } from './Attachments';
 import FileUpload from './FileUpload';
 import { Mic, Camera, CameraOff, Monitor, MonitorOff, Paperclip, X, ArrowUp, AudioLines } from 'lucide-react';
+import IconButton from './shared/IconButton';
 
 interface ChatInputDockProps {
     inputValue: string;
@@ -210,10 +211,6 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                             selectedFile={selectedFile}
                             onRemove={() => setSelectedFile(null)}
                         />
-                        <StagingArea 
-                            selectedFile={selectedFile}
-                            onRemove={() => setSelectedFile(null)}
-                        />
                     </div>
 
                     {/* Advanced Upload Dropzone */}
@@ -250,20 +247,21 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                             
                             <div className="flex flex-col gap-1 pt-2 pr-1 shrink-0">
                                 <Tooltip text="Close Expanded View">
-                                    <button 
+                                    <IconButton
                                         onClick={() => setIsExpanded(false)}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white transition-colors"
+                                        ariaLabel="Close expanded input view"
                                     >
                                         <X className="w-5 h-5" />
-                                    </button>
+                                    </IconButton>
                                 </Tooltip>
 
                                 <Tooltip text={isListening ? "Stop Dictation" : "Dictate to Text"}>
                                     <button
                                         onClick={toggleDictation}
-                                        className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
-                                            isListening 
-                                                ? 'bg-red-500 text-white animate-pulse' 
+                                        aria-label={isListening ? "Stop dictation" : "Start voice dictation"}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300 ${
+                                            isListening
+                                                ? 'bg-red-500 text-white animate-pulse'
                                                 : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'
                                         }`}
                                     >
@@ -283,38 +281,41 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                         </div>
 
                         <div className="flex items-center gap-1.5 px-3 pb-1.5">
-                            
+
                             <Tooltip text="Upload File">
-                                <button 
+                                <button
                                     onClick={() => {
                                         setShowUpload(!showUpload);
                                         if (!isExpanded) setIsExpanded(true);
                                     }}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${showUpload ? 'bg-zinc-200 dark:bg-white/20 text-black dark:text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'}`}
+                                    aria-label="Upload file attachment"
+                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-300 ${showUpload ? 'bg-zinc-200 dark:bg-white/20 text-black dark:text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'}`}
                                 >
                                     <Paperclip className="w-4 h-4" />
                                 </button>
                             </Tooltip>
 
                             <Tooltip text={isWebcamActive ? "Close Camera" : "Open Camera"}>
-                                <button 
+                                <button
                                     onClick={() => onWebcamChange(!isWebcamActive)}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${isWebcamActive ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
+                                    aria-label={isWebcamActive ? "Turn off camera" : "Turn on camera"}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-300 ${isWebcamActive ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
                                 >
                                     {isWebcamActive ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
                                 </button>
                             </Tooltip>
-                            
+
                             {onScreenShareToggle && (
                                 <Tooltip text={isScreenShareActive ? "Stop Sharing" : "Share Screen"}>
-                                    <button 
+                                    <button
                                         onClick={onScreenShareToggle}
                                         disabled={isScreenShareInitializing}
-                                        className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
-                                            isScreenShareActive 
-                                                ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600' 
+                                        aria-label={isScreenShareActive ? "Stop screen sharing" : "Start screen sharing"}
+                                        className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-300 ${
+                                            isScreenShareActive
+                                                ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600'
                                                 : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'
-                                        }`}
+                                        } ${isScreenShareInitializing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         {isScreenShareActive ? <Monitor className="w-4 h-4" /> : <MonitorOff className="w-4 h-4" />}
                                     </button>
@@ -350,21 +351,23 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
 
                             {isGenerating && onStopGeneration ? (
                                 <Tooltip text="Stop Generating">
-                                    <button 
+                                    <button
                                         onClick={onStopGeneration}
-                                        className="w-9 h-9 flex items-center justify-center rounded-full bg-black dark:bg-white text-white dark:text-black shadow-md hover:scale-105 active:scale-95 transition-all"
+                                        aria-label="Stop AI response generation"
+                                        className="w-9 h-9 flex items-center justify-center rounded-full bg-black dark:bg-white text-white dark:text-black shadow-md hover:scale-105 active:scale-95 transition-all duration-300"
                                     >
                                         <div className="w-3 h-3 bg-current rounded-sm" />
                                     </button>
                                 </Tooltip>
                             ) : (
                                 <Tooltip text="Send Message">
-                                    <button 
+                                    <button
                                         onClick={() => handleSendMessage()}
                                         disabled={!inputValue.trim() && !selectedFile}
-                                        className={`w-9 h-9 flex items-center justify-center rounded-full shadow-md transition-all transform active:scale-95 ${
-                                            inputValue.trim() || selectedFile 
-                                                ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200' 
+                                        aria-label="Send message"
+                                        className={`w-9 h-9 flex items-center justify-center rounded-full shadow-md transition-all duration-300 transform active:scale-95 ${
+                                            inputValue.trim() || selectedFile
+                                                ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200'
                                                 : 'bg-zinc-200 dark:bg-white/10 text-zinc-400 dark:text-white/20 cursor-not-allowed'
                                         }`}
                                     >

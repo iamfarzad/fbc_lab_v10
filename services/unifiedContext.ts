@@ -149,12 +149,13 @@ class UnifiedContext {
                     this.setLocation(loc);
                     resolve(loc);
                 },
-                (err) => {
-                    console.warn('[UnifiedContext] Geolocation error:', err);
+                () => {
+                    // Silently handle geolocation errors (user denied, timeout, etc.)
+                    // Don't log as error - this is expected behavior
                     clearTimeout(timeout);
                     resolve(undefined);
                 },
-                { timeout: 1000, maximumAge: 1800000 }
+                { timeout: 5000, maximumAge: 1800000 } // Increased timeout to 5s
             );
         }).finally(() => {
             this.locationPromise = null;

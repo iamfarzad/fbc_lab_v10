@@ -59,7 +59,16 @@ pnpm lint             # ESLint linting
 pnpm lint:fix         # Fix linting issues
 pnpm test             # Run tests
 pnpm check:all        # Run all checks (type, lint, circular, unused, naming)
+pnpm playwright:install   # Install Playwright browsers (first time)
+pnpm test:e2e:browser     # Run Playwright browser E2E (headless smoke test)
+pnpm test:e2e:browser:ui  # Run Playwright tests with UI runner
 ```
+
+### Browser E2E Testing
+
+- Local headless smoke test uses Playwright to boot the app and verify core UI (selector: `[data-testid="chat-input-textarea"]`).
+- Config: `playwright.config.ts` auto-starts the dev server on port 3000.
+- For manual guided browser checks, see `scripts/test-browser-e2e.js` (Browser Extension MCP commands).
 
 ## Git Workflow
 

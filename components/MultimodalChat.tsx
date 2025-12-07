@@ -9,9 +9,9 @@ import StatusBadges from './StatusBadges';
 import EmptyState from './chat/EmptyState';
 import { FloatingToolIndicator, ToolCall } from './chat/ToolCallIndicator';
 import { ResponseTimeBadge } from './chat/MessageMetadata';
-// WebcamPreview and ScreenSharePreview imported but not used in current implementation
-// import WebcamPreview from './chat/WebcamPreview';
-// import ScreenSharePreview from './chat/ScreenSharePreview';
+import WebcamPreview from './chat/WebcamPreview';
+import ScreenSharePreview from './chat/ScreenSharePreview';
+import IconButton from './chat/shared/IconButton';
 
 interface MultimodalChatProps {
   items: TranscriptItem[];
@@ -49,7 +49,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     items, 
     connectionState,
     onSendMessage,
-    onSendVideoFrame: _onSendVideoFrame,
+    onSendVideoFrame,
     onConnect,
     onDisconnect,
     isWebcamActive,
@@ -68,8 +68,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onGenerateDiscoveryReport,
     userEmail,
     activeTools = [],
-    screenShareStream: _screenShareStream,
-    screenShareError: _screenShareError
+    screenShareStream,
+    screenShareError
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -79,8 +79,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
   const [showPDFMenu, setShowPDFMenu] = useState(false);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
   
-  // Camera State (currently unused but reserved for future use)
-  // const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
+  // Camera State
+  const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
   
   // Resizable Sidebar State
   const [sidebarWidth, setSidebarWidth] = useState(450);
@@ -313,7 +313,38 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+          {/* VIDEO PREVIEW STACK (Fixed Top-Right) */}
+          <div className="absolute top-20 right-6 z-50 flex flex-col gap-4 items-end pointer-events-none">
+            {/* Webcam Preview */}
+            <div className={`
+                pointer-events-auto transition-all duration-500 ease-spring
+                ${isWebcamActive ? 'w-48 h-36 opacity-100 translate-y-0' : 'w-0 h-0 opacity-0 translate-y-4 overflow-hidden'}
+            `}>
+                <WebcamPreview 
+                    isWebcamActive={isWebcamActive}
+                    facingMode={cameraFacingMode}
+                    onFacingModeToggle={() => setCameraFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
+                    onClose={() => onWebcamChange(false)}
+                    onSendFrame={onSendVideoFrame}
+                    className="rounded-2xl shadow-2xl border border-white/10 ring-1 ring-black/5"
+                />
+            </div>
 
+            {/* Screen Share Preview */}
+            <div className={`
+                pointer-events-auto transition-all duration-500 ease-spring
+                ${isScreenShareActive || isScreenShareInitializing ? 'w-64 h-40 opacity-100 translate-y-0' : 'w-0 h-0 opacity-0 translate-y-4 overflow-hidden'}
+            `}>
+                <ScreenSharePreview 
+                    isScreenShareActive={!!isScreenShareActive}
+                    isInitializing={!!isScreenShareInitializing}
+                    stream={screenShareStream || null}
+                    error={screenShareError || null}
+                    onToggle={onScreenShareToggle || (() => {})}
+                    className="rounded-2xl shadow-2xl border border-white/10 ring-1 ring-black/5 bg-zinc-900"
+                />
+            </div>
+          </div>
 
           {/* MOBILE DRAG HANDLE */}
           <div 
@@ -347,29 +378,27 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
               
               <div className="flex items-center gap-1">
                   {onToggleTheme && (
-                    <button 
+                    <IconButton
                         onClick={onToggleTheme}
-                        className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isDarkMode ? 'text-white/60 hover:bg-white/10' : 'text-black/60 hover:bg-black/5'}`}
-                        title="Toggle Theme"
+                        ariaLabel={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
                     >
                         {isDarkMode ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
                         ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                         )}
-                    </button>
+                    </IconButton>
                   )}
 
                   {(onGeneratePDF || onEmailPDF || onGenerateDiscoveryReport) && (
                     <div className="relative" ref={pdfMenuRef}>
-                      <button 
+                      <IconButton
                           onClick={() => setShowPDFMenu(!showPDFMenu)}
                           disabled={items.length === 0}
-                          className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${items.length === 0 ? 'opacity-30 cursor-not-allowed' : 'opacity-100 cursor-pointer'} ${isDarkMode ? 'text-white/60 hover:bg-white/10' : 'text-black/60 hover:bg-black/5'}`}
-                          title="Export Report"
+                          ariaLabel="Export conversation report"
                       >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                      </button>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                      </IconButton>
                       
                       {/* PDF Export Dropdown Menu */}
                       {showPDFMenu && items.length > 0 && (
@@ -420,22 +449,20 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                   )}
 
                   {/* Book a Call Button */}
-                  <button 
+                  <IconButton
                       onClick={() => window.open('https://cal.com/farzadbayat/30min', '_blank')}
-                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isDarkMode ? 'text-white/60 hover:bg-white/10' : 'text-black/60 hover:bg-black/5'}`}
-                      title="Book a Call"
+                      ariaLabel="Book a consultation call"
                   >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                  </button>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </IconButton>
 
                   {onToggleVisibility && (
-                    <button 
+                    <IconButton
                         onClick={() => onToggleVisibility(false)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isDarkMode ? 'text-white/60 hover:bg-white/10' : 'text-black/60 hover:bg-black/5'}`}
-                        title="Close Chat"
+                        ariaLabel="Close chat panel"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </IconButton>
                   )}
               </div>
           </div>
@@ -451,7 +478,9 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                 />
               </div>
             ) : (
-              items.map((item, index) => (
+              items
+                .filter(item => item.text || item.attachment || item.reasoning || item.error)
+                .map((item, index) => (
                 <div key={item.id + index}>
                   <ChatMessage 
                     item={item} 

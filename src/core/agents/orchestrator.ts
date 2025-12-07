@@ -6,16 +6,18 @@ import { summaryAgent } from './summary-agent.js'
 import { adminAgent } from './admin-agent.js'
 import { proposalAgent } from './proposal-agent.js'
 import { retargetingAgent } from './retargeting-agent.js'
+import { scoringAgent } from './scoring-agent.js'
 import { detectObjection } from './utils/detect-objections.js'
 import { validateAgentResponse, quickValidate, generateValidationReport } from './response-validator.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
 import type { AgentResult, AgentContext, ChatMessage } from './types.js'
 // GEMINI_MODELS removed as unused
 import { logger } from '../../lib/logger.js'
+import { agentPersistence } from './agent-persistence.js'
 
 /**
  * Simplified Multi-Agent Orchestrator - Routes conversations to specialized agents
- * 
+ *
  * Architecture (2026):
  * - 6 core agents: Discovery, Pitch, Objection, Closer, Summary, Lead Research
  * - 7 funnel stages: DISCOVERY → QUALIFIED → PITCHING → OBJECTION → CLOSING → BOOKED → SUMMARY
@@ -58,11 +60,11 @@ export async function routeToAgent(params: {
   }
 
   if (trigger === 'proposal_request') {
-    return proposalAgent(messages, { 
-      intelligenceContext, 
-      multimodalContext, 
-      sessionId, 
-      conversationFlow 
+    return proposalAgent(messages, {
+      intelligenceContext,
+      multimodalContext,
+      sessionId,
+      conversationFlow
     })
   }
 
@@ -101,75 +103,142 @@ export async function routeToAgent(params: {
 
   switch (currentStage) {
     case 'DISCOVERY':
-      result = await discoveryAgent(messages, { 
-        intelligenceContext, 
-        multimodalContext, 
+      result = await discoveryAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
         sessionId,
-        conversationFlow 
+        conversationFlow
       })
       break
 
     case 'SCORING':
-       // Scoring is internal, usually transitions to Pitching immediately
-       // But if we need to chat during scoring:
-      result = await discoveryAgent(messages, { 
-        intelligenceContext, 
-        multimodalContext, 
+      // Route to scoring agent to compute lead/fit scores
+      result = await scoringAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
         sessionId,
-        conversationFlow 
-      }) 
+        conversationFlow
+      })
+      break
+
+    case 'QUALIFIED':
+      // Qualified leads can move to pitching
+      result = await pitchAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
+        sessionId,
+        conversationFlow
+      })
+      break
+
+    case 'INTELLIGENCE_GATHERING':
+      // Continue discovery-style interaction while intel gathers
+      result = await discoveryAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
+        sessionId,
+        conversationFlow
+      })
       break
 
     case 'PITCHING':
       // Pitch agent needs to know if it's Workshop or Consulting
       // This logic is inside pitchAgent usually? OR we determine it here
-      result = await pitchAgent(messages, { 
-        intelligenceContext, 
-        multimodalContext, 
+      result = await pitchAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
         sessionId,
-        conversationFlow 
+        conversationFlow
+      })
+      break
+
+    case 'WORKSHOP_PITCH':
+    case 'CONSULTING_PITCH':
+      // Unified pitch agent will tailor messaging based on fit scores
+      result = await pitchAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
+        sessionId,
+        conversationFlow
       })
       break
 
     case 'OBJECTION':
-      result = await objectionAgent(messages, { 
-        intelligenceContext, 
-        multimodalContext, 
+      result = await objectionAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
         sessionId,
-        conversationFlow 
+        conversationFlow
+      })
+      break
+
+    case 'PROPOSAL':
+      result = await proposalAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
+        sessionId,
+        conversationFlow
       })
       break
 
     case 'CLOSING':
-      result = await closerAgent(messages, { 
-        intelligenceContext, 
-        multimodalContext, 
+      result = await closerAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
         sessionId,
-        conversationFlow 
+        conversationFlow
+      })
+      break
+
+    case 'BOOKING_REQUESTED':
+    case 'BOOKED':
+      // Keep momentum by staying in closer flow
+      result = await closerAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
+        sessionId,
+        conversationFlow
       })
       break
 
     case 'SUMMARY':
-      result = await summaryAgent(messages, { 
-        intelligenceContext, 
-        multimodalContext, 
+      result = await summaryAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
         sessionId,
-        conversationFlow 
+        conversationFlow
       })
       break
 
     default:
       // Fallback to Discovery
-      result = await discoveryAgent(messages, { 
-        intelligenceContext, 
-        multimodalContext, 
+      result = await discoveryAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
         sessionId,
-        conversationFlow 
+        conversationFlow
       })
   }
 
   // === RESPONSE VALIDATION ===
-  return validateAndReturn(result, lastMessage, currentStage, sessionId)
+  const validated = validateAndReturn(result, lastMessage, currentStage, sessionId)
+
+  // === NON-BLOCKING PERSISTENCE ===
+  try {
+    await agentPersistence.persistAgentResult(sessionId, validated, {
+      sessionId,
+      intelligenceContext,
+      multimodalContext,
+      conversationFlow
+    })
+  } catch (persistErr) {
+    logger.debug('[Orchestrator] Persistence failed (non-fatal)', {
+      error: persistErr instanceof Error ? persistErr.message : String(persistErr),
+      sessionId
+    })
+  }
+
+  return validated
 }
 
 /**
@@ -237,7 +306,7 @@ function validateAndReturn(
 
 /**
  * Get current funnel stage for a session (read-only)
- * 
+ *
  * Note: Stage determination is now handled in the API layer (api/chat.ts)
  * This function is kept for backward compatibility but should not be used for routing.
  */

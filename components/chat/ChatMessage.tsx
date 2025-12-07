@@ -6,6 +6,7 @@ import { CalendarWidget } from './CalendarWidget';
 import { DiscoveryReportPreview } from './DiscoveryReportPreview';
 import ContextSources from './ContextSources';
 import ErrorMessage from './ErrorMessage';
+import { WebPreviewCard } from './Attachments';
 import { User, ChevronDown, Sparkles } from 'lucide-react';
 import { CONTACT_CONFIG } from 'src/config/constants';
 import { useState } from 'react';
@@ -161,36 +162,52 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     </div>
                 ) : null}
 
-                {/* 4. Grounding (Sources) - Footer List */}
-                {item.groundingMetadata?.webSearchQueries?.length ? (
-                    <div className="mt-1 w-full pl-1">
-                        <div className="flex flex-col gap-1.5">
-                             <div className="flex flex-wrap gap-2 text-[10px] text-zinc-400">
-                                {item.groundingMetadata.webSearchQueries.map((q, i) => (
-                                    <span key={i} className="flex items-center gap-1">
-                                        <SearchIcon /> "{q}"
-                                    </span>
-                                ))}
-                             </div>
-                             
-                             {/* Verified Sources List */}
-                             {item.groundingMetadata.groundingChunks?.map((chunk: any, i: number) => {
-                                 const url = chunk.web?.uri || chunk.maps?.uri;
-                                 const title = chunk.web?.title || chunk.maps?.title || "Source";
-                                 if (!url) return null;
-                                 return (
-                                     <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block text-[10px] text-zinc-400 hover:text-orange-500 truncate transition-colors">
-                                         {i + 1}. {title} <span className="opacity-50 ml-1">({new URL(url).hostname})</span>
-                                     </a>
-                                 )
-                             })}
-                        </div>
+                {/* 4. Grounding (Sources) - Visual Cards */}
+                {(item.groundingMetadata?.webSearchQueries?.length || item.groundingMetadata?.groundingChunks?.length) ? (
+                    <div className="mt-3 w-full">
+                        {/* Search Queries */}
+                        {item.groundingMetadata?.webSearchQueries && item.groundingMetadata.webSearchQueries.length > 0 && (
+                            <div className="mb-3">
+                                <div className="flex flex-wrap gap-2 text-[10px] text-zinc-400 mb-2">
+                                    <span className="font-medium text-zinc-500 dark:text-zinc-400">Searched:</span>
+                                    {item.groundingMetadata.webSearchQueries.map((q, i) => (
+                                        <span key={i} className="flex items-center gap-1 px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full">
+                                            <SearchIcon /> "{q}"
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Source Cards Grid */}
+                        {item.groundingMetadata.groundingChunks?.length > 0 && (
+                            <div>
+                                <div className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-2">Sources:</div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    {item.groundingMetadata.groundingChunks
+                                        .filter((chunk: any) => chunk.web?.uri || chunk.maps?.uri)
+                                        .map((chunk: any, i: number) => {
+                                            const url = chunk.web?.uri || chunk.maps?.uri;
+                                            const title = chunk.web?.title || chunk.maps?.title || "Source";
+                                            if (!url) return null;
+                                            return (
+                                                <WebPreviewCard
+                                                    key={i}
+                                                    title={title}
+                                                    url={url}
+                                                    type={chunk.maps ? 'map' : 'web'}
+                                                />
+                                            );
+                                        })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : null}
 
                 {/* 5. Fix Double Rendering: ONLY show shimmer if streaming AND no text */}
                 {item.status === 'streaming' && !item.text && (
-                    <div className="flex items-center gap-2 pl-2">
+                    <div className="flex items-center gap-2 pl-2" role="status" aria-live="polite" aria-label="AI is thinking">
                          <span className="text-[11px] text-zinc-400">Thinking...</span>
                     </div>
                 )}
@@ -218,8 +235,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     />
                 )}
 
-              {/* Metadata Footer */}
-        {!isUser && item.isFinal && (
+              {/* Metadata Footer - Only show for successful responses, not errors */}
+        {!isUser && item.isFinal && item.status !== 'error' && (
              <div className="mt-2 pl-1">
                 <MessageMetadata 
                     meta={{
@@ -236,7 +253,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
       {/* Loading Shimmer */}
       {!isUser && !item.isFinal && item.text.length === 0 && (
-        <div className="mt-2">
+        <div className="mt-2" role="status" aria-live="polite" aria-label="Loading response">
             <Shimmer />
         </div>
       )}

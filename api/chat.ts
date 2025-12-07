@@ -211,7 +211,15 @@ export default async function handler(
                 metadata: result.metadata
             });
         } catch (error) {
-            // Enhanced error logging
+            // Enhanced error logging with full stack trace
+            const errorDetails = error instanceof Error 
+                ? {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                  }
+                : { raw: String(error) };
+            
             logger.error(
                 '[API /chat] Agent routing failed',
                 error instanceof Error ? error : new Error(String(error)),
@@ -219,15 +227,18 @@ export default async function handler(
                     sessionId,
                     currentStage,
                     messageCount: validMessages.length,
-                    hasIntelligenceContext: !!intelligenceContext
+                    hasIntelligenceContext: !!intelligenceContext,
+                    errorDetails
                 }
             );
 
             // Always return JSON error to prevent parsing failures on client
+            const isDev = process.env.NODE_ENV !== 'production';
             return res.status(500).json({
                 success: false,
                 error: error instanceof Error ? error.message : 'Internal server error executing agent',
-                agent: 'Orchestrator (Error Fallback)'
+                agent: 'Orchestrator (Error Fallback)',
+                ...(isDev && { details: errorDetails })
             });
         }
 

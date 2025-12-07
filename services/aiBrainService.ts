@@ -239,17 +239,33 @@ export class AIBrainService {
                 let errorMsg = `Server error: ${response.status}`;
                 let errorDetails;
                 try {
-                    const errorJson = JSON.parse(errorText);
-                    errorMsg = errorJson.error || errorJson.message || errorMsg;
-                    errorDetails = errorJson.details;
-                    console.error('[AIBrainService] Server returned error:', { 
-                        status: response.status, 
-                        message: errorMsg, 
-                        details: errorDetails,
-                        fullError: errorJson
+                    // Try to parse as JSON first
+                    if (errorText.trim().startsWith('{') || errorText.trim().startsWith('[')) {
+                        const errorJson = JSON.parse(errorText);
+                        errorMsg = errorJson.error || errorJson.message || errorMsg;
+                        errorDetails = errorJson.details;
+                        console.error('[AIBrainService] Server returned error:', { 
+                            status: response.status, 
+                            message: errorMsg, 
+                            details: errorDetails,
+                            fullError: errorJson
+                        });
+                    } else {
+                        // Not JSON, use text as message
+                        errorMsg = errorText || errorMsg;
+                        console.error('[AIBrainService] Server returned non-JSON error:', { 
+                            status: response.status, 
+                            message: errorText.substring(0, 200) // Limit length
+                        });
+                    }
+                } catch (parseError) {
+                    // If parsing fails, use the text response or a generic message
+                    errorMsg = errorText && errorText.length < 500 ? errorText : `Server error: ${response.status}`;
+                    console.error('[AIBrainService] Failed to parse error response:', { 
+                        status: response.status,
+                        errorText: errorText.substring(0, 200),
+                        parseError: parseError instanceof Error ? parseError.message : String(parseError)
                     });
-                } catch {
-                    console.error('[AIBrainService] Failed to parse error response:', errorText);
                 }
                 return {
                     success: false,

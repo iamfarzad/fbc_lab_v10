@@ -6,7 +6,7 @@ import path from 'path'
 export default defineConfig(({ mode }) => {
   // Load env vars - matches v9 approach
   const env = loadEnv(mode, '.', '')
-  
+
   return {
     plugins: [react()],
     resolve: {
@@ -42,7 +42,8 @@ export default defineConfig(({ mode }) => {
       host: true,
       proxy: {
         '/api': {
-          target: 'http://localhost:3002',
+          // Use 127.0.0.1 to avoid rare localhost resolution issues in some dev setups
+          target: 'http://127.0.0.1:3002',
           changeOrigin: true,
         },
       },

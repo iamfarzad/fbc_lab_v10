@@ -224,7 +224,7 @@ export class MultimodalContextManager {
 
     if (WAL_ENABLED) {
       // Log to WAL first (critical path for data reliability)
-      walLog.logOperation(sessionId, 'add_text', entry)
+      void walLog.logOperation(sessionId, 'add_text', entry)
     }
 
     context.conversationHistory.push(entry)
@@ -354,7 +354,7 @@ export class MultimodalContextManager {
 
     if (WAL_ENABLED) {
       // Log to WAL (critical for visual analyses)
-      walLog.logOperation(sessionId, 'add_visual', visualEntry)
+      void walLog.logOperation(sessionId, 'add_visual', visualEntry)
     }
 
     context.visualContext.push(visualEntry)
@@ -394,7 +394,7 @@ export class MultimodalContextManager {
 
     if (WAL_ENABLED) {
       // Log to WAL (critical for file uploads)
-      walLog.logOperation(sessionId, 'add_upload', uploadEntry)
+      void walLog.logOperation(sessionId, 'add_upload', uploadEntry)
     }
 
     context.uploadContext = context.uploadContext || []

@@ -4,8 +4,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import AntigravityCanvas from './components/AntigravityCanvas';
 import MultimodalChat from './components/MultimodalChat';
 import { BrowserCompatibility } from './components/BrowserCompatibility';
-import WebcamPreview from './components/chat/WebcamPreview';
-import ScreenSharePreview from './components/chat/ScreenSharePreview';
 import LandingPage from './components/LandingPage';
 import { useScreenShare } from 'src/hooks/media/useScreenShare';
 import TermsOverlay from './components/TermsOverlay';
@@ -141,7 +139,6 @@ export const App: React.FC = () => {
 
     // Lifted State for Context Awareness
     const [isWebcamActive, setIsWebcamActive] = useState(false);
-    const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
     // Ref to avoid stale closures in callbacks
     const isWebcamActiveRef = useRef(isWebcamActive);
 
@@ -1461,23 +1458,12 @@ export const App: React.FC = () => {
                 });
 
                 if (!agentResponse.success) {
-                    // Handle error case - create error transcript item
+                    // Handle error case - remove loading message and show error notification
                     const errorMessage = agentResponse.error || 'Unknown error occurred';
-                    setTranscript(prev => prev.map(item =>
-                        item.id === loadingId.toString()
-                            ? {
-                                ...item,
-                                text: errorMessage,
-                                status: 'error',
-                                error: {
-                                    type: 'server',
-                                    message: errorMessage,
-                                    retryable: true
-                                },
-                                isFinal: true
-                            }
-                            : item
-                    ));
+                    // Remove the loading message from transcript
+                    setTranscript(prev => prev.filter(item => item.id !== loadingId.toString()));
+                    // Show error as toast notification instead of chat message
+                    showToast(errorMessage, 'error');
                     
                     // Fallback to StandardChatService if agent fails
                     console.warn('[App] Agent system failed, falling back to standard chat:', agentResponse.error);
@@ -1984,39 +1970,7 @@ export const App: React.FC = () => {
             {/* VIEW 2: CHAT INTERFACE */}
             {view === 'chat' && (
                 <>
-                    {/* Floating Webcam */}
-                    {isWebcamActive && (
-                        <div className={`fixed z-50 transition-all duration-500 ease-in-out ${'top-16 right-4 w-28 md:top-auto md:bottom-32 md:right-8 md:w-64'
-                            }`}>
-                            <WebcamPreview
-                                isWebcamActive={isWebcamActive}
-                                facingMode={facingMode}
-                                onFacingModeToggle={() => setFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
-                                onClose={() => setIsWebcamActive(false)}
-                                onSendFrame={handleSendVideoFrame}
-                                className="rounded-2xl shadow-2xl border border-white/20"
-                            />
-                        </div>
-                    )}
-
-                    {/* Floating Screen Share Preview */}
-                    {(screenShare.isActive || screenShare.isInitializing) && (
-                        <div className={`fixed z-50 transition-all duration-500 ease-in-out ${
-                            isWebcamActive 
-                                ? 'top-16 left-4 w-40 md:top-auto md:bottom-32 md:left-8 md:w-72' 
-                                : 'top-16 right-4 w-40 md:top-auto md:bottom-32 md:right-8 md:w-72'
-                        }`}>
-                            <ScreenSharePreview
-                                isScreenShareActive={screenShare.isActive}
-                                isInitializing={screenShare.isInitializing}
-                                stream={screenShare.stream}
-                                error={screenShare.error}
-                                onToggle={() => void screenShare.toggleScreenShare()}
-                                onCapture={() => void screenShare.captureFrame()}
-                                className="rounded-2xl shadow-2xl border border-purple-500/20"
-                            />
-                        </div>
-                    )}
+                    {/* Video previews are now handled inside MultimodalChat component */}
 
                     <div className="relative z-10 w-full h-full flex flex-col pointer-events-none">
                         {/* HEADER */}

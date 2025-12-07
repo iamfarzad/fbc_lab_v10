@@ -51,7 +51,7 @@ async function generatePDF() {
   const markdown = await readFile(docPath, 'utf-8')
   
   console.log('🔄 Converting markdown to HTML...')
-  const htmlContent = await markdownToHtml(markdown)
+  const htmlContent = markdownToHtml(markdown)
   
   const fullHtml = `
 <!DOCTYPE html>

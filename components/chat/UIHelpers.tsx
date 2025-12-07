@@ -1,11 +1,39 @@
 
 import React from 'react';
 
-export const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => {
+export const Tooltip: React.FC<{ text: string; children: React.ReactNode; delay?: number }> = ({ text, children, delay = 200 }) => {
+  const [isVisible, setIsVisible] = React.useState(false);
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    timeoutRef.current = setTimeout(() => {
+      setIsVisible(true);
+    }, delay);
+  };
+
+  const handleMouseLeave = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setIsVisible(false);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <div className="group relative flex items-center justify-center">
+    <div
+      className="group relative flex items-center justify-center"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {children}
-      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-gray-900/90 dark:bg-white/90 backdrop-blur-sm text-white dark:text-black text-[11px] font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 pointer-events-none whitespace-nowrap z-50 shadow-xl border border-white/10 dark:border-black/10">
+      <div className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-gray-900/90 dark:bg-white/90 backdrop-blur-sm text-white dark:text-black text-[11px] font-medium rounded-lg transition-all duration-200 transform pointer-events-none whitespace-nowrap z-[100] shadow-xl border border-white/10 dark:border-black/10 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
         {text}
         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900/90 dark:border-t-white/90"></div>
       </div>

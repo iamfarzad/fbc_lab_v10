@@ -1,53 +1,17 @@
 
 /**
  * Status Badges
- * 
+ *
  * Header badges showing active capabilities with monochrome styling.
  * ACTIVE = White/Black with dot. INACTIVE = Hidden or subtle text.
  */
 
 import React from 'react'
-import { 
+import {
   MapPin,
   Brain
 } from 'lucide-react'
-
-interface BadgeProps {
-  active: boolean
-  label: string
-  icon: React.ReactNode
-  pulse?: boolean
-}
-
-const Badge: React.FC<BadgeProps> = ({
-  active,
-  label,
-  icon,
-  pulse = true
-}) => {
-  if (!active) return null
-
-  return (
-    <div 
-      className={`
-        group relative inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium tracking-wide
-        border transition-all duration-300
-        bg-zinc-100/80 dark:bg-zinc-900/80 backdrop-blur-sm
-        border-zinc-200 dark:border-zinc-800
-        text-zinc-600 dark:text-zinc-300
-      `}
-      title={label}
-    >
-      <div className="relative flex items-center justify-center">
-        {icon}
-        {pulse && (
-          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse shadow-sm" />
-        )}
-      </div>
-      <span className="hidden sm:inline opacity-90">{label}</span>
-    </div>
-  )
-}
+import Badge from './chat/shared/Badge'
 
 export interface StatusBadgesProps {
   isLocationShared?: boolean | undefined
@@ -67,20 +31,26 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       {/* Location Shared */}
-      <Badge
-        active={!!isLocationShared}
-        label="Location Active"
-        icon={<MapPin className="w-3 h-3" />}
-        pulse={true}
-      />
+      {isLocationShared && (
+        <Badge
+          variant="status"
+          icon={<MapPin className="w-3 h-3" />}
+          pulse={true}
+        >
+          <span className="hidden sm:inline">Location Active</span>
+        </Badge>
+      )}
 
       {/* Processing */}
-      <Badge
-        active={!!isProcessing}
-        label="Thinking..."
-        icon={<Brain className="w-3 h-3" />}
-        pulse={true}
-      />
+      {isProcessing && (
+        <Badge
+          variant="status"
+          icon={<Brain className="w-3 h-3" />}
+          pulse={true}
+        >
+          <span className="hidden sm:inline">Thinking...</span>
+        </Badge>
+      )}
     </div>
   )
 }

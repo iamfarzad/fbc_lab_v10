@@ -4,11 +4,12 @@
  */
 
 import React from 'react'
-import { 
+import {
   Loader2,
   Check,
   X
 } from 'lucide-react'
+import Badge from './shared/Badge'
 
 export interface ToolCall {
   id: string
@@ -36,31 +37,23 @@ const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
 
   return (
     <div className={`space-y-1 ${className}`}>
-      {tools.map(tool => (
-        <div 
-          key={tool.id}
-          className={`
-            flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium font-mono
-            transition-all duration-200
-            ${tool.status === 'running' 
-                ? 'bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' 
-                : tool.status === 'complete'
-                    ? 'bg-zinc-50 dark:bg-zinc-900/30 border-transparent text-green-600 dark:text-green-400'
-                    : 'bg-zinc-50 dark:bg-zinc-900/30 border-transparent text-zinc-500'}
-          `}
-        >
-          {/* Icon State */}
-          <div className="flex-shrink-0">
-            {tool.status === 'running' && <Loader2 className="w-3 h-3 animate-spin" />}
-            {tool.status === 'complete' && <Check className="w-3 h-3" />}
-            {tool.status === 'error' && <X className="w-3 h-3" />}
-          </div>
-          
-          <span className="flex-1 truncate uppercase tracking-wider text-[10px]">
-              {tool.name.replace(/_/g, ' ')}
-          </span>
-        </div>
-      ))}
+      {tools.map(tool => {
+        const icon = tool.status === 'running' ? <Loader2 className="w-3 h-3 animate-spin" />
+          : tool.status === 'complete' ? <Check className="w-3 h-3" />
+          : tool.status === 'error' ? <X className="w-3 h-3" />
+          : null;
+
+        return (
+          <Badge
+            key={tool.id}
+            variant="tool"
+            icon={icon}
+            className={tool.status === 'complete' ? 'text-green-600 dark:text-green-400' : ''}
+          >
+            {tool.name.replace(/_/g, ' ')}
+          </Badge>
+        );
+      })}
     </div>
   )
 }

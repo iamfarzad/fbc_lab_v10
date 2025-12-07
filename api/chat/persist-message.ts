@@ -19,17 +19,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ success: true, skipped: true, reason: 'Empty content, no attachment' });
         }
 
-        await multimodalContextManager.addConversationTurn(sessionId as string, {
-            role: role === 'user' ? 'user' : 'assistant',
-            text: content as string,
-            isFinal: true,
-            timestamp: new Date(timestamp as string | number | Date).toISOString(),
-            ...(attachment && { fileUpload: { name: attachment.filename || 'attachment' } })
-        });
+        try {
+            await multimodalContextManager.addConversationTurn(sessionId as string, {
+                role: role === 'user' ? 'user' : 'assistant',
+                text: content as string,
+                isFinal: true,
+                timestamp: new Date(timestamp as string | number | Date).toISOString(),
+                ...(attachment && { fileUpload: { name: attachment.filename || 'attachment' } })
+            });
 
-        return res.status(200).json({ success: true });
+            return res.status(200).json({ success: true });
+        } catch (persistError) {
+            // Non-fatal: Log but don't fail the request
+            console.warn('[persist-message] Failed to persist (non-fatal):', persistError);
+            // Still return success - persistence is optimization, not critical
+            return res.status(200).json({ 
+                success: true, 
+                warning: 'Message persisted in memory only',
+                error: persistError instanceof Error ? persistError.message : String(persistError)
+            });
+        }
     } catch (error) {
-        console.error('[persist-message] Error:', error);
+        console.error('[persist-message] Fatal Error:', error);
         return res.status(500).json({
             error: error instanceof Error ? error.message : 'Internal server error'
         });
