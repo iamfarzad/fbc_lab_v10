@@ -21,10 +21,10 @@ import {
   ChevronDown,
   ChevronUp,
   Globe,
-  ExternalLink,
   Info
 } from 'lucide-react'
 import { Tooltip } from './UIHelpers'
+import { WebPreviewCard } from './Attachments'
 
 export interface ContextSource {
   type: 'company' | 'person' | 'location' | 'conversation' | 'file' | 'webcam' | 'screen' | 'web'
@@ -119,49 +119,51 @@ const ContextSources: React.FC<ContextSourcesProps> = ({
 
       {/* Source List */}
       {expanded && (
-        <div className="border-t border-gray-100 divide-y divide-gray-100">
-          {sources.map((source, index) => (
-            <div 
-              key={index}
-              className="flex items-start gap-3 px-3 py-2"
-            >
-              {/* Icon */}
-              <div className={`p-1.5 rounded ${SOURCE_COLORS[source.type]} border mt-0.5`}>
-                {SOURCE_ICONS[source.type]}
-              </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-700">
-                    {source.label}
-                  </span>
-                  {source.confidence && (
-                    <span className="text-[10px] text-gray-400">
-                      {Math.round(source.confidence * 100)}% confidence
-                    </span>
-                  )}
-                </div>
-                {source.value && (
-                  <p className="text-xs text-gray-500 truncate">
-                    {source.value}
-                  </p>
-                )}
-              </div>
-
-              {/* Link */}
-              {source.url && (
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1 hover:bg-gray-100 rounded transition-colors"
-                >
-                  <ExternalLink className="w-3 h-3 text-gray-400" />
-                </a>
-              )}
+        <div className="border-t border-gray-100 divide-y divide-gray-100 p-2 space-y-2">
+            {/* Standard Sources */}
+            <div className="space-y-1">
+                {sources.filter(s => s.type !== 'web').map((source, index) => (
+                    <div 
+                    key={index}
+                    className="flex items-start gap-3 px-2 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                    >
+                    <div className={`p-1.5 rounded ${SOURCE_COLORS[source.type]} border mt-0.5 shrink-0`}>
+                        {SOURCE_ICONS[source.type]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                {source.label}
+                            </span>
+                            {source.confidence && (
+                                <span className="text-[10px] text-gray-400">
+                                {Math.round(source.confidence * 100)}%
+                                </span>
+                            )}
+                        </div>
+                        {source.value && (
+                        <p className="text-xs text-gray-500 truncate">
+                            {source.value}
+                        </p>
+                        )}
+                    </div>
+                    </div>
+                ))}
             </div>
-          ))}
+
+           {/* Web Sources Grid */}
+           {sources.some(s => s.type === 'web') && (
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                    {sources.filter(s => s.type === 'web').map((source, i) => (
+                        <WebPreviewCard 
+                            key={i}
+                            title={source.value || 'Web Source'}
+                            url={source.url || '#'}
+                            type="web"
+                        />
+                    ))}
+                </div>
+           )}
         </div>
       )}
     </div>

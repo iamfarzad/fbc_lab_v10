@@ -9,6 +9,8 @@ import ErrorMessage from './ErrorMessage';
 import { User, ChevronDown, Sparkles } from 'lucide-react';
 import { CONTACT_CONFIG } from 'src/config/constants';
 import { useState } from 'react';
+import MessageMetadata from './MessageMetadata';
+import { Shimmer } from './UIHelpers';
 
 interface ChatMessageProps {
     item: TranscriptItem;
@@ -216,11 +218,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     />
                 )}
 
-            </div>
-        </div>
-    );
-};
+              {/* Metadata Footer */}
+        {!isUser && item.isFinal && (
+             <div className="mt-2 pl-1">
+                <MessageMetadata 
+                    meta={{
+                        timestamp: new Date(item.timestamp),
+                        model: 'gemini-2.0-flash-exp', // Example default
+                        ...(item.processingTime !== undefined ? { responseTime: item.processingTime } : {}),
+                        ...(item.text.length > 0 ? { tokenCount: Math.ceil(item.text.length / 4) } : {})
+                    }}
+                    expandable={true}
+                />
+             </div>
+        )}
+      </div>
 
+      {/* Loading Shimmer */}
+      {!isUser && !item.isFinal && item.text.length === 0 && (
+        <div className="mt-2">
+            <Shimmer />
+        </div>
+      )}
+    </div>
+  )
+}
 // Tiny Helper Icon
 const SearchIcon = () => (
     <svg className="w-3 h-3 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>

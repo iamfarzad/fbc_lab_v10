@@ -1,8 +1,9 @@
-import { kv } from '@vercel/kv'
-
 /**
  * AI Cache Utilities
  * Uses Vercel KV for production-ready caching with in-memory fallback for local development.
+ * 
+ * NOTE: @vercel/kv is Vercel-specific and not available on Fly.io.
+ * This file uses lazy dynamic imports to gracefully handle missing package.
  */
 
 export const CACHE_TTL = {
@@ -14,6 +15,36 @@ export const CACHE_TTL = {
 
 // In-memory cache for local dev
 const memoryCache = new Map<string, { value: any; expires: number }>()
+
+// Lazy load @vercel/kv - may not be available on Fly.io
+// Check environment first to avoid import attempts on Fly.io
+const isFlyIO = process.env.FLY_APP_NAME !== undefined || process.env.FLY_REGION !== undefined;
+let kv: any = null;
+let kvLoadAttempted = false;
+
+async function getKV(): Promise<any> {
+  // Skip entirely on Fly.io
+  if (isFlyIO) {
+    return null;
+  }
+  
+  if (kvLoadAttempted) {
+    return kv;
+  }
+  
+  kvLoadAttempted = true;
+  
+  try {
+    // Only attempt import if not on Fly.io
+    const kvModule = await import('@vercel/kv');
+    kv = kvModule.kv;
+  } catch (error) {
+    // @vercel/kv not available - will use in-memory cache only
+    kv = null;
+  }
+  
+  return kv;
+}
 
 export function createCachedFunction<T extends (...args: any[]) => Promise<any>>(
   fn: T,
@@ -31,15 +62,15 @@ export function createCachedFunction<T extends (...args: any[]) => Promise<any>>
       ? `${prefix}:${options.keyGenerator(...args)}`
       : `${prefix}:${JSON.stringify(args)}`
     
-    // 1. Try Vercel KV first (production)
+    // 1. Try Vercel KV first (production) - only if available
     try {
-      if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-        const cached = await kv.get(key)
+      const kvClient = await getKV();
+      if (kvClient && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+        const cached = await kvClient.get(key)
         if (cached) return cached
       }
     } catch (err) {
       // Ignore KV errors, fall back to memory/fresh fetch
-      // console.warn('KV cache error:', err)
     }
 
     // 2. Fallback to in-memory cache (local/backup)
@@ -54,11 +85,12 @@ export function createCachedFunction<T extends (...args: any[]) => Promise<any>>
     // 4. Store in cache
     const now = Date.now()
     
-    // Store in KV
+    // Store in KV (if available)
     try {
-      if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      const kvClient = await getKV();
+      if (kvClient && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
         // fire-and-forget
-        void kv.setex(key, ttl, result).catch(() => {})
+        void kvClient.setex(key, ttl, result).catch(() => {})
       }
     } catch { /* ignore */ }
 

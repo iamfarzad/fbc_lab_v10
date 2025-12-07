@@ -1,4 +1,3 @@
-import { kv } from '@vercel/kv';
 import { logger } from './logger.js'
 
 // Type assertion for @vercel/kv - runtime API has these methods but types are incomplete
@@ -9,7 +8,39 @@ interface KVClient {
   keys(pattern: string): Promise<string[]>;
 }
 
-const kvClient = kv as unknown as KVClient;
+// Lazy load @vercel/kv - may not be available on Fly.io
+// Check environment first to avoid import attempts on Fly.io
+const isFlyIO = process.env.FLY_APP_NAME !== undefined || process.env.FLY_REGION !== undefined;
+let kvClient: KVClient | null = null;
+let kvLoadAttempted = false;
+
+async function getKVClient(): Promise<KVClient | null> {
+  // Skip entirely on Fly.io
+  if (isFlyIO) {
+    return null;
+  }
+  
+  if (kvLoadAttempted) {
+    return kvClient;
+  }
+  
+  kvLoadAttempted = true;
+  
+  try {
+    // Only attempt import if not on Fly.io
+    const kvModule = await import('@vercel/kv');
+    kvClient = kvModule.kv as unknown as KVClient;
+    logger.debug('@vercel/kv loaded successfully');
+  } catch (error) {
+    // @vercel/kv not available - will use in-memory fallback
+    logger.debug('@vercel/kv not available, will use in-memory cache fallback', {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    kvClient = null;
+  }
+  
+  return kvClient;
+}
 
 // Cache configuration
 export interface CacheConfig {
@@ -102,7 +133,13 @@ export class VercelCache {
       const key = this.generateKey(namespace, identifier);
       const ttlSeconds = Math.floor((config.ttl || CACHE_CONFIGS.API_RESPONSE.ttl) / 1000);
 
-      await kvClient.set(key, entry, { ex: ttlSeconds });
+      const client = await getKVClient();
+      if (!client) {
+        logger.debug('KV client not available, skipping cache set');
+        return;
+      }
+      
+      await client.set(key, entry, { ex: ttlSeconds });
 
       logger.debug('Cache set', {
         namespace,
@@ -128,8 +165,14 @@ export class VercelCache {
     }
 
     try {
+      const client = await getKVClient();
+      if (!client) {
+        logger.debug('KV client not available, skipping cache get');
+        return null;
+      }
+      
       const key = this.generateKey(namespace, identifier);
-      const entry = await kvClient.get<CacheEntry<T>>(key);
+      const entry = await client.get<CacheEntry<T>>(key);
 
       if (!entry) {
         logger.debug('Cache miss', { namespace, identifier });
@@ -166,8 +209,14 @@ export class VercelCache {
     if (!this.enabled) return;
 
     try {
+      const client = await getKVClient();
+      if (!client) {
+        logger.debug('KV client not available, skipping cache delete');
+        return;
+      }
+      
       const key = this.generateKey(namespace, identifier);
-      await kvClient.del(key);
+      await client.del(key);
 
       logger.debug('Cache deleted', { namespace, identifier });
     } catch (error) {
@@ -184,10 +233,16 @@ export class VercelCache {
     if (!this.enabled || tags.length === 0) return;
 
     try {
+      const client = await getKVClient();
+      if (!client) {
+        logger.debug('KV client not available, skipping cache invalidation');
+        return;
+      }
+      
       // Note: Vercel KV doesn't have native tag-based invalidation
       // We'll implement a simple pattern-based approach
       const pattern = `fbc_cache:*:*`;
-      await kvClient.keys(pattern);
+      await client.keys(pattern);
 
       // For now, we'll do selective invalidation based on common patterns
       // In production, consider using a more sophisticated tagging system

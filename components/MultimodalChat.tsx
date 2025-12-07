@@ -9,8 +9,9 @@ import StatusBadges from './StatusBadges';
 import EmptyState from './chat/EmptyState';
 import { FloatingToolIndicator, ToolCall } from './chat/ToolCallIndicator';
 import { ResponseTimeBadge } from './chat/MessageMetadata';
-import WebcamPreview from './chat/WebcamPreview';
-import ScreenSharePreview from './chat/ScreenSharePreview';
+// WebcamPreview and ScreenSharePreview imported but not used in current implementation
+// import WebcamPreview from './chat/WebcamPreview';
+// import ScreenSharePreview from './chat/ScreenSharePreview';
 
 interface MultimodalChatProps {
   items: TranscriptItem[];
@@ -48,7 +49,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     items, 
     connectionState,
     onSendMessage,
-    onSendVideoFrame,
+    onSendVideoFrame: _onSendVideoFrame,
     onConnect,
     onDisconnect,
     isWebcamActive,
@@ -67,8 +68,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onGenerateDiscoveryReport,
     userEmail,
     activeTools = [],
-    screenShareStream,
-    screenShareError
+    screenShareStream: _screenShareStream,
+    screenShareError: _screenShareError
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -78,8 +79,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
   const [showPDFMenu, setShowPDFMenu] = useState(false);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
   
-  // Camera State
-  const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
+  // Camera State (currently unused but reserved for future use)
+  // const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
   
   // Resizable Sidebar State
   const [sidebarWidth, setSidebarWidth] = useState(450);
@@ -312,38 +313,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-          {/* VIDEO PREVIEW STACK (Fixed Top-Right) */}
-          <div className="absolute top-20 right-6 z-50 flex flex-col gap-4 items-end pointer-events-none">
-            {/* Webcam Preview */}
-            <div className={`
-                pointer-events-auto transition-all duration-500 ease-spring
-                ${isWebcamActive ? 'w-48 h-36 opacity-100 translate-y-0' : 'w-0 h-0 opacity-0 translate-y-4 overflow-hidden'}
-            `}>
-                <WebcamPreview 
-                    isWebcamActive={isWebcamActive}
-                    facingMode={cameraFacingMode}
-                    onFacingModeToggle={() => setCameraFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
-                    onClose={() => onWebcamChange(false)}
-                    onSendFrame={onSendVideoFrame}
-                    className="rounded-2xl shadow-2xl border border-white/10 ring-1 ring-black/5"
-                />
-            </div>
 
-            {/* Screen Share Preview */}
-            <div className={`
-                pointer-events-auto transition-all duration-500 ease-spring
-                ${isScreenShareActive || isScreenShareInitializing ? 'w-64 h-40 opacity-100 translate-y-0' : 'w-0 h-0 opacity-0 translate-y-4 overflow-hidden'}
-            `}>
-                <ScreenSharePreview 
-                    isScreenShareActive={!!isScreenShareActive}
-                    isInitializing={!!isScreenShareInitializing}
-                    stream={screenShareStream || null}
-                    error={screenShareError || null}
-                    onToggle={onScreenShareToggle || (() => {})}
-                    className="rounded-2xl shadow-2xl border border-white/10 ring-1 ring-black/5 bg-zinc-900"
-                />
-            </div>
-          </div>
 
           {/* MOBILE DRAG HANDLE */}
           <div 

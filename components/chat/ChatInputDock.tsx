@@ -3,6 +3,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Tooltip, isTextMime } from './UIHelpers';
 import { LiveConnectionState } from 'types';
 import { StagingArea } from './Attachments';
+import FileUpload from './FileUpload';
 import { Mic, Camera, CameraOff, Monitor, MonitorOff, Paperclip, X, ArrowUp, AudioLines } from 'lucide-react';
 
 interface ChatInputDockProps {
@@ -45,6 +46,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
     
     const [isExpanded, setIsExpanded] = useState(false); 
     const [isListening, setIsListening] = useState(false);
+    const [showUpload, setShowUpload] = useState(false);
     
     // Connection States
     const isConnected = connectionState === LiveConnectionState.CONNECTED;
@@ -208,7 +210,25 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                             selectedFile={selectedFile}
                             onRemove={() => setSelectedFile(null)}
                         />
+                        <StagingArea 
+                            selectedFile={selectedFile}
+                            onRemove={() => setSelectedFile(null)}
+                        />
                     </div>
+
+                    {/* Advanced Upload Dropzone */}
+                    {showUpload && !selectedFile && (
+                        <div className="mb-4 animate-fade-in-up">
+                            <FileUpload 
+                                onFilesSelected={(files) => {
+                                    if (files[0]) processFile(files[0]);
+                                    setShowUpload(false);
+                                }}
+                                maxFiles={1}
+                                className="bg-gray-50/50 dark:bg-white/5 backdrop-blur-sm"
+                            />
+                        </div>
+                    )}
 
                     <div className="relative flex flex-col gap-2 bg-gray-50/80 dark:bg-white/5 backdrop-blur-xl border border-gray-100 dark:border-white/10 p-2 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] ring-1 ring-black/5 dark:ring-white/5 transition-all focus-within:ring-black/10 dark:focus-within:ring-white/20 focus-within:bg-white dark:focus-within:bg-black/40">
                         
@@ -266,8 +286,11 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                             
                             <Tooltip text="Upload File">
                                 <button 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="w-9 h-9 flex items-center justify-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white transition-colors"
+                                    onClick={() => {
+                                        setShowUpload(!showUpload);
+                                        if (!isExpanded) setIsExpanded(true);
+                                    }}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${showUpload ? 'bg-zinc-200 dark:bg-white/20 text-black dark:text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'}`}
                                 >
                                     <Paperclip className="w-4 h-4" />
                                 </button>
