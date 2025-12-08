@@ -56,7 +56,7 @@ export async function objectionAgent(
     
     authority: `Got it — you're not the final decision maker. Who else needs to be in the room for this conversation? I've helped ${personRole}s like you bring in the right stakeholders — happy to run a 15-minute prep call with them directly.`,
     
-    need: `Interesting — many leaders feel that way until they see their own data through an AI lens. From what you've shown me on screen and the pain points in your industry, you're already losing ground. Want me to show you exactly where in 60 seconds?`,
+    need: `I understand that concern. Based on what you've shared about ${companyIndustry}, I've seen similar companies gain significant advantages by acting early. Would you be open to a quick 60-second analysis of where AI could make the biggest immediate impact for your specific situation?`,
     
     trust: `Completely understandable. Here's a quick case study from a similar ${companyIndustry} company that was skeptical too — they saw 4.2x ROI in year one. Would you like to speak with their Head of Engineering directly?`,
   }

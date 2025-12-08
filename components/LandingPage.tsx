@@ -6,7 +6,7 @@ import AntigravityCanvas from './AntigravityCanvas';
 import { ServiceIcon } from './ServiceIcon';
 
 interface LandingPageProps {
-    onStartChat: () => void;
+    onStartChat: (startVoice?: boolean) => void;
     onSectionChange?: (shape: VisualShape) => void;
     isDarkMode?: boolean;
     onToggleTheme?: () => void;
@@ -127,7 +127,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
                         )}
                     </button>
-                    <button onClick={onStartChat} className={`text-xs font-medium px-5 py-2.5 rounded-full transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${isDarkMode ? 'bg-white text-slate-900 hover:bg-gray-100' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>Start Live Chat</button>
+                    <button onClick={() => onStartChat()} className={`text-xs font-medium px-5 py-2.5 rounded-full transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${isDarkMode ? 'bg-white text-slate-900 hover:bg-gray-100' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>Start Live Chat</button>
                 </div>
 
                 {/* Mobile Menu Toggle */}
@@ -221,7 +221,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                     {/* CTAs */}
                     <div className="flex flex-col md:flex-row items-center justify-center gap-4 mt-2">
                         <button
-                            onClick={onStartChat}
+                            onClick={() => onStartChat()}
                             className={`group relative px-8 py-4 rounded-full font-medium text-sm tracking-wide hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl w-full md:w-auto min-w-[200px] flex items-center justify-center gap-2 overflow-hidden ${isDarkMode ? 'bg-white text-slate-900' : 'bg-[#1a1a1a] text-white'}`}
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></div>
@@ -337,7 +337,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                             </div>
                         </div>
 
-                        <button onClick={onStartChat} className={`mt-4 w-fit px-8 py-4 rounded-full font-medium text-sm transition-all shadow-xl hover:shadow-2xl flex items-center gap-3 ${isDarkMode ? 'bg-white text-slate-900 hover:bg-gray-200' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
+                        <button onClick={() => onStartChat(true)} className={`mt-4 w-fit px-8 py-4 rounded-full font-medium text-sm transition-all shadow-xl hover:shadow-2xl flex items-center gap-3 ${isDarkMode ? 'bg-white text-slate-900 hover:bg-gray-200' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
                             <span>INTERACT WITH THE AGENT</span>
                             <svg className="w-4 h-4 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>
                         </button>
@@ -644,7 +644,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                             Whether you&apos;re just starting your AI journey or looking to optimize existing systems, I provide the expertise and guidance you need.
                         </p>
                         <div className="flex gap-4 relative z-10 pt-4">
-                            <button onClick={onStartChat} className="px-8 py-3 bg-white text-slate-900 rounded-full font-medium text-sm hover:scale-105 transition-transform shadow-lg">Start Conversation</button>
+                            <button onClick={() => onStartChat()} className="px-8 py-3 bg-white text-slate-900 rounded-full font-medium text-sm hover:scale-105 transition-transform shadow-lg">Start Conversation</button>
                             <button onClick={() => scrollToSection(contactRef)} className="px-8 py-3 bg-transparent border border-white/30 text-white rounded-full font-medium text-sm hover:bg-white/10 transition-colors">Schedule Call</button>
                         </div>
                     </div>

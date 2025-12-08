@@ -15,7 +15,33 @@
 ✅ **COMPLETED:** Vercel 500 Error Fix (ESM imports)
 ✅ **COMPLETED:** Voice Connection Loop Fix
 
-## ✨ Latest Session (2025-12-08): Production Fixes
+## ✨ Latest Session (2025-12-08): Live API Restoration & Modernization
+
+### 1. Webcam Crash Resolved ✅
+**Problem:** `WebcamPreview.tsx` crashed with `WebGL: INVALID_VALUE: texImage2D` and `RuntimeError: memory access out of bounds`.
+**Root Cause:** Race condition. The video frame processing loop (`processFrame`) started running and sending data to MediaPipe *before* the video element had fully loaded its metadata and dimensions.
+**Fix:**
+- Added `onLoadedData` handler to `<video>` element.
+- Ensure `videoRef.current.play()` is only called after data is loaded.
+- Added strict guard clauses in `processFrame` to prevent sending invalid (0x0) video frames.
+
+### 2. Audio Subsystem Modernization (Client-Side) ✅
+**Problem:** Browser console warnings: `[Deprecation] The ScriptProcessorNode is deprecated. Use AudioWorkletNode instead.`
+**Action:** Full migration of client-side audio processing.
+- **Created:** `public/audio-processor.js` (AudioWorkletProcessor).
+- **Refactored:** `GeminiLiveService.ts` to use `AudioWorkletNode` instead of `ScriptProcessorNode`.
+- **Outcome:** Removed deprecated API usage, improved audio performance (runs on separate thread), and eliminated console warnings.
+
+### 3. Live API "Invalid Argument" (Error 1007) Investigation ⚠️
+**Problem:** `gemini-2.5-flash-native-audio-preview` model suddenly started rejecting connections with Error 1007 ("Invalid Argument").
+**Investigation:**
+- **Code Audit:** Git history confirmed `config-builder.ts` (tools configuration) was **UNCHANGED** since Dec 1st.
+- **Hypothesis:** External API regression/change. Google's `native-audio-preview` model became stricter or changed its support for tool definitions.
+- **Workaround:** Temporarily disabled `tools` (Search) in `liveConfig` to restore basic connectivity (Voice + Vision).
+- **Status:** Connectivity restored (Voice/Vision OK), Search disabled due to model incompatibility.
+
+---
+
 
 ### Vercel 500 Error Resolution ✅
 

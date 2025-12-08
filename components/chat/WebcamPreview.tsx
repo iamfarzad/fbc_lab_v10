@@ -106,17 +106,22 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                      if (!isMounted) return;
                      
                      if (videoRef.current && 
+                         videoRef.current.srcObject && // Ensure stream exists
                          videoRef.current.readyState >= 2 && 
                          !videoRef.current.paused &&
                          !videoRef.current.ended &&
-                         videoRef.current.videoWidth > 1 && 
-                         videoRef.current.videoHeight > 1
+                         videoRef.current.videoWidth > 0 && 
+                         videoRef.current.videoHeight > 0 &&
+                         videoRef.current.currentTime > 0 // Ensure playback has started
                      ) {
                          if (faceMeshRef.current) {
                              try {
                                 await faceMeshRef.current.send({image: videoRef.current});
-                             } catch (err) {
-                                 console.warn("MediaPipe Send Error:", err);
+                             } catch (err: any) {
+                                 // Suppress "ROI width and height must be > 0" as it's often transient
+                                 if (!err?.message?.includes('ROI')) {
+                                     console.warn("MediaPipe Send Error:", err);
+                                 }
                              }
                          }
                      }
@@ -126,12 +131,13 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
     
                 if (isMounted) {
                     intervalId = setInterval(() => {
-                        if (videoRef.current && canvasRef.current) {
+                        if (videoRef.current && canvasRef.current && videoRef.current.srcObject) {
                             if (videoRef.current.readyState >= 2 && 
-                                videoRef.current.videoWidth > 1 && 
-                                videoRef.current.videoHeight > 1) { 
+                                videoRef.current.videoWidth > 0 && 
+                                videoRef.current.videoHeight > 0 && 
+                                !videoRef.current.paused) { 
                                 
-                                const context = canvasRef.current.getContext('2d');
+                                const context = canvasRef.current.getContext('2d', { alpha: false }); // Optimize for no alpha
                                 if (context) {
                                     canvasRef.current.width = videoRef.current.videoWidth;
                                     canvasRef.current.height = videoRef.current.videoHeight;
@@ -213,6 +219,12 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                         autoPlay 
                         playsInline 
                         muted 
+                        onLoadedData={() => {
+                            // Ensure video dimensions are available before processing
+                            if (videoRef.current && videoRef.current.videoWidth > 0) {
+                                void videoRef.current.play().catch(() => {});
+                            }
+                        }}
                         className={`w-full h-full object-cover transition-transform duration-500 ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`} 
                     />
                     <canvas ref={canvasRef} className="hidden" />

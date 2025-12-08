@@ -10,8 +10,9 @@ interface LogContext {
 }
 
 class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development'
-  private isProduction = process.env.NODE_ENV === 'production'
+  // Works in both Node.js and browser (Vite)
+  private isDevelopment = typeof import.meta !== 'undefined' && import.meta.env?.DEV || process.env.NODE_ENV === 'development'
+  private isProduction = typeof import.meta !== 'undefined' && import.meta.env?.PROD || process.env.NODE_ENV === 'production'
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString()

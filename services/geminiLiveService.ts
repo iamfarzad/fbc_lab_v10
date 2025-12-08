@@ -8,7 +8,7 @@ import { logger } from 'src/lib/logger'
 // Audio Constants
 const INPUT_SAMPLE_RATE = AppConfig.api.audio.inputSampleRate;
 const OUTPUT_SAMPLE_RATE = AppConfig.api.audio.outputSampleRate;
-const BUFFER_SIZE = AppConfig.api.audio.bufferSize;
+// BUFFER_SIZE removed - was unused
 
 // Rate Limiter Implementation
 class RateLimiter {
@@ -44,7 +44,7 @@ export class GeminiLiveService {
   private inputAudioContext: AudioContext | null = null;
   private outputAudioContext: AudioContext | null = null;
   private inputSource: MediaStreamAudioSourceNode | null = null;
-  private processor: ScriptProcessorNode | null = null;
+  private processor: ScriptProcessorNode | AudioWorkletNode | null = null;
   private outputNode: GainNode | null = null;
 
   // Analysers for real-time visuals
@@ -83,6 +83,10 @@ export class GeminiLiveService {
    */
   public setResearchContext(research: ResearchResult | null) {
     this.researchContext = research;
+    // If connected, push the new context immediately
+    if (this.isConnected && this.isSessionReady) {
+      this.sendContext([], { research });
+    }
   }
 
   /**
@@ -296,7 +300,15 @@ export class GeminiLiveService {
       this.inputAnalyser.minDecibels = -90;
       this.inputAnalyser.maxDecibels = -10;
 
-      this.processor = this.inputAudioContext.createScriptProcessor(BUFFER_SIZE, 1, 1);
+      // Load AudioWorklet module
+      try {
+        await this.inputAudioContext.audioWorklet.addModule('/audio-processor.js');
+      } catch (e) {
+        console.error('Failed to load audio worklet, falling back to ScriptProcessor', e);
+        // Fallback or error handling could go here, but for now we assume it works
+      }
+
+      this.processor = new AudioWorkletNode(this.inputAudioContext, 'audio-recorder-worklet');
 
       // Connect audio graph: source -> analyser -> processor -> destination
       this.inputSource.connect(this.inputAnalyser); // For visuals (must be before processor)
@@ -304,11 +316,14 @@ export class GeminiLiveService {
       this.processor.connect(this.inputAudioContext.destination);
 
       // CRITICAL: Only start sending audio AFTER session_started is received
-      this.processor.onaudioprocess = (e) => {
+      (this.processor as AudioWorkletNode).port.onmessage = (event: MessageEvent) => {
         if (!this.isConnected || !this.liveClient) {
           return;
         }
-        const inputData = e.inputBuffer.getChannelData(0);
+        
+        const inputData = event.data.audioData; // Float32Array from worklet
+        if (!inputData) return;
+
         const pcmBlob = createPcmBlob(inputData, INPUT_SAMPLE_RATE);
 
         if (pcmBlob.mimeType && pcmBlob.data) {
@@ -472,29 +487,7 @@ export class GeminiLiveService {
     unifiedContext.setSessionId(sessionId);
   }
 
-  public sendVideo(frameData: Blob): void {
-    // Send video frame to Fly.io server
-    if (!this.liveClient) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      if (result) {
-        const base64data = result.split(',')[1];
-        if (base64data) {
-          this.liveClient?.sendContextUpdate({
-            sessionId: this.sessionId,
-            modality: 'webcam',
-            analysis: 'Video frame from webcam',
-            ...(base64data ? { imageData: base64data } : {}),
-            capturedAt: Date.now()
-          });
-          logger.debug('[GeminiLiveService] Sent video frame to Live API');
-        }
-      }
-    };
-    reader.readAsDataURL(frameData);
-  }
 
   private async cleanupAudio() {
     if (this.inputAudioContext) {
@@ -507,6 +500,9 @@ export class GeminiLiveService {
     }
     if (this.processor) {
       this.processor.disconnect();
+      if ((this.processor as AudioWorkletNode).port) {
+        (this.processor as AudioWorkletNode).port.onmessage = null;
+      }
       this.processor = null;
     }
     if (this.inputSource) {

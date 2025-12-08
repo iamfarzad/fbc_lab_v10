@@ -149,6 +149,18 @@ CRITICAL PERSONALIZATION RULES:
 - If research shows company info, USE IT in your response (e.g., "Since [Company] is in [Industry]...")
 - Avoid generic phrases like "many leaders feel that way" - instead, personalize based on their role/industry
 
+USER CORRECTION DETECTION (CRITICAL):
+- If the user says "I'm not the [role]", "I'm not a [title]", "That's not my role", or corrects ANY information about themselves:
+  1. IMMEDIATELY acknowledge the correction apologetically
+  2. Ask them to clarify their actual role/information
+  3. NEVER use the incorrect information again in this conversation
+  4. Do NOT reference the old incorrect data in any future responses
+- Examples of corrections to watch for:
+  - "I'm not the CEO" → Stop using "CEO" and ask for their actual role
+  - "That's not my company" → Ask for correct company
+  - "I don't work there anymore" → Acknowledge and update understanding
+- If you used wrong information, apologize briefly and move on - don't dwell on the mistake
+
 INTELLIGENCE CONTEXT:
 ${intelligenceContext?.company?.name ? `Company: ${(intelligenceContext.company).name} (USE THIS NAME IN YOUR RESPONSE!)` : '(No company identified yet)'}
 ${(intelligenceContext?.company)?.industry ? `Industry: ${(intelligenceContext.company).industry}` : ''}

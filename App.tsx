@@ -305,12 +305,23 @@ export const App: React.FC = () => {
 
     // --- LEAD RESEARCH FLOW ---
 
-    const handleStartChatRequest = () => {
+    const handleStartChatRequest = (startVoice: boolean = false) => {
         // If we already have a profile, go straight to chat
         if (userProfile) {
             setView('chat');
+            if (startVoice) {
+                // Short delay to ensure view transition allows mounting
+                setTimeout(() => {
+                    void handleConnectRef.current();
+                }, 100);
+            }
         } else {
             setShowTerms(true);
+            // Store intent for after terms
+            if (startVoice) {
+                // We'll need a ref or state for this if we want to persist across terms
+                // For now, let's just default to chat after terms
+            }
         }
     };
 
@@ -325,46 +336,92 @@ export const App: React.FC = () => {
         if (permissions) {
             logger.debug('[App] Applying user permissions:', permissions);
 
-            // Auto-enable webcam if user granted permission
-            if (permissions.webcam) {
-                setIsWebcamActive(true);
-                logger.debug('[App] Webcam permission granted, enabling camera');
+                // Auto-enable webcam if user granted permission
+                if (permissions.webcam) {
+                    setIsWebcamActive(true);
+                    
+                    // Add system message about webcam
+                    setTranscript(prev => [...prev, {
+                        id: Date.now().toString(),
+                        role: 'user', // System message but displayed as context
+                        text: '[System: Webcam enabled by user permission]',
+                        timestamp: new Date(),
+                        isFinal: true
+                    }]);
+                }
+
+                if (permissions.location) {
+                    try {
+                        logger.debug('[App] Requesting location access...');
+                        const location = await unifiedContext.ensureLocation();
+                        
+                        if (location) {
+                            logger.debug('[App] Location access granted:', location);
+                            
+                            // Update Local State
+                            setLocationData(location);
+
+                            // Update Standard Chat Service
+                            if (standardChatRef.current) {
+                                standardChatRef.current.setLocation(location);
+                            }
+                            
+                            // Update Live Service (Voice)
+                            if (liveServiceRef.current) {
+                                liveServiceRef.current.setLocation(location);
+                            }
+                            
+                            // Send location context update if already connected
+                            if (connectionState === LiveConnectionState.CONNECTED && liveServiceRef.current) {
+                                liveServiceRef.current.sendContext([], { location });
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('[App] Location access failed:', err);
+                    }
+                }
+
+                // Store permissions for reference
+                sessionStorage.setItem('fbc_permissions', JSON.stringify(permissions));
             }
 
-            // Auto-request location if granted
-            if (permissions.location && navigator.geolocation) {
-                try {
-                    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-                    });
-                    logger.debug('[App] Location access granted:', { lat: pos.coords.latitude, lng: pos.coords.longitude });
-                    const geoLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-                    // Store location in state and unified context
-                    setLocationData(geoLocation);
-                    unifiedContext.setLocation(geoLocation);
-                    // Sync location to StandardChatService proactively
-                    if (standardChatRef.current) {
-                        standardChatRef.current.setLocation(geoLocation);
-                    }
-                } catch (err) {
-                    console.warn('[App] Location access failed:', err);
+            // Sync User Profile to Contexts
+            if (name || email) {
+                // Update Unified Context
+                const currentSnapshot = unifiedContext.getSnapshot();
+                const updatedIntelligence = {
+                    ...currentSnapshot.intelligenceContext,
+                    name,
+                    email
+                };
+                unifiedContext.setIntelligenceContext(updatedIntelligence);
+                
+                // Update Live Service Context if initialized
+                if (liveServiceRef.current) {
+                   // Ensure Live Service has the latest research/intelligence context
+                   // which now includes the name/email
+                   liveServiceRef.current.setResearchContext(researchResultRef.current);
                 }
             }
-
-            // Voice is handled by the live service connection
-            if (permissions.voice) {
-                logger.debug('[App] Voice permission granted');
-            }
-
-            // Store permissions for reference
-            sessionStorage.setItem('fbc_permissions', JSON.stringify(permissions));
-        }
 
         // 3. Enter Chat Immediately (Fast Path)
         setView('chat');
 
-        // 4. Trigger Background Research (Deep Path)
-        void performBackgroundResearch(email, name, companyUrl);
+        // 4. Trigger Background Research FIRST (before voice)
+        // This ensures voice has context when it connects
+        const researchPromise = performBackgroundResearch(email, name, companyUrl);
+
+        // 5. Voice connection - WAIT for research (max 3s) to ensure context is available
+        if (permissions?.voice) {
+            logger.debug('[App] Voice permission granted, waiting for research before connecting...');
+            // Wait for research to complete OR timeout after 3 seconds
+            await Promise.race([
+                researchPromise,
+                new Promise(resolve => setTimeout(resolve, 3000))
+            ]);
+            logger.debug('[App] Research complete or timeout, now connecting voice...');
+            void handleConnectRef.current();
+        }
     };
 
     const performBackgroundResearch = async (email: string, name: string, companyUrl?: string) => {
@@ -896,7 +953,7 @@ export const App: React.FC = () => {
                     text: text,
                     timestamp: new Date(),
                     isFinal: isFinal,
-                    status: 'complete',
+                    status: isFinal ? 'complete' : 'streaming',
                     ...(groundingMetadata && { groundingMetadata })
                 }];
             }
@@ -1256,8 +1313,15 @@ export const App: React.FC = () => {
             // Generate HTML content for preview
             const htmlContent = generateDiscoveryReportHTMLClient(reportData);
 
-            // Create transcript item with report
-            const reportItem = createDiscoveryReportTranscriptItem(reportData, htmlContent);
+            // Generate PDF data URL for download
+            const pdfDataUrl = generatePDF({
+                transcript,
+                userProfile,
+                researchContext: researchResultRef.current
+            });
+
+            // Create transcript item with report (including PDF for download)
+            const reportItem = createDiscoveryReportTranscriptItem(reportData, htmlContent, pdfDataUrl);
 
             // Add to transcript
             setTranscript(prev => [...prev, reportItem]);
@@ -1882,7 +1946,7 @@ export const App: React.FC = () => {
         } else if (isWebcamActive && connectionState === LiveConnectionState.DISCONNECTED) {
             // If webcam is active but Live API not connected, try to connect
             logger.debug('[App] Webcam active but Live API disconnected, attempting connection');
-            void handleConnect();
+            void handleConnectRef.current();
         }
     }, [connectionState, isWebcamActive]);
 
@@ -2068,6 +2132,7 @@ export const App: React.FC = () => {
                             onToggleVisibility={setIsChatVisible}
                             isDarkMode={isDarkMode}
                             onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+                            agentMode={visualState.mode}
                             onGeneratePDF={() => {
                                 void generatePDF({
                                     transcript,
