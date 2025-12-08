@@ -141,6 +141,11 @@ export const ToolSchemas = {
   // Dashboard stats (admin only)
   get_dashboard_stats: z.object({
     period: z.enum(['1d', '7d', '30d', '90d']).optional().describe('Time period for stats. Defaults to "7d".')
+  }),
+
+  // Booking link
+  get_booking_link: z.object({
+    meetingType: z.enum(['consultation', 'workshop', 'strategy-call']).optional().describe('Type of meeting (all redirect to same Cal.com link)')
   })
 } as const
 
@@ -261,6 +266,19 @@ export async function executeUnifiedTool(
 
     case 'get_dashboard_stats':
       return await executeGetDashboardStats(args, sessionId)
+
+    case 'get_booking_link': {
+      // Return the Cal.com booking link
+      const BOOKING_URL = 'https://cal.com/farzadbayat/discovery-call'
+      return {
+        success: true,
+        data: {
+          link: BOOKING_URL,
+          message: `Here's the booking link: ${BOOKING_URL}`,
+          note: 'Please share this link with the user. You cannot book on their behalf.'
+        }
+      }
+    }
 
     default:
       return {
