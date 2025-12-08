@@ -324,10 +324,9 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
       ]
     },
     tools: toolsConfig,
-    generationConfig: {
-      temperature: 1.0, // Recommended for Gemini 3.0 with high thinking
-      candidateCount: 1
-    }
+    // NOTE: generationConfig is deprecated in LiveConnectConfig - set fields directly
+    temperature: 1.0,
+    candidateCount: 1
   }
 
   if (DEBUG_MODE) {
