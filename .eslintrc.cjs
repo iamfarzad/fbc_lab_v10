@@ -49,6 +49,19 @@ module.exports = {
     '@typescript-eslint/no-unsafe-return': 'warn',
     'react/prop-types': 'off', // Using TypeScript for prop validation
     'no-console': ['warn', { allow: ['warn', 'error'] }],
+    // CRITICAL: Prevent 'src/' imports in files that use ESM (Vercel, server)
+    // This pattern caused 20+ fix commits in 2 weeks
+    'no-restricted-imports': [
+      'error',
+      {
+        patterns: [
+          {
+            group: ['src/*'],
+            message: 'Use relative imports with .js extensions for ESM compatibility. Example: "../../../src/lib/foo.js"',
+          },
+        ],
+      },
+    ],
   },
   settings: {
     react: {

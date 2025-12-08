@@ -55,5 +55,19 @@ pnpm check:circular || {
   # Don't fail, just warn
 }
 
+# CRITICAL: Build verification - prevents shipping broken TypeScript
+echo "🏗️  Running build verification..."
+pnpm build 2>&1 | tee /tmp/build-output.txt || {
+  echo ""
+  echo "❌ BUILD FAILED - Commit blocked!"
+  echo ""
+  echo "   The build must pass before committing."
+  echo "   This prevents shipping broken TypeScript that requires fix commits."
+  echo ""
+  echo "   Fix the build errors, then try again."
+  echo ""
+  exit 1
+}
+
 echo "✅ Pre-commit checks passed!"
 
