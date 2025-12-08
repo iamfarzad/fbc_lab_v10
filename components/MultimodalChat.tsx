@@ -40,6 +40,7 @@ interface MultimodalChatProps {
   userName?: string | undefined;
   activeTools?: ToolCall[];
   latency?: number | undefined;
+  agentMode?: 'idle' | 'listening' | 'thinking' | 'speaking';
   // Screen Share Props
   screenShareStream?: MediaStream | null;
   screenShareError?: string | null;
@@ -68,6 +69,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onGenerateDiscoveryReport,
     userEmail,
     activeTools = [],
+    latency: _latency,
+    agentMode = 'idle',
     screenShareStream,
     screenShareError
 }) => {
@@ -371,7 +374,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
                  <StatusBadges 
                     isLocationShared={isLocationShared}
-                    isProcessing={items.some(i => !i.isFinal)}
                     className=""
                  />
               </div>
@@ -479,13 +481,15 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
               </div>
             ) : (
               items
-                .filter(item => item.text || item.attachment || item.reasoning || item.error)
+                .filter(item => item.text || item.attachment || item.reasoning || item.error || (!item.isFinal && item.role === 'model'))
                 .map((item, index) => (
                 <div key={item.id + index}>
                   <ChatMessage 
                     item={item} 
                     onPreview={setPreviewItem}
                     isDarkMode={isDarkMode}
+                    agentMode={agentMode}
+                    activeTools={activeTools}
                   />
                   {index === items.length - 1 && item.role === 'model' && item.isFinal && item.processingTime && (
                     <ResponseTimeBadge 

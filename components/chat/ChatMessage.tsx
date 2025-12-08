@@ -11,7 +11,7 @@ import { User, ChevronDown, Sparkles } from 'lucide-react';
 import { CONTACT_CONFIG } from 'src/config/constants';
 import { useState } from 'react';
 import MessageMetadata from './MessageMetadata';
-import { Shimmer } from './UIHelpers';
+import { ToolCall } from './ToolCallIndicator';
 
 interface ChatMessageProps {
     item: TranscriptItem;
@@ -20,6 +20,8 @@ interface ChatMessageProps {
     onEmailReport?: () => void;
     onBookCall?: () => void;
     isDarkMode?: boolean;
+    agentMode?: 'idle' | 'listening' | 'thinking' | 'speaking';
+    activeTools?: ToolCall[];
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ 
@@ -28,10 +30,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     onDownloadReport,
     onEmailReport,
     onBookCall,
-    isDarkMode = false 
+    isDarkMode = false,
+    agentMode = 'idle',
+    activeTools = []
 }) => {
     const isUser = item.role === 'user';
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
+    
+    // Determine display mode: use agentMode if not idle, otherwise infer from status
+    const displayMode = agentMode !== 'idle' ? agentMode : (item.status === 'streaming' ? 'thinking' : 'idle');
 
     // Handle System Messages - hide text if attachment exists (attachment is the real content)
     if (item.text.startsWith('[System:') && !item.attachment) {
@@ -71,10 +78,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             {/* Content Column */}
             <div className={`flex flex-col gap-2 max-w-[85%] md:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
                 
-                {/* Speaker Name */}
-                <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 ml-1">
-                    {isUser ? 'You' : 'F.B/c'}
-                </span>
+                {/* Speaker Name with Status Indicator */}
+                <div className="flex items-center gap-2 ml-1">
+                    <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+                        {isUser ? 'You' : 'F.B/c'}
+                    </span>
+                    {/* Compact Mode Indicator - Show when processing */}
+                    {!isUser && !item.isFinal && (
+                        (item.status === 'streaming' || !item.status || (item.status && item.status !== 'error' && item.status !== 'complete')) ? (
+                            <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 italic animate-pulse">
+                                {activeTools.some(t => t.status === 'running') 
+                                    ? 'Analyzing...' 
+                                    : displayMode === 'speaking' 
+                                        ? 'Talking...' 
+                                        : displayMode === 'listening' 
+                                            ? 'Listening...' 
+                                            : 'Typing...'}
+                            </span>
+                        ) : null
+                    )}
+                </div>
 
                 {/* 1a. File/Image Attachments */}
                 {item.attachment && (item.attachment.type === 'image' || item.attachment.type === 'file') && (
@@ -205,12 +228,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     </div>
                 ) : null}
 
-                {/* 5. Fix Double Rendering: ONLY show shimmer if streaming AND no text */}
-                {item.status === 'streaming' && !item.text && (
-                    <div className="flex items-center gap-2 pl-2" role="status" aria-live="polite" aria-label="AI is thinking">
-                         <span className="text-[11px] text-zinc-400">Thinking...</span>
-                    </div>
-                )}
 
                 {/* 6. Error State */}
                 {item.status === 'error' && item.error && (
@@ -250,13 +267,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
              </div>
         )}
       </div>
-
-      {/* Loading Shimmer */}
-      {!isUser && !item.isFinal && item.text.length === 0 && (
-        <div className="mt-2" role="status" aria-live="polite" aria-label="Loading response">
-            <Shimmer />
-        </div>
-      )}
     </div>
   )
 }

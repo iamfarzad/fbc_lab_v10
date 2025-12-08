@@ -54,7 +54,15 @@ const normalizeWebsocketUrl = (
       }
     }
 
-    return trimTrailingSlash(url.toString())
+    // Remove pathname for WebSocket URLs (WebSocket doesn't use paths in the URL)
+    // This ensures we get clean URLs like wss://host.com not wss://host.com/
+    url.pathname = ''
+    url.search = ''
+    url.hash = ''
+
+    // Build clean URL manually to avoid trailing slash issues
+    const cleanUrl = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`
+    return trimTrailingSlash(cleanUrl)
   } catch (error) {
     console.warn(
       '[WEBSOCKET_CONFIG] Invalid WebSocket URL provided; falling back to default',
@@ -293,6 +301,27 @@ export const ALLOWED_ORIGINS = (
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean)
+
+// Helper to check if origin is allowed (includes Vercel pattern matching)
+export const isOriginAllowed = (origin: string | undefined | null): boolean => {
+  if (!origin || origin === 'null' || origin === '') {
+    // Allow empty origin for some WebSocket clients that don't send origin header
+    // This is less secure but necessary for compatibility
+    return true
+  }
+  
+  // Check exact match in allowed origins
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    return true
+  }
+  
+  // Allow any Vercel deployment (*.vercel.app)
+  if (origin.includes('.vercel.app')) {
+    return true
+  }
+  
+  return false
+}
 
 // Third-party API endpoints
 export const EXTERNAL_ENDPOINTS = {

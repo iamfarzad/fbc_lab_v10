@@ -5,7 +5,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 import { serverLogger } from '../utils/env-setup'
-import { WEBSOCKET_CONFIG, ALLOWED_ORIGINS } from 'src/config/constants'
+import { WEBSOCKET_CONFIG, ALLOWED_ORIGINS, isOriginAllowed } from 'src/config/constants'
 import { MESSAGE_TYPES } from '../message-types'
 
 // ESM-compatible __dirname
@@ -94,18 +94,32 @@ export function createWebSocketServer(options: WebSocketServerOptions): WebSocke
     perMessageDeflate: false,
     maxPayload: 10 * 1024 * 1024,
     verifyClient: (info: { origin: string; req: http.IncomingMessage; secure: boolean }) => {
-      const isProduction = process.env.NODE_ENV === 'production'
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.FLY_APP_NAME
+      const origin = info.origin || ''
 
       if (!isProduction) {
-        serverLogger.debug('Dev mode: Accepting connection', { origin: info.origin || 'unknown' })
+        serverLogger.debug('Dev mode: Accepting connection', { origin: origin || 'unknown' })
         return true
       }
 
-      const origin = info.origin
-      const allowed = ALLOWED_ORIGINS.includes(origin)
+      // In production, use the helper function to check origin
+      const allowed = isOriginAllowed(origin)
 
       if (!allowed) {
-        serverLogger.warn('Rejected connection from unauthorized origin', { origin })
+        serverLogger.warn('Rejected connection from unauthorized origin', { 
+          origin: origin || 'empty',
+          allowedOrigins: ALLOWED_ORIGINS.slice(0, 5), // Log first 5 for debugging
+          requestHeaders: {
+            'user-agent': info.req.headers['user-agent'],
+            'host': info.req.headers.host
+          }
+        })
+      } else {
+        serverLogger.debug('Accepted connection', { 
+          origin: origin || 'empty',
+          isVercel: origin.includes('.vercel.app'),
+          isAllowed: ALLOWED_ORIGINS.includes(origin)
+        })
       }
 
       return allowed

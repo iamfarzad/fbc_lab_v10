@@ -8,25 +8,27 @@
 
 import React from 'react'
 import {
-  MapPin,
-  Brain
+  MapPin
 } from 'lucide-react'
 import Badge from './chat/shared/Badge'
 
 export interface StatusBadgesProps {
   isLocationShared?: boolean | undefined
   isProcessing?: boolean | undefined
+  agentMode?: 'idle' | 'listening' | 'thinking' | 'speaking'
+  hasActiveTools?: boolean
   className?: string | undefined
 }
 
 const StatusBadges: React.FC<StatusBadgesProps> = ({
   isLocationShared,
-  isProcessing,
+  isProcessing: _isProcessing,
+  agentMode: _agentMode = 'idle',
+  hasActiveTools: _hasActiveTools = false,
   className = ''
 }) => {
-  const hasAnyActive = isLocationShared || isProcessing
-
-  if (!hasAnyActive) return null
+  // Only show location badge, processing indicator moved to chat messages
+  if (!isLocationShared) return null
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
@@ -38,17 +40,6 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
           pulse={true}
         >
           <span className="hidden sm:inline">Location Active</span>
-        </Badge>
-      )}
-
-      {/* Processing */}
-      {isProcessing && (
-        <Badge
-          variant="status"
-          icon={<Brain className="w-3 h-3" />}
-          pulse={true}
-        >
-          <span className="hidden sm:inline">Thinking...</span>
         </Badge>
       )}
     </div>
