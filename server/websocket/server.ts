@@ -106,8 +106,13 @@ export function createWebSocketServer(options: WebSocketServerOptions): WebSocke
       const allowed = isOriginAllowed(origin)
 
       if (!allowed) {
+        const isMissingOrigin = !origin || origin === '' || origin === 'null'
         serverLogger.warn('Rejected connection from unauthorized origin', { 
-          origin: origin || 'empty',
+          origin: origin || 'empty/missing',
+          isMissingOrigin,
+          reason: isMissingOrigin 
+            ? 'Missing origin header (security requirement)' 
+            : 'Origin not in allowed list',
           allowedOrigins: ALLOWED_ORIGINS.slice(0, 5), // Log first 5 for debugging
           requestHeaders: {
             'user-agent': info.req.headers['user-agent'],
@@ -116,7 +121,7 @@ export function createWebSocketServer(options: WebSocketServerOptions): WebSocke
         })
       } else {
         serverLogger.debug('Accepted connection', { 
-          origin: origin || 'empty',
+          origin: origin,
           isVercel: origin.includes('.vercel.app'),
           isAllowed: ALLOWED_ORIGINS.includes(origin)
         })
