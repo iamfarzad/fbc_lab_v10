@@ -3,11 +3,8 @@ import { generateText } from 'ai';
 import { google } from '@ai-sdk/google';
 import { GEMINI_MODELS } from '../../src/config/constants.js';
 
-export const config = {
-  api: {
-    bodyParser: false, // Disable default body parser to handle FormData
-  },
-};
+// Use default Vercel body parser for JSON requests
+
 
 // Simple in-memory rate limiting for demo purposes
 let lastRequestTime = 0;
@@ -48,14 +45,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     lastRequestTime = now
 
-    // Manually parse JSON body since bodyParser is disabled
-    let body: { image?: string; prompt?: string };
-    try {
-      body = JSON.parse(req.body as string) as { image?: string; prompt?: string };
-    } catch {
+    // Vercel auto-parses JSON body when bodyParser is enabled (default)
+    const body = req.body as { image?: string; prompt?: string };
+    if (!body || typeof body !== 'object') {
       return res.status(400).json({ error: 'Invalid JSON body' });
     }
-    const { image, prompt } = body || {};
+    const { image, prompt } = body;
 
     if (!image) {
       return res.status(400).json({ error: 'No image data provided' })

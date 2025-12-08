@@ -306,9 +306,9 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
   }
 
   const liveConfig: any = {
-    responseModalities: [Modality.AUDIO],  // ← Use enum like prototype
-    inputAudioTranscription: {},  // Enable input transcription (empty object = use default model)
-    outputAudioTranscription: {}, // Enable output transcription (empty object = use default model)
+    responseModalities: [Modality.AUDIO],
+    // Note: Transcription is enabled by default for native-audio-preview models
+    // Empty objects can cause error 1007 with some configurations
     speechConfig: {
       voiceConfig: {
         prebuiltVoiceConfig: {
@@ -319,7 +319,7 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
     systemInstruction: {
       parts: [
         {
-          text: fullInstruction  // ← Wrap in parts array like prototype
+          text: fullInstruction
         }
       ]
     },

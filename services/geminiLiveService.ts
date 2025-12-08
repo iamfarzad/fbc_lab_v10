@@ -319,39 +319,68 @@ export class GeminiLiveService {
       this.inputAnalyser.minDecibels = -90;
       this.inputAnalyser.maxDecibels = -10;
 
-      // Load AudioWorklet module
+      // Load AudioWorklet module with fallback to ScriptProcessorNode
+      let useWorklet = true;
       try {
         await this.inputAudioContext.audioWorklet.addModule('/audio-processor.js');
       } catch (e) {
         console.error('Failed to load audio worklet, falling back to ScriptProcessor', e);
-        // Fallback or error handling could go here, but for now we assume it works
+        useWorklet = false;
       }
 
-      this.processor = new AudioWorkletNode(this.inputAudioContext, 'audio-recorder-worklet');
-
-      // Connect audio graph: source -> analyser -> processor -> destination
-      this.inputSource.connect(this.inputAnalyser); // For visuals (must be before processor)
-      this.inputAnalyser.connect(this.processor); // For processing
-      this.processor.connect(this.inputAudioContext.destination);
-
-      // CRITICAL: Only start sending audio AFTER session_started is received
-      (this.processor as AudioWorkletNode).port.onmessage = (event: MessageEvent) => {
-        if (!this.isConnected || !this.liveClient) {
-          return;
-        }
+      if (useWorklet) {
+        // Modern AudioWorklet path
+        this.processor = new AudioWorkletNode(this.inputAudioContext, 'audio-recorder-worklet');
         
-        const inputData = event.data.audioData; // Float32Array from worklet
-        if (!inputData) return;
+        // Connect audio graph: source -> analyser -> processor -> destination
+        this.inputSource.connect(this.inputAnalyser); // For visuals (must be before processor)
+        this.inputAnalyser.connect(this.processor); // For processing
+        this.processor.connect(this.inputAudioContext.destination);
+        
+        // CRITICAL: Only start sending audio AFTER session_started is received
+        (this.processor as AudioWorkletNode).port.onmessage = (event: MessageEvent) => {
+          if (!this.isConnected || !this.liveClient) {
+            return;
+          }
+          
+          const inputData = event.data.audioData; // Float32Array from worklet
+          if (!inputData) return;
 
-        const pcmBlob = createPcmBlob(inputData, INPUT_SAMPLE_RATE);
+          const pcmBlob = createPcmBlob(inputData, INPUT_SAMPLE_RATE);
 
-        if (pcmBlob.mimeType && pcmBlob.data) {
-          this.liveClient.sendRealtimeInput([{
-            mimeType: pcmBlob.mimeType,
-            data: pcmBlob.data
-          }]);
-        }
-      };
+          if (pcmBlob.mimeType && pcmBlob.data) {
+            this.liveClient.sendRealtimeInput([{
+              mimeType: pcmBlob.mimeType,
+              data: pcmBlob.data
+            }]);
+          }
+        };
+      } else {
+        // Fallback to deprecated but widely supported ScriptProcessorNode
+        const BUFFER_SIZE = 4096;
+        this.processor = this.inputAudioContext.createScriptProcessor(BUFFER_SIZE, 1, 1);
+        
+        // Connect audio graph for ScriptProcessor
+        this.inputSource.connect(this.inputAnalyser);
+        this.inputAnalyser.connect(this.processor);
+        this.processor.connect(this.inputAudioContext.destination);
+        
+        (this.processor as ScriptProcessorNode).onaudioprocess = (event: AudioProcessingEvent) => {
+          if (!this.isConnected || !this.liveClient) return;
+          
+          const inputData = event.inputBuffer.getChannelData(0);
+          const pcmBlob = createPcmBlob(inputData, INPUT_SAMPLE_RATE);
+          
+          if (pcmBlob.mimeType && pcmBlob.data) {
+            this.liveClient.sendRealtimeInput([{
+              mimeType: pcmBlob.mimeType,
+              data: pcmBlob.data
+            }]);
+          }
+        };
+        
+        logger.debug('[GeminiLiveService] Using ScriptProcessorNode fallback for audio');
+      }
 
       // Start analysis loop for visuals
       this.startAnalysisLoop();
@@ -515,15 +544,16 @@ export class GeminiLiveService {
     
     logger.debug(`[GeminiLiveService] Flushing ${this.pendingMediaQueue.length} queued media items`);
     
-    // Send only the most recent frame to avoid flooding
-    const latestMedia = this.pendingMediaQueue[this.pendingMediaQueue.length - 1];
+    // Send last 5 frames to provide initial context without flooding
+    const framesToSend = this.pendingMediaQueue.slice(-5);
     this.pendingMediaQueue = [];
     
-    if (latestMedia && this.liveClient) {
-      this.liveClient.sendRealtimeInput([{
-        mimeType: latestMedia.mimeType,
-        data: latestMedia.data
-      }]);
+    if (framesToSend.length > 0 && this.liveClient) {
+      // Send as batch for efficiency
+      this.liveClient.sendRealtimeInput(
+        framesToSend.map(m => ({ mimeType: m.mimeType, data: m.data }))
+      );
+      logger.debug(`[GeminiLiveService] Sent ${framesToSend.length} queued frames`);
     }
   }
 

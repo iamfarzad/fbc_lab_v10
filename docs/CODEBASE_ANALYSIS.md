@@ -1,219 +1,433 @@
-# Original Codebase Analysis
+# Codebase Analysis - fbc_lab_v10
 
-**Generated:** 2025-12-01  
-**Source:** `/Users/farzad/fbc-lab-9`
-
-## ✅ Verification Results
-
-### Build Tool
-- **Tool:** Vite ✅ (matches our plan)
-- **Config:** `vite.config.ts` exists
-- **TypeScript:** `tsconfig.json` exists
-
-### Structure
-- **Root Directories:** 18
-- **Root Files:** 40
-- **Key Files:** All present ✅
-
-### Duplicates Found
-We identified duplicates in 5 categories (as expected):
-
-1. **Tools:** `api/_lib/core/tools` vs `src/core/tools` (10 files each)
-2. **Context:** `api/_lib/context` vs `src/core/context` (9 vs 5 files)
-3. **Analytics:** `api/_lib/core/analytics` vs `src/core/analytics` (2 files each)
-4. **Supabase:** `api/_lib/supabase` vs `src/core/supabase` (3 vs 1 files)
-5. **Config:** `api/_lib/config` vs `src/config` (3 files each)
-
-**Action Required:** Compare and merge before importing (see `DUPLICATE_COMPARISON_CHECKLIST.md`)
+**Date:** 2025-12-08  
+**Status:** Comprehensive Analysis Complete
 
 ---
 
-## ⚠️ Discrepancies to Address
+## Executive Summary
 
-### 1. Import Path Strategy
+**fbc_lab_v10** is a sophisticated AI-powered conversational sales platform built with React, TypeScript, and Vite. It features a multi-agent orchestration system, real-time voice/visual interactions, and comprehensive lead management capabilities.
 
-**Original Codebase:**
-- Uses `@/` alias for `src/` directory
-- `vite.config.ts` has: `'@': path.resolve(__dirname, './src')`
-- `tsconfig.json` has: `"@/*": ["./src/*"]`
-
-**Our Plan:**
-- Use absolute imports from root (no `@/` alias)
-- Use: `components/X`, `services/Y`, `src/Z`
-
-**Impact:**
-- All imports using `@/` need to be updated to absolute paths
-- This is expected and part of our cleanup strategy
-
-### 2. Environment Variable Naming
-
-**Original Codebase:**
-- Uses `NEXT_PUBLIC_` prefix (legacy from Next.js)
-- Examples: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_LIVE_SERVER_URL`
-
-**Our Plan:**
-- Temporarily support `NEXT_PUBLIC_` during import
-- Standardize to `VITE_` prefix after import phase
-
-**Impact:**
-- `vite.config.ts` needs to inject `NEXT_PUBLIC_*` vars (already planned)
-- Migration to `VITE_` will be a separate phase
-
-### 3. Server Structure
-
-**Original:**
-- `server/` has its own `package.json` ✅
-- 8 dependencies in server
-- 7 TypeScript files at root of `server/`
-
-**Our Plan:**
-- Keep `server/` structure
-- Deploy from root (server imports from `src/`)
-
-**Status:** ✅ Matches our plan
+### Key Metrics
+- **Tech Stack:** React 18, TypeScript, Vite, Vercel (Frontend), Fly.io (WebSocket), Supabase (Database)
+- **Architecture:** Multi-agent system with 13+ specialized agents
+- **Modalities:** Text chat, voice (Gemini Live API), webcam, screen share, file uploads
+- **Deployment:** Vercel (frontend/API), Fly.io (WebSocket server), Supabase (database)
+- **Code Organization:** ~300+ files, well-structured with clear separation of concerns
 
 ---
 
-## 📋 File Verification
+## Architecture Overview
 
-### Root Files (Expected)
-- ✅ `types.ts`
-- ✅ `config.ts`
-- ✅ `App.tsx`
-- ✅ `index.tsx`
-- ✅ `package.json`
-- ✅ `tsconfig.json`
-- ✅ `vite.config.ts`
+### Project Structure
 
-### Key Directories
-- ✅ `components/` (14 items)
-- ✅ `services/` (7 items)
-- ✅ `utils/` (5 items)
-- ✅ `src/` (7 subdirectories)
-- ✅ `server/` (26 items, has own package.json)
-- ✅ `api/` (6 subdirectories)
-- ✅ `context/` (1 item)
+```
+fbc_lab_v10/
+├── api/                    # Vercel serverless functions
+│   ├── chat.ts            # Main chat endpoint
+│   ├── agent-stage.ts     # Agent metadata endpoint
+│   ├── admin/             # Admin API routes
+│   └── tools/             # Tool endpoints
+│
+├── components/            # React components (frontend-only)
+│   ├── chat/              # Chat UI components
+│   ├── admin/             # Admin dashboard components
+│   └── ui/                # shadcn/ui base components
+│
+├── services/              # Frontend services (API clients)
+│   ├── aiBrainService.ts  # Main AI service
+│   ├── geminiLiveService.ts  # Real-time voice
+│   └── standardChatService.ts # Standard chat
+│
+├── src/                   # Shared code (frontend + backend)
+│   ├── core/
+│   │   ├── agents/        # 13+ specialized agents
+│   │   ├── context/       # Context management
+│   │   ├── intelligence/ # Lead research & analysis
+│   │   ├── tools/         # Tool registry & execution
+│   │   ├── pdf/           # PDF generation system
+│   │   └── security/      # Auth & security
+│   ├── hooks/             # React hooks
+│   ├── lib/               # Utilities
+│   └── types/             # TypeScript types
+│
+├── server/                # Fly.io WebSocket server
+│   ├── live-server.ts     # Main server entry
+│   ├── handlers/          # WebSocket handlers
+│   └── live-api/          # Gemini Live API integration
+│
+└── docs/                  # Comprehensive documentation (173+ files)
+```
 
----
+### Architecture Principles
 
-## 🔍 Additional Findings
+1. **Separation of Concerns:**
+   - Root level: Frontend-only code (`components/`, `services/`, `utils/`)
+   - `src/`: Shared code used by both frontend and backend
+   - `server/`: Backend-only WebSocket server
+   - `api/`: Vercel serverless functions
 
-### 1. API Structure
-- `api/_lib/` - Legacy code (to be migrated to `src/`)
-- `api/admin/` - Admin routes
-- `api/chat/` - Chat routes
-- `api/send-pdf-summary/` - PDF summary route
+2. **Import Strategy:**
+   - Absolute imports from root (no `@/` alias)
+   - Pattern: `import { X } from 'components/Y'`
+   - Server uses relative imports with `.js` extensions (ESM compatibility)
 
-### 2. Server Structure
-- Has own `package.json` ✅
-- `server/handlers/` - Request handlers
-- `server/websocket/` - WebSocket logic
-- `server/live-api/` - Live API
-- `server/rate-limiting/` - Rate limiting
-- `server/utils/` - Server utilities
-
-### 3. Source Structure (`src/`)
-- `src/components/` - Shared components
-- `src/config/` - Configuration
-- `src/core/` - Core business logic
-  - `agents/` - AI agents
-  - `tools/` - Tool implementations
-  - `context/` - Context management
-  - `analytics/` - Analytics
-  - `supabase/` - Supabase client
-- `src/lib/` - Shared libraries
-- `src/schemas/` - Zod schemas
-- `src/types/` - TypeScript types
-- `src/hooks/` - React hooks
-
----
-
-## ✅ Readiness Checklist
-
-### Pre-Import Verification
-- [x] Source path configured (`.source-config.json`)
-- [x] Build tool verified (Vite)
-- [x] Key files exist
-- [x] Duplicates identified
-- [x] Structure matches expectations
-- [x] Import strategy defined
-- [x] Environment variable strategy defined
-
-### Import Strategy
-- [x] Import order defined (`docs/IMPORT_ORDER.md`)
-- [x] Duplicate comparison process defined
-- [x] Import path update strategy defined
-- [x] Validation process defined
-
-### Tools Ready
-- [x] `scripts/import-file.js` - File import tool
-- [x] `scripts/analyze-original-codebase.js` - Analysis tool
-- [x] `scripts/compare-duplicates.js` - Duplicate comparison
-- [x] `scripts/generate-agent-prompts.js` - Agent coordination
+3. **Multi-Agent System:**
+   - 13+ specialized agents for different conversation stages
+   - Orchestrator routes conversations based on funnel stage
+   - Client-side and server-side orchestration
 
 ---
 
-## 🎯 Next Steps
+## Core Systems
 
-1. **Start Phase 1 Import**
-   - Import foundation files (types, config, utils)
-   - Update import paths from `@/` to absolute
-   - Validate after each file
+### 1. Agent Orchestration System
 
-2. **Handle Duplicates**
-   - Compare `api/_lib/` vs `src/` versions
-   - Merge unique functionality
-   - Update imports to merged versions
+**Location:** `src/core/agents/orchestrator.ts`, `src/core/agents/client-orchestrator.ts`
 
-3. **Continue Incrementally**
-   - Follow `docs/IMPORT_ORDER.md`
-   - Validate at each step
-   - Update `PROJECT_STATUS.md`
+**Agents (13 total):**
+1. **Discovery Agent** - Initial lead qualification
+2. **Scoring Agent** - Calculates lead/fit scores
+3. **Pitch Agent** - Unified sales pitch
+4. **Workshop Sales Agent** - Workshop-specific pitch
+5. **Consulting Sales Agent** - Consulting-specific pitch
+6. **Proposal Agent** - Generates structured proposals
+7. **Objection Agent** - Handles objections
+8. **Closer Agent** - Booking/closing
+9. **Summary Agent** - Conversation wrap-up
+10. **Lead Intelligence Agent** - Background research
+11. **Retargeting Agent** - Re-engagement campaigns
+12. **Admin Agent** - Admin queries
+13. **Exit Detector** - Detects exit intents
+
+**Funnel Stages (15 stages):**
+```
+DISCOVERY → INTELLIGENCE_GATHERING → SCORING → QUALIFIED → 
+PITCHING → WORKSHOP_PITCH → CONSULTING_PITCH → PROPOSAL → 
+OBJECTION → CLOSING → BOOKING_REQUESTED → BOOKED → SUMMARY
+```
+
+**Routing Logic:**
+- Priority 1: Triggers (booking, admin, conversation_end)
+- Priority 2: Objection detection (confidence > 0.7)
+- Priority 3: Stage-based routing
+- Fast-track: Qualified leads skip discovery
+
+### 2. Multimodal System
+
+**Modalities Supported:**
+- **Text Chat** - Standard conversational interface
+- **Voice** - Real-time voice via Gemini Live API
+- **Webcam** - Video frame analysis
+- **Screen Share** - Screen capture analysis
+- **File Uploads** - PDF, images, documents
+
+**Integration Points:**
+- `services/geminiLiveService.ts` - Voice/visual streaming
+- `server/live-api/tool-processor.ts` - Tool execution
+- `src/core/context/multimodal-context.ts` - Context aggregation
+- `components/chat/` - UI components
+
+**Context Sharing:**
+- All modalities share unified context
+- Voice/text sync via orchestrator
+- Visual context (webcam/screen) included in prompts
+
+### 3. Tool System
+
+**Location:** `src/core/tools/unified-tool-registry.ts`
+
+**Tools (9 total):**
+1. `search_web` - Web search (Google Grounding)
+2. `extract_action_items` - LLM extraction
+3. `generate_summary_preview` - LLM summarization
+4. `draft_follow_up_email` - Email drafting
+5. `generate_proposal_draft` - Proposal generation
+6. `get_dashboard_stats` - Admin analytics
+7. `calculate_roi` - ROI calculation
+8. `search_companies_by_location` - Company search
+9. `get_weather` - Weather lookup
+
+**Architecture:**
+- Unified registry with Zod schema validation
+- Server-side execution only (security)
+- Retry logic (2 attempts voice, 3 attempts chat)
+- Timeout protection (25s default)
+- Capability tracking for analytics
+
+### 4. Context Management
+
+**Location:** `src/core/context/`
+
+**Components:**
+- `context-manager.ts` - Main context orchestration
+- `multimodal-context.ts` - Multimodal context aggregation
+- `context-storage.ts` - Supabase persistence
+- `context-schema.ts` - Zod validation schemas
+- `write-ahead-log.ts` - Transaction logging
+
+**Context Types:**
+- Intelligence context (lead research)
+- Multimodal context (voice/visual/uploads)
+- Conversation flow (stage tracking)
+- Agent context (agent-specific data)
+
+### 5. PDF Generation System
+
+**Location:** `src/core/pdf/`
+
+**Features:**
+- Discovery Report (McKinsey/BCG-style)
+- Proposal generation
+- Summary reports
+- Chart generation (ROI, engagement radar, tools timeline)
+
+**Components:**
+- `discovery-report-generator.ts` - Main generator
+- `templates/` - HTML templates
+- `charts/` - SVG chart generators
+- `renderers/` - Puppeteer/PDF-lib renderers
+
+### 6. Admin System
+
+**Location:** `src/core/admin/`, `components/admin/`
+
+**Features:**
+- Analytics dashboard
+- Conversation management
+- Email campaigns
+- Security audit
+- System health monitoring
+- Token usage tracking
+
+**API Routes:** 12+ admin endpoints in `api/admin/`
 
 ---
 
-## 📊 Statistics
+## Technology Stack
 
-- **Expected Files:** 298 (from import map)
-- **Root Directories:** 18
-- **Root Files:** 40
-- **Duplicate Categories:** 5
-- **Server Dependencies:** 8
-- **Main Dependencies:** 11
-- **Dev Dependencies:** 14
+### Frontend
+- **Framework:** React 18.2.0
+- **Build Tool:** Vite 5.0.8
+- **Language:** TypeScript 5.2.2
+- **UI Library:** shadcn/ui (Radix UI + Tailwind CSS)
+- **Routing:** React Router 7.9.6
+- **State:** React Context + Hooks
 
----
+### Backend
+- **API:** Vercel Serverless Functions
+- **WebSocket:** Fly.io (Node.js + Express)
+- **Database:** Supabase (PostgreSQL)
+- **Queue:** Redis (via Vercel KV)
 
-## ⚠️ Important Notes
+### AI/ML
+- **Primary Model:** Gemini 3.0 Pro Preview
+- **Voice Model:** Gemini 2.5 Flash Native Audio Preview
+- **SDK:** @ai-sdk/google v2.0.44
+- **Features:** Structured output, function calling, streaming
 
-1. **Import Path Updates Required:**
-   - All `@/` imports → absolute paths
-   - Example: `@/config/constants` → `src/config/constants`
-
-2. **Environment Variables:**
-   - Support `NEXT_PUBLIC_*` during import
-   - Migrate to `VITE_*` after import
-
-3. **Duplicate Merging:**
-   - Must compare before importing
-   - Preserve all unique functionality
-   - Update imports after merge
-
-4. **Server Deployment:**
-   - Deploy from root
-   - Server imports from `src/`
-   - Keep server's `package.json`
+### Development Tools
+- **Testing:** Vitest, Playwright
+- **Linting:** ESLint
+- **Type Checking:** TypeScript (strict mode)
+- **Package Manager:** pnpm
 
 ---
 
-## ✅ Conclusion
+## Deployment Architecture
 
-**Status:** Ready to start import process
+### Frontend (Vercel)
+- **URL:** https://fbclabv10.vercel.app
+- **Build:** `pnpm build` (Vite)
+- **Functions:** `api/**/*.ts` (30s max duration)
+- **SPA Routing:** Rewrite rule for non-API routes
 
-All key files exist, structure matches expectations, and duplicates are identified. The main work will be:
-1. Updating import paths (`@/` → absolute)
-2. Merging duplicate files
-3. Validating incrementally
+### WebSocket Server (Fly.io)
+- **URL:** https://fb-consulting-websocket.fly.dev
+- **Port:** 3001 (dev), 443 (prod)
+- **Protocol:** WebSocket (wss://)
+- **Health Check:** `/health` endpoint
 
-**Proceed with Phase 1 import.**
+### Database (Supabase)
+- **Type:** PostgreSQL
+- **Features:** RLS, real-time subscriptions, storage
+- **Migrations:** `supabase/migrations/`
 
+### Environment Variables
+- **Required:** Supabase URL/keys, Gemini API key
+- **Optional:** Voice verbose logs, tool retry config
+- **See:** `docs/VERCEL_ENV_VALIDATION.md`
+
+---
+
+## Key Features
+
+### 1. Multi-Agent Sales Funnel
+- 15-stage funnel with specialized agents
+- Dynamic stage routing
+- Exit intent detection
+- Fast-track for qualified leads
+
+### 2. Real-Time Voice
+- Gemini Live API integration
+- AudioWorklet (no deprecated APIs)
+- Real-time tool calling
+- Context synchronization
+
+### 3. Visual Analysis
+- Webcam frame analysis
+- Screen share capture
+- Image/document processing
+- Context extraction
+
+### 4. Lead Intelligence
+- Background research
+- Company enrichment
+- Role detection
+- Intent classification
+
+### 5. PDF Reports
+- Discovery reports (lead magnet)
+- Proposal generation
+- Engagement analytics
+- ROI calculations
+
+### 6. Admin Dashboard
+- Analytics & metrics
+- Conversation management
+- Email campaigns
+- Security audit
+
+---
+
+## Code Quality
+
+### Strengths
+- ✅ **Type Safety:** Strict TypeScript with `exactOptionalPropertyTypes`
+- ✅ **Code Organization:** Clear separation of concerns
+- ✅ **Documentation:** 173+ documentation files
+- ✅ **Testing:** Unit tests, integration tests, E2E tests
+- ✅ **Error Handling:** Comprehensive error boundaries
+- ✅ **Security:** Server-side tool execution, RLS policies
+
+### Areas for Improvement
+- ⚠️ **Test Coverage:** Some agents lack comprehensive tests
+- ⚠️ **Error Recovery:** Limited retry logic in some areas
+- ⚠️ **Performance:** No response caching for agents
+- ⚠️ **Monitoring:** Limited production observability
+
+---
+
+## Known Issues & Gaps
+
+### Critical (Fixed)
+- ✅ Supabase singleton bypass (security-audit.ts)
+- ✅ ECONNREFUSED detection (aiBrainService.ts)
+- ✅ LiveService recreation loop (App.tsx)
+- ✅ Session timeout (geminiLiveService.ts)
+- ✅ Live API 1007 error (config-builder.ts)
+
+### High Priority (Pending)
+- ⏳ Voice not auto-used after permission grant
+- ⏳ Location not synced to LiveService
+- ⏳ userProfile not synced to unifiedContext
+- ⏳ SSE streaming (v2-v8 had progressive responses)
+
+### Medium Priority
+- ⏳ Intent detection not wired up in orchestrator
+- ⏳ Exit detection needs porting from v8
+- ⏳ Response caching for agents
+- ⏳ Performance optimization
+
+### Documentation Gaps
+- ⚠️ API endpoint documentation (OpenAPI spec)
+- ⚠️ Component usage examples
+- ⚠️ Deployment troubleshooting guide
+
+---
+
+## Development Workflow
+
+### Scripts
+```bash
+pnpm dev              # Development server (port 3000)
+pnpm dev:server       # WebSocket server (port 3001)
+pnpm dev:api          # Vercel dev server (port 3002)
+pnpm dev:all          # All services concurrently
+
+pnpm build            # Production build
+pnpm type-check       # TypeScript validation
+pnpm lint             # ESLint
+pnpm test             # Vitest unit tests
+pnpm test:e2e:browser # Playwright E2E tests
+```
+
+### Pre-commit Hooks
+- Type checking (automatic)
+- Linting (automatic)
+- Tests (pre-push)
+
+### Import Rules
+- ✅ Absolute imports from root
+- ❌ No `@/` aliases
+- ❌ No `src/` imports in `api/` or `server/`
+- ✅ Relative imports with `.js` in server code
+
+---
+
+## Project Status
+
+**Current Phase:** Critical Error Fixes Complete  
+**Last Updated:** 2025-12-08
+
+### Recent Achievements
+- ✅ All 6 critical system errors fixed
+- ✅ Multimodal testing guide created
+- ✅ Webcam crash resolved
+- ✅ Audio subsystem modernized
+- ✅ Vercel 500 error resolved
+- ✅ Voice connection loop fixed
+
+### Next Steps
+1. Manual testing of critical fixes
+2. Address onboarding flow gaps
+3. Implement SSE streaming
+4. Port exit detection from v8
+5. Add response caching
+
+---
+
+## Documentation Index
+
+**Key Documents:**
+- `PROJECT_STATUS.md` - Current status and recent changes
+- `docs/AGENTS_DOCUMENTATION.md` - Complete agent reference
+- `docs/CHAT_TEXT_PIPELINE_ANALYSIS.md` - Chat flow documentation
+- `docs/MULTIMODAL_TESTING_GUIDE.md` - Testing procedures
+- `docs/DEPLOYMENT.md` - Deployment guide
+- `docs/VERCEL_ENV_VALIDATION.md` - Environment variables
+
+**See:** `docs/README.md` for complete documentation index (173+ files)
+
+---
+
+## Conclusion
+
+**fbc_lab_v10** is a mature, well-architected conversational AI platform with:
+- ✅ Sophisticated multi-agent system
+- ✅ Comprehensive multimodal support
+- ✅ Strong type safety and code organization
+- ✅ Extensive documentation
+- ✅ Production-ready deployment setup
+
+**Recommendations:**
+1. Continue systematic testing of critical fixes
+2. Address high-priority gaps (voice auto-connect, context sync)
+3. Improve test coverage for agents
+4. Add production monitoring/observability
+5. Consider API documentation (OpenAPI)
+
+---
+
+**Analysis Complete** ✅

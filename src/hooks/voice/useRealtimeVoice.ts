@@ -70,14 +70,18 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions = {}) {
       return
     }
 
-    if (update.analysis) {
-      try {
-        // Send context update to Live Client
-        logger.debug('[useRealtimeVoice] Sending context update', { modality: update.modality })
-        // The Live Client will handle this via its context update mechanism
-      } catch (err) {
-        console.error('[useRealtimeVoice] Failed to send context update:', err)
-      }
+    try {
+      logger.debug('[useRealtimeVoice] Sending context update', { modality: update.modality })
+      client.sendContextUpdate({
+        ...(update.sessionId ? { sessionId: update.sessionId } : {}),
+        modality: update.modality,
+        analysis: update.analysis || '',
+        ...(update.imageData ? { imageData: update.imageData } : {}),
+        capturedAt: update.capturedAt || Date.now(),
+        ...(update.metadata ? { metadata: update.metadata } : {})
+      })
+    } catch (err) {
+      console.error('[useRealtimeVoice] Failed to send context update:', err)
     }
   }, [])
 

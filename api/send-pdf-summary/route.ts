@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         text: `Hi ${recipientName},\n\nThank you for your consultation with F.B/c AI. Please find your consultation report attached to this email.\n\nBest regards,\nF.B/c Team`,
         attachments: pdfBase64 ? [{
           filename: `FBC-Consultation-${recipientName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`,
-          content: Buffer.from(pdfBase64, 'base64'),
+          content: pdfBase64, // Already base64 - EmailService.encodeAttachment handles this
           contentType: 'application/pdf'
         }] : []
       }

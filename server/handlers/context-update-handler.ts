@@ -182,24 +182,13 @@ export function handleContextUpdate(
                 contextParts.push(`Role: ${client.intelligenceData.research.person.role}`)
               }
               
-              // Inject context as a text message if we have context to share
-              if (contextParts.length > 0 && client.session?.sendRealtimeInput) {
-                const contextText = `[Context Update]\n${contextParts.join('\n')}`
-                try {
-                  await client.session.sendRealtimeInput({
-                    media: { text: contextText }
-                  })
-                  serverLogger.info('Intelligence context injected into session', { 
-                    connectionId, 
-                    contextParts: contextParts.length 
-                  })
-                } catch (injectErr) {
-                  serverLogger.warn('Failed to inject intelligence context', { 
-                    connectionId, 
-                    error: injectErr instanceof Error ? injectErr.message : String(injectErr) 
-                  })
-                }
-              }
+              // NOTE: Text context cannot be injected via sendRealtimeInput (causes error 1007)
+              // Context is stored in client.intelligenceData and used in next session setup
+              // The context will be included in systemInstruction when session reconnects
+              serverLogger.debug('Intelligence context stored (text injection disabled)', { 
+                connectionId, 
+                contextParts: contextParts.length 
+              })
               
               client.logger?.log('context_persisted', { modality, analysisLength: analysis.length })
             } else {
