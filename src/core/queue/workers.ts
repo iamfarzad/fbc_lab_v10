@@ -110,7 +110,7 @@ export function registerWorkers(): void {
     }
 
     try {
-      const { generatePdfWithPuppeteer } = await import('src/core/pdf-generator-puppeteer')
+      const { generatePdfWithPuppeteer } = await import('../pdf-generator-puppeteer.js')
       const pdfPath = outputPath || `/tmp/pdf-${sessionId}-${Date.now()}.pdf`
       void generatePdfWithPuppeteer(summaryData as Parameters<typeof generatePdfWithPuppeteer>[0], pdfPath, mode, language)
       
@@ -203,7 +203,7 @@ export function registerWorkers(): void {
     }
     
     try {
-      const { ContextStorage } = await import('../context/context-storage')
+      const { ContextStorage } = await import('../context/context-storage.js')
       const storage = new ContextStorage()
       
       // Type guard: ensure data is a valid partial context  
@@ -284,7 +284,7 @@ export function registerWorkers(): void {
       }
       
       // Also mark analytics as complete in context
-      const { ContextStorage } = await import('../context/context-storage')
+      const { ContextStorage } = await import('../context/context-storage.js')
       const storage = new ContextStorage()
       await storage.update(sessionId, { analytics_pending: false })
       

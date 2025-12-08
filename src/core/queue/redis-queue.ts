@@ -268,7 +268,7 @@ export const redisQueue = new RedisQueue()
 // Auto-initialize workers on module load (for low-load immediate processing)
 if (typeof window === 'undefined') {
   // Only in server-side context
-  import('./workers').then(({ initializeWorkers }) => {
+  import('./workers.js').then(({ initializeWorkers }) => {
     if (!workersInitialized) {
       initializeWorkers()
       workersInitialized = true
