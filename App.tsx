@@ -1191,15 +1191,20 @@ export const App: React.FC = () => {
 
     // Auto-connect Live API when webcam is activated (if not already connected)
     const webcamConnectAttemptedRef = useRef(false);
+    const handleConnectRef = useRef(handleConnect);
+    // Keep the ref updated with latest handleConnect
+    useEffect(() => {
+        handleConnectRef.current = handleConnect;
+    }, [handleConnect]);
+    
     useEffect(() => {
         if (isWebcamActive && 
             connectionState !== LiveConnectionState.CONNECTED && 
             connectionState !== LiveConnectionState.CONNECTING &&
-            !webcamConnectAttemptedRef.current &&
-            liveServiceRef.current) {
+            !webcamConnectAttemptedRef.current) {
             webcamConnectAttemptedRef.current = true;
             logger.debug('[App] Webcam activated, connecting to Live API for multimodal conversation');
-            void handleConnect().finally(() => {
+            void handleConnectRef.current().finally(() => {
                 // Reset after connection attempt completes (success or failure)
                 setTimeout(() => {
                     webcamConnectAttemptedRef.current = false;
@@ -1208,7 +1213,7 @@ export const App: React.FC = () => {
         } else if (connectionState === LiveConnectionState.CONNECTED) {
             webcamConnectAttemptedRef.current = false;
         }
-    }, [isWebcamActive, connectionState, handleConnect]);
+    }, [isWebcamActive, connectionState]); // Removed handleConnect from deps
 
     const handleDisconnect = useCallback(() => {
         void liveServiceRef.current?.disconnect();
