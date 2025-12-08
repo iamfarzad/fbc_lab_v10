@@ -2,10 +2,28 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../core/database.types.js';
 
 // 🔧 MASTER FLOW: Soft-gated env checking for build compatibility
+// Uses import.meta.env for Vite (browser) and process.env as fallback (Node.js)
+function getEnvVar(name: string): string | undefined {
+  // Try import.meta.env first (Vite browser builds)
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    const val = import.meta.env[name];
+    if (val) return val;
+  }
+  
+  // Fallback to process.env (Node.js / Vercel Edge)
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[name];
+  }
+  
+  return undefined;
+}
+
 function requireEnv(name: string): string {
-  const v = process.env[name];
+  const v = getEnvVar(name);
   if (!v) {
-    if (process.env.NODE_ENV === 'production') {
+    const isProd = getEnvVar('NODE_ENV') === 'production' || 
+                   (typeof import.meta !== 'undefined' && import.meta.env?.PROD);
+    if (isProd) {
       throw new Error(`Missing required env var: ${name}. Add it to .env.production`);
     } else {
       console.warn(`⚠️ Missing env: ${name} (using placeholder for development)`);
