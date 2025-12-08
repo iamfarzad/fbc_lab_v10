@@ -324,7 +324,7 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
       ]
     },
     // TEMP: Disable function declarations to test if they cause 1007
-    tools: [{ googleSearch: {} }]
+    // tools: [{ googleSearch: {} }]
     // TODO: Re-enable when googleSearch alone works:
     // tools: toolsConfig
   }
