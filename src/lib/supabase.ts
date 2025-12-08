@@ -1,37 +1,38 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../core/database.types.js';
 
-// 🔧 MASTER FLOW: Soft-gated env checking for build compatibility
-// Uses import.meta.env for Vite (browser) and process.env as fallback (Node.js)
-function getEnvVar(name: string): string | undefined {
-  // Try import.meta.env first (Vite browser builds)
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    const val = import.meta.env[name];
-    if (val) return val;
-  }
-  
-  // Fallback to process.env (Node.js / Vercel Edge)
-  if (typeof process !== 'undefined' && process.env) {
-    return process.env[name];
-  }
-  
-  return undefined;
-}
+// 🔧 MASTER FLOW: Static env access for Vite build-time replacement
+// CRITICAL: Vite's `define` ONLY works with static `process.env.VAR_NAME` access
+// Dynamic access like `process.env[name]` will NOT be replaced at build time
 
-function requireEnv(name: string): string {
-  const v = getEnvVar(name);
-  if (!v) {
-    const isProd = getEnvVar('NODE_ENV') === 'production' || 
-                   (typeof import.meta !== 'undefined' && import.meta.env?.PROD);
-    if (isProd) {
-      throw new Error(`Missing required env var: ${name}. Add it to .env.production`);
-    } else {
-      console.warn(`⚠️ Missing env: ${name} (using placeholder for development)`);
-      console.warn(`   Add ${name} to .env.local for full functionality`);
-      return name === 'NEXT_PUBLIC_SUPABASE_URL' ? 'https://placeholder.supabase.co' : 'placeholder-key';
-    }
+// Static env var access - Vite replaces these at build time
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SUPABASE_URL = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_SUPABASE_URL) || 
+                     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any  
+const SUPABASE_ANON_KEY = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_SUPABASE_ANON_KEY) || 
+                          (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || '';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const SUPABASE_SERVICE_KEY = (typeof process !== 'undefined' && (process as any).env?.SUPABASE_SERVICE_ROLE_KEY) || '';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const IS_PRODUCTION = (typeof process !== 'undefined' && (process as any).env?.NODE_ENV === 'production') ||
+                      (typeof import.meta !== 'undefined' && import.meta.env?.PROD);
+
+// Validation helper for static env vars
+function validateEnv(value: string | undefined, name: string): string {
+  if (value && value !== '' && value !== 'undefined') {
+    return value;
   }
-  return v;
+  
+  if (IS_PRODUCTION) {
+    // Log warning but don't throw - let the app degrade gracefully
+    console.error(`[Supabase] Missing required env var: ${name}. Add it to Vercel environment variables.`);
+    return '';
+  } else {
+    console.warn(`⚠️ Missing env: ${name} (using placeholder for development)`);
+    console.warn(`   Add ${name} to .env.local for full functionality`);
+    return name === 'NEXT_PUBLIC_SUPABASE_URL' ? 'https://placeholder.supabase.co' : 'placeholder-key';
+  }
 }
 
 // Singleton instances - cached to prevent multiple GoTrueClient instances
@@ -72,10 +73,10 @@ export function getSupabaseServer(): SupabaseClient<Database> {
   }
 
   try {
-    const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-    const anon = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    const url = validateEnv(SUPABASE_URL, "NEXT_PUBLIC_SUPABASE_URL");
+    const anon = validateEnv(SUPABASE_ANON_KEY, "NEXT_PUBLIC_SUPABASE_ANON_KEY");
     
-    if (url === 'https://placeholder.supabase.co') {
+    if (!url || url === 'https://placeholder.supabase.co') {
       console.warn('⚠️ Supabase not configured - using placeholder. Data persistence disabled.');
       return null as unknown as SupabaseClient<Database>;
     }
@@ -107,10 +108,10 @@ export function getSupabaseService(): SupabaseClient<Database> {
   }
 
   try {
-    const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
-    const svc = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const url = validateEnv(SUPABASE_URL, "NEXT_PUBLIC_SUPABASE_URL");
+    const svc = validateEnv(SUPABASE_SERVICE_KEY, "SUPABASE_SERVICE_ROLE_KEY");
     
-    if (url === 'https://placeholder.supabase.co') {
+    if (!url || url === 'https://placeholder.supabase.co') {
       console.warn('⚠️ Supabase not configured - using placeholder. WAL logging disabled.');
       return null as unknown as SupabaseClient<Database>;
     }
