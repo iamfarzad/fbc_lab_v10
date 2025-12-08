@@ -323,10 +323,10 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
         }
       ]
     },
-    tools: toolsConfig,
-    // NOTE: generationConfig is deprecated in LiveConnectConfig - set fields directly
-    temperature: 1.0,
-    candidateCount: 1
+    // TEMP: Disable function declarations to test if they cause 1007
+    tools: [{ googleSearch: {} }]
+    // TODO: Re-enable when googleSearch alone works:
+    // tools: toolsConfig
   }
 
   if (DEBUG_MODE) {
