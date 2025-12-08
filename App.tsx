@@ -142,17 +142,6 @@ export const App: React.FC = () => {
     // Ref to avoid stale closures in callbacks
     const isWebcamActiveRef = useRef(isWebcamActive);
 
-    // Screen Share State
-    const [screenShareSessionId] = useState<string>(`session-${Date.now()}`);
-    const screenShare = useScreenShare({
-        sessionId: screenShareSessionId,
-        enableAutoCapture: true,
-        captureInterval: 4000,
-        onAnalysis: (analysis, _imageData, _capturedAt) => {
-            logger.debug('[App] Screen share analysis:', { analysis });
-        }
-    });
-
     // Location State  
     const [locationData, setLocationData] = useState<{ latitude: number; longitude: number; city?: string; country?: string } | null>(null);
 
@@ -198,6 +187,58 @@ export const App: React.FC = () => {
     const standardChatRef = useRef<StandardChatService | null>(null);
     const researchServiceRef = useRef<LeadResearchService | null>(null);
     const aiBrainRef = useRef<AIBrainService | null>(null);
+
+    // Screen Share State - Create stable callback functions that read from refs
+    const handleSendRealtimeInput = useCallback((chunks: Array<{ mimeType: string; data: string }>) => {
+        if (liveServiceRef.current && connectionState === LiveConnectionState.CONNECTED) {
+            chunks.forEach(chunk => {
+                liveServiceRef.current?.sendRealtimeMedia(chunk);
+            });
+        }
+    }, [connectionState]);
+
+    const handleSendContextUpdate = useCallback((update: { sessionId?: string | null; modality: 'screen' | 'webcam' | 'intelligence'; analysis?: string; imageData?: string; capturedAt?: number; metadata?: Record<string, unknown> }) => {
+        if (liveServiceRef.current && connectionState === LiveConnectionState.CONNECTED && update.analysis) {
+            const contextUpdate: {
+                sessionId?: string;
+                modality: 'screen' | 'webcam' | 'intelligence';
+                analysis: string;
+                imageData?: string;
+                capturedAt?: number;
+                metadata?: Record<string, unknown>;
+            } = {
+                modality: update.modality,
+                analysis: update.analysis,
+            };
+            if (update.sessionId !== null && update.sessionId !== undefined) {
+                contextUpdate.sessionId = update.sessionId;
+            }
+            if (update.imageData !== undefined) {
+                contextUpdate.imageData = update.imageData;
+            }
+            if (update.capturedAt !== undefined) {
+                contextUpdate.capturedAt = update.capturedAt;
+            }
+            if (update.metadata !== undefined) {
+                contextUpdate.metadata = update.metadata;
+            }
+            liveServiceRef.current.sendContextUpdate(contextUpdate);
+        }
+    }, [connectionState]);
+
+    const [screenShareSessionId] = useState<string>(`session-${Date.now()}`);
+    const connectionId = liveServiceRef.current?.getConnectionId();
+    const screenShare = useScreenShare({
+        sessionId: screenShareSessionId,
+        enableAutoCapture: true,
+        captureInterval: 4000,
+        ...(connectionId ? { voiceConnectionId: connectionId } : {}),
+        sendRealtimeInput: handleSendRealtimeInput,
+        sendContextUpdate: handleSendContextUpdate,
+        onAnalysis: (analysis, _imageData, _capturedAt) => {
+            logger.debug('[App] Screen share analysis:', { analysis });
+        }
+    });
     const chromeAiRef = useRef<ChromeAiService>(new ChromeAiService());
     const transcriptRef = useRef<TranscriptItem[]>([]);
     const researchResultRef = useRef<ResearchResult | null>(null);
@@ -1080,6 +1121,12 @@ export const App: React.FC = () => {
     }, []);
 
     const handleConnect = useCallback(async () => {
+        // Guard: If already connected, skip recreation
+        if (liveServiceRef.current && connectionState === LiveConnectionState.CONNECTED) {
+            logger.debug('[App] LiveService already connected, skipping recreation');
+            return;
+        }
+
         const storedKey = localStorage.getItem('fbc_api_key');
         const apiKey = storedKey || process.env.API_KEY;
 

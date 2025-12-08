@@ -16,7 +16,43 @@ function requireEnv(name: string): string {
   return v;
 }
 
-export function getSupabaseServer() {
+// Singleton instances - cached to prevent multiple GoTrueClient instances
+// Use globalThis for browser context to survive HMR/fast refresh
+declare global {
+  interface Window {
+    __fbc_supabaseServer?: SupabaseClient<Database>;
+    __fbc_supabaseService?: SupabaseClient<Database>;
+  }
+}
+
+let supabaseServerInstance: SupabaseClient<Database> | null = null;
+let supabaseServiceInstance: SupabaseClient<Database> | null = null;
+
+/**
+ * Get or create the Supabase server client (anon key) - singleton pattern
+ * This prevents multiple GoTrueClient instances from being created
+ * Uses window global in browser to survive HMR/fast refresh
+ */
+export function getSupabaseServer(): SupabaseClient<Database> {
+  // CRITICAL: Always check window global FIRST (survives HMR/fast refresh)
+  // During HMR, module-level variables reset but window global persists
+  if (typeof window !== 'undefined') {
+    if (window.__fbc_supabaseServer) {
+      // Sync module-level cache with window global for consistency
+      supabaseServerInstance = window.__fbc_supabaseServer;
+      return window.__fbc_supabaseServer;
+    }
+  }
+  
+  // Return cached module-level instance if available (server-side or first load)
+  if (supabaseServerInstance) {
+    // Also cache in window for browser context (if not already cached)
+    if (typeof window !== 'undefined' && !window.__fbc_supabaseServer) {
+      window.__fbc_supabaseServer = supabaseServerInstance;
+    }
+    return supabaseServerInstance;
+  }
+
   try {
     const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
     const anon = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
@@ -26,14 +62,32 @@ export function getSupabaseServer() {
       return null as unknown as SupabaseClient<Database>;
     }
     
-    return createClient<Database>(url, anon);
+    // Create and cache the instance
+    supabaseServerInstance = createClient<Database>(url, anon);
+    
+    // Also cache in window for browser context
+    if (typeof window !== 'undefined') {
+      window.__fbc_supabaseServer = supabaseServerInstance;
+    }
+    
+    return supabaseServerInstance;
   } catch (error) {
     console.warn('Supabase server client unavailable:', error);
     return null as unknown as SupabaseClient<Database>; // Return null for graceful degradation
   }
 }
 
-export function getSupabaseService() {
+/**
+ * Get or create the Supabase service client (service role key) - singleton pattern
+ * This prevents multiple GoTrueClient instances from being created
+ * NOTE: Service role key should only be used server-side
+ */
+export function getSupabaseService(): SupabaseClient<Database> {
+  // Return cached instance if available
+  if (supabaseServiceInstance) {
+    return supabaseServiceInstance;
+  }
+
   try {
     const url = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
     const svc = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -43,7 +97,9 @@ export function getSupabaseService() {
       return null as unknown as SupabaseClient<Database>;
     }
     
-    return createClient<Database>(url, svc);
+    // Create and cache the instance
+    supabaseServiceInstance = createClient<Database>(url, svc);
+    return supabaseServiceInstance;
   } catch (error) {
     console.warn('Supabase service client unavailable:', error);
     return null as unknown as SupabaseClient<Database>; // Return null for graceful degradation

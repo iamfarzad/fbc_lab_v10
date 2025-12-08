@@ -29,11 +29,21 @@ class ClientLogger {
         // Ignore if import.meta is not available
       }
       
+      // Check localStorage for debug override (useful for testing in production builds)
+      let localStorageDebug = false
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorageDebug = localStorage.getItem('debug') === 'true'
+        }
+      } catch {
+        // Ignore localStorage errors (e.g., in private browsing)
+      }
+      
       if (metaEnv) {
-        this.isDevelopment = metaEnv.DEV === true
+        this.isDevelopment = metaEnv.DEV === true || localStorageDebug
       } else {
-        // Fallback
-        this.isDevelopment = false
+        // Fallback to localStorage check
+        this.isDevelopment = localStorageDebug
       }
     }
   }

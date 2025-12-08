@@ -1,7 +1,7 @@
 import { adminAuthMiddleware } from '../../app/api-utils/auth.js'
 import { adminRateLimit } from '../../app/api-utils/rate-limiting.js'
 import { supabaseService } from '../../supabase/client.js'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseServer } from '../../../lib/supabase.js'
 import { logger } from '../../../lib/logger.js'
 import type { Database } from '../../database.types.js'
 
@@ -55,7 +55,6 @@ export async function GET(request: Request) {
 
   try {
     const supabase = ensureSupabase()
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 
     // Query recent audit logs
     const { data: recentAudits, error: auditError } = await supabase
@@ -83,7 +82,7 @@ export async function GET(request: Request) {
     if (!rlsData) {
       // Fallback: Check RLS by attempting to query with anon key
       try {
-        const anonClient = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+        const anonClient = getSupabaseServer()
         const { error: anonError } = await anonClient
           .from('audit_log')
           .select('count')
@@ -173,11 +172,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
     // Create public client with anon key (simulates unauthenticated user)
-    const publicSupabase = createClient(supabaseUrl, anonKey)
+    const publicSupabase = getSupabaseServer()
 
     // Test 1: Try to access audit_log (should fail with RLS)
     const { data: auditData, error: auditError } = await publicSupabase

@@ -278,6 +278,33 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
     ? [...LIVE_FUNCTION_DECLARATIONS, ...ADMIN_LIVE_FUNCTION_DECLARATIONS]
     : LIVE_FUNCTION_DECLARATIONS
 
+  // Validate and build tools array with fallback for 1007 error
+  let toolsConfig: any[] = []
+  try {
+    // Check if function declarations are valid (not empty and well-formed)
+    if (allFunctionDeclarations.length > 0) {
+      // Validate each function declaration has required fields
+      const validFunctions = allFunctionDeclarations.filter((fn: any) => 
+        fn && fn.name && typeof fn.name === 'string'
+      )
+      
+      if (validFunctions.length > 0) {
+        toolsConfig = [
+          { googleSearch: {} },
+          { functionDeclarations: validFunctions }
+        ]
+      } else {
+        serverLogger.warn('[config-builder] No valid function declarations, using googleSearch only')
+        toolsConfig = [{ googleSearch: {} }]
+      }
+    } else {
+      toolsConfig = [{ googleSearch: {} }]
+    }
+  } catch (toolError) {
+    console.error('[config-builder] Error building tools config, falling back to no-tools mode:', toolError)
+    toolsConfig = [{ googleSearch: {} }]
+  }
+
   const liveConfig: any = {
     responseModalities: [Modality.AUDIO],  // ← Use enum like prototype
     inputAudioTranscription: {},  // Enable input transcription (empty object = use default model)
@@ -296,10 +323,7 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
         }
       ]
     },
-    tools: [
-      { googleSearch: {} },
-      { functionDeclarations: allFunctionDeclarations }
-    ],
+    tools: toolsConfig,
     generationConfig: {
       temperature: 1.0, // Recommended for Gemini 3.0 with high thinking
       candidateCount: 1
@@ -314,7 +338,8 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
       hasPersonalizedContext: fullInstruction.includes('PERSONALIZED CONTEXT'),
       hasMultimodalContext: fullInstruction.includes('MULTIMODAL CONTEXT'),
       isAdminSession,
-      toolsCount: allFunctionDeclarations.length
+      toolsCount: toolsConfig.length,
+      toolsConfig: JSON.stringify(toolsConfig).substring(0, 200) // Log first 200 chars of tools config
     })
   }
 

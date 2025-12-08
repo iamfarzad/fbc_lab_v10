@@ -192,12 +192,31 @@ export class GeminiLiveService {
 
       this.liveClient.on('start_ack', (payload) => {
         logger.debug('[GeminiLiveService] Start acknowledged:', payload);
-        // Set timeout: if session_started doesn't arrive within 15s (reduced from 35s), something's wrong
+        // Set timeout: if session_started doesn't arrive within 20s, emit warning but don't disconnect
         this.sessionStartTimeout = setTimeout(() => {
-          console.error('[GeminiLiveService] Timeout: session_started not received within 15s after start_ack');
-          this.config.onStateChange('ERROR');
-          void this.disconnect();
-        }, 15000);
+          console.warn('[GeminiLiveService] Warning: session_started not received within 20s after start_ack');
+          // Don't disconnect - the session may still connect. Emit CONNECTING state to indicate ongoing attempt.
+          if (!this.isSessionReady) {
+            logger.warn('[GeminiLiveService] Session still not ready after timeout - keeping connection attempt alive');
+          }
+        }, 20000);
+      });
+
+      // Fallback: Listen for session_ready if session_started doesn't fire
+      this.liveClient.on('setup_complete' as any, () => {
+        logger.debug('[GeminiLiveService] Setup complete received');
+        // If session_started wasn't received but setup_complete was, treat as connected
+        if (!this.isSessionReady && this.isConnected === false) {
+          logger.debug('[GeminiLiveService] Using setup_complete as fallback for session_started');
+          if (this.sessionStartTimeout) {
+            clearTimeout(this.sessionStartTimeout);
+            this.sessionStartTimeout = null;
+          }
+          this.isConnected = true;
+          this.isSessionReady = true;
+          this.flushPendingMedia();
+          this.config.onStateChange('CONNECTED');
+        }
       });
 
       this.liveClient.on('session_started', (payload) => {
@@ -428,6 +447,32 @@ export class GeminiLiveService {
       mimeType: media.mimeType,
       data: media.data
     }]);
+  }
+
+  public sendContextUpdate(update: {
+    sessionId?: string;
+    modality: 'screen' | 'webcam' | 'intelligence';
+    analysis: string;
+    imageData?: string;
+    capturedAt?: number;
+    metadata?: Record<string, unknown>;
+  }): void {
+    if (!this.liveClient || !this.isConnected) return;
+    if (!this.isSessionReady) {
+      console.warn('[GeminiLiveService] Context update blocked: Session not ready');
+      return;
+    }
+    this.liveClient.sendContextUpdate({
+      sessionId: this.sessionId,
+      ...update
+    });
+  }
+
+  /**
+   * Get connection ID from Live Client
+   */
+  public getConnectionId(): string | null {
+    return this.liveClient?.getConnectionId() || null;
   }
 
   /**

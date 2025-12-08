@@ -16,6 +16,8 @@ interface SupabaseError {
 }
 
 // Type-safe Supabase client setup
+// The singleton pattern in getSupabaseServer/getSupabaseService ensures only one instance is created
+// The window global cache in getSupabaseServer() handles HMR/fast refresh correctly
 export const supabase = getSupabaseServer();
 
 // Service Role Client for API operations (bypasses RLS) - only available server-side

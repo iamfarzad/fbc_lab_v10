@@ -167,6 +167,29 @@ export class AIBrainService {
             };
 
         } catch (error: any) {
+            // Detect connection refused / network errors
+            const errorMsg = error?.message || '';
+            const isConnectionRefused = 
+                errorMsg.includes('ECONNREFUSED') || 
+                errorMsg.includes('Failed to fetch') ||
+                errorMsg.includes('NetworkError') ||
+                error?.code === 'ECONNREFUSED';
+
+            if (isConnectionRefused) {
+                const isDev = typeof window !== 'undefined' && 
+                    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                
+                const helpMessage = isDev 
+                    ? 'API server not running. Start it with: pnpm dev:api:3002'
+                    : 'Unable to connect to API server. Please try again later.';
+                
+                console.error('[AIBrainService] Connection error:', { isDev, originalError: errorMsg });
+                return {
+                    success: false,
+                    error: helpMessage
+                };
+            }
+
             console.error('[AIBrainService] Error:', error);
             return {
                 success: false,
@@ -283,6 +306,29 @@ export class AIBrainService {
                 metadata: data.metadata
             };
         } catch (error: any) {
+            // Detect connection refused / network errors
+            const errorMsg = error?.message || '';
+            const isConnectionRefused = 
+                errorMsg.includes('ECONNREFUSED') || 
+                errorMsg.includes('Failed to fetch') ||
+                errorMsg.includes('NetworkError') ||
+                error?.code === 'ECONNREFUSED';
+
+            if (isConnectionRefused) {
+                const isDev = typeof window !== 'undefined' && 
+                    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                
+                const helpMessage = isDev 
+                    ? 'API server not running. Start it with: pnpm dev:api:3002'
+                    : 'Unable to connect to API server. Please try again later.';
+                
+                console.error('[AIBrainService] Connection error in chat:', { isDev, originalError: errorMsg });
+                return {
+                    success: false,
+                    error: helpMessage
+                };
+            }
+
             console.error('[AIBrainService] Error in chat:', error);
             return {
                 success: false,
