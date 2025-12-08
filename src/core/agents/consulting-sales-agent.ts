@@ -1,11 +1,11 @@
-import { google, generateText } from 'src/lib/ai-client.js'
+import { google, generateText } from '../../lib/ai-client.js'
 import type { AgentContext, ChatMessage, AgentResult } from './types.js'
-import { GEMINI_MODELS, CALENDAR_CONFIG } from 'src/config/constants.js'
+import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
 
 /**
  * Consulting Sales Agent - Pitches custom AI consulting
- * 
+ *
  * Target: C-level/VPs, enterprise companies, $50K+ budget
  * Focus: Custom implementations, integrations, enterprise solutions
  */
@@ -82,13 +82,13 @@ CRITICAL PERSONALIZATION RULES:
 6. For VPs/Directors: Focus on operational efficiency, team productivity, budget justification`
 
   const recentMessages = messages.slice(-10)
-  
+
   const result = await generateText({
     model: google(GEMINI_MODELS.DEFAULT_CHAT),
     messages: [
       { role: 'system', content: systemPrompt },
       ...recentMessages.map(m => ({
-        role: m.role as 'user' | 'assistant' | 'system',
+        role: m.role,
         content: m.content
       }))
     ],

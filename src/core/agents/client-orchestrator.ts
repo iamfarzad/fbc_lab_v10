@@ -227,7 +227,7 @@ export async function clientRouteToAgent(
     try {
       const scoringResult = await scoringAgent(messages, context)
       flowState.scoringComplete = true
-      flowState.leadScore = scoringResult.metadata?.leadScore as number | undefined
+      flowState.leadScore = scoringResult.metadata?.leadScore
       flowState.fitScore = scoringResult.metadata?.fitScore as { workshop: number; consulting: number } | undefined
       flowState.currentStage = 'SCORING'
       // Don't return scoring result to user - continue to next stage

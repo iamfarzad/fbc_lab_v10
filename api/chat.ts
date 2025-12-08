@@ -1,12 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { routeToAgent } from '../src/core/agents/orchestrator.js';
 import type { ChatMessage } from '../src/core/agents/types.js';
 import type { FunnelStage } from '../src/core/types/funnel-stage.js';
-import { logger } from '../src/lib/logger.js'
+import { routeToAgent } from '../src/core/agents/orchestrator.js';
+import { logger } from '../src/lib/logger.js';
 import { multimodalContextManager } from '../src/core/context/multimodal-context.js';
 import { rateLimit } from '../src/lib/rate-limiter.js';
 import { supabaseService } from '../src/core/supabase/client.js';
-// import { ensureWorkersInitialized } from 'src/core/queue/redis-queue';
 
 /**
  * Determine current funnel stage based on intelligence context and triggers
@@ -45,12 +44,7 @@ export default async function handler(
     req: VercelRequest,
     res: VercelResponse
 ) {
-    logger.debug('[API /chat] Request received', { method: req.method, body: req.body });
-
-    // TODO: Re-enable when redis-queue is available
-    // await ensureWorkersInitialized();
-
-    // CORS headers for frontend
+    // CORS headers for frontend - set first before any processing
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -63,6 +57,8 @@ export default async function handler(
         res.status(200).end();
         return;
     }
+
+    logger.debug('[API /chat] Request received', { method: req.method, body: req.body });
 
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });

@@ -1,6 +1,5 @@
 import { getSupabaseService } from '../../lib/supabase.js'
 import { toJson } from '../../types/json-guards.js'
-import type { Json } from '../database.types.js'
 import { contextStorage } from './context-storage.js'
 
 /**
@@ -71,7 +70,7 @@ export async function recordCapabilityUsed(
                 session_id: sessionId,
                 capability: capabilityName,
                 agent: resolvedAgent,
-                context: usageData ? (toJson(usageData) as Json) : null,
+                context: usageData ? (toJson(usageData)) : null,
                 first_used_at: new Date().toISOString()
               })
           }
@@ -96,7 +95,7 @@ export async function recordCapabilityUsed(
         session_id: sessionId,
         capability: capabilityName,
         agent: resolvedAgent || null,
-        context: usageData ? (toJson(usageData) as Json) : null,
+        context: usageData ? (toJson(usageData)) : null,
         first_used_at: new Date().toISOString()
       })
       .select()
@@ -108,7 +107,7 @@ export async function recordCapabilityUsed(
       .insert({ 
         session_id: sessionId, 
         capability_name: capabilityName, 
-        usage_data: usageData ? (toJson(usageData) as Json) : null 
+        usage_data: usageData ? (toJson(usageData)) : null 
       })
       .then(() => {}) // Ignore errors if table doesn't exist
 

@@ -48,12 +48,12 @@ export async function generateSummaryPreview(
 
     // Convert ConversationEntry[] to format expected by buildConversationPairs
     const conversationHistory = context.conversationHistory.map(entry => {
-      const role = entry.metadata?.speaker === 'model' || entry.metadata?.speaker === 'assistant' 
+      const role: 'user' | 'assistant' = entry.metadata?.speaker === 'model' || entry.metadata?.speaker === 'assistant' 
         ? 'assistant' 
         : 'user'
       
       return {
-        role: role as 'user' | 'assistant',
+        role,
         content: entry.content || '',
         timestamp: entry.timestamp
       }

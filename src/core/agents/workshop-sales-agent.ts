@@ -1,11 +1,11 @@
-import { google, generateText } from 'src/lib/ai-client.js'
+import { google, generateText } from '../../lib/ai-client.js'
 import type { AgentContext, ChatMessage, AgentResult } from './types.js'
-import { GEMINI_MODELS, CALENDAR_CONFIG } from 'src/config/constants.js'
+import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
 
 /**
  * Workshop Sales Agent - Pitches in-person AI workshops
- * 
+ *
  * Target: Mid-size companies, team leads/managers, $5K-$15K budget
  * Focus: Team training, upskilling, hands-on workshops
  */
@@ -46,11 +46,11 @@ WORKSHOP PACKAGES:
 1. AI Fundamentals (1 day) - $5,000
    - For teams new to AI
    - Covers: prompting, tools overview, use case identification
-   
+
 2. AI Implementation (2 days) - $10,000
    - For teams ready to build
    - Covers: workflow automation, custom GPTs, integration planning
-   
+
 3. AI Leadership (1 day) - $7,500
    - For executives and managers
    - Covers: strategy, ROI measurement, governance, team enablement
@@ -72,13 +72,13 @@ CRITICAL PERSONALIZATION RULES:
 4. NEVER give generic responses - every response must be specific to THIS lead`
 
   const recentMessages = messages.slice(-10)
-  
+
   const result = await generateText({
     model: google(GEMINI_MODELS.DEFAULT_CHAT),
     messages: [
       { role: 'system', content: systemPrompt },
       ...recentMessages.map(m => ({
-        role: m.role as 'user' | 'assistant' | 'system',
+        role: m.role,
         content: m.content
       }))
     ],

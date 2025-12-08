@@ -284,8 +284,8 @@ export class AgentPersistenceService {
     data: Record<string, unknown>,
     timestamp: number
   ): Promise<void> {
-    const { redisQueue } = await import('src/core/queue/redis-queue')
-    const { JobType } = await import('src/core/queue/job-types')
+    const { redisQueue } = await import('../queue/redis-queue.js')
+    const { JobType } = await import('../queue/job-types.js')
 
     await redisQueue.enqueue(JobType.RETRY_AGENT_PERSISTENCE, {
       sessionId,
@@ -307,8 +307,8 @@ export class AgentPersistenceService {
     eventId: string,
     metadata: Record<string, unknown>
   ): Promise<void> {
-    const { redisQueue } = await import('src/core/queue/redis-queue')
-    const { JobType } = await import('src/core/queue/job-types')
+    const { redisQueue } = await import('../queue/redis-queue.js')
+    const { JobType } = await import('../queue/job-types.js')
 
     // Extract only necessary analytics fields (no PII)
     const analyticsPayload = {

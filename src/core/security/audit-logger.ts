@@ -1,6 +1,5 @@
 import { getSupabaseService } from '../../lib/supabase.js'
 import { toJson } from '../../types/json-guards.js'
-import type { Json } from '../database.types.js'
 import { logger } from '../../lib/logger.js'
 
 export interface AuditEvent {
@@ -43,7 +42,7 @@ class AuditLogger {
       const { error } = await supabase.from('audit_log').insert({
         session_id: event.sessionId,
         event: action,
-        details: toJson(meta) as Json,
+        details: toJson(meta),
         timestamp: ts,
         user_agent: process.env.VERCEL_REGION || 'server',
         ip_hash: 'server-side' // TODO: Hash client IP if available from request headers

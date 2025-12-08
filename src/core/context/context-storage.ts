@@ -264,7 +264,7 @@ export class ContextStorage {
             updated_at: new Date().toISOString()
           }
           if ('metadata' in updateData && updateData.metadata !== undefined && updateData.metadata !== null) {
-            updateData.metadata = toJson(updateData.metadata) as Json
+            updateData.metadata = toJson(updateData.metadata)
           }
           
           const { error } = await this.supabase

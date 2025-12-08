@@ -73,7 +73,7 @@ export async function getTokenUsageByDateRange(
       acc[key] = entry
     }
 
-    const entry = acc[key]!
+    const entry = acc[key]
     entry.input_tokens += curr.input_tokens
     entry.output_tokens += curr.output_tokens
     // Handle potentially null total_tokens

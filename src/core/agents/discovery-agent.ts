@@ -120,7 +120,7 @@ URL ANALYSIS (${primaryUrlStr}):
       intelligenceContext.company.employeeCount = companySize.employeeCount
       }
 
-      ;(intelligenceContext).budget = {
+      (intelligenceContext).budget = {
         ...((intelligenceContext).budget || {}),
         ...budget
       }

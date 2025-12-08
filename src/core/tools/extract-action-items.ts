@@ -32,12 +32,12 @@ export async function extractActionItems(sessionId: string): Promise<ActionItems
     // Convert ConversationEntry[] to format expected by buildConversationPairs
     const conversationHistory = context.conversationHistory.map(entry => {
       // Determine role from metadata.speaker or default to 'user' for text entries
-      const role = entry.metadata?.speaker === 'model' || entry.metadata?.speaker === 'assistant' 
+      const role: 'user' | 'assistant' = entry.metadata?.speaker === 'model' || entry.metadata?.speaker === 'assistant' 
         ? 'assistant' 
         : 'user'
       
       return {
-        role: role as 'user' | 'assistant',
+        role,
         content: entry.content || '',
         timestamp: entry.timestamp
       }

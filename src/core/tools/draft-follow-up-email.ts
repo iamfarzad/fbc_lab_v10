@@ -48,12 +48,12 @@ export async function draftFollowUpEmail(
     let conversationSummary = ''
     if (context.conversationHistory.length > 0) {
       const conversationHistory = context.conversationHistory.map(entry => {
-        const role = entry.metadata?.speaker === 'model' || entry.metadata?.speaker === 'assistant' 
+        const role: 'user' | 'assistant' = entry.metadata?.speaker === 'model' || entry.metadata?.speaker === 'assistant' 
           ? 'assistant' 
           : 'user'
         
         return {
-          role: role as 'user' | 'assistant',
+          role,
           content: entry.content || '',
           timestamp: entry.timestamp
         }

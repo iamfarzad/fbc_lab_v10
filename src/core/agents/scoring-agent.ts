@@ -1,11 +1,11 @@
-import { google, generateText } from 'src/lib/ai-client.js'
+import { google, generateText } from '../../lib/ai-client.js'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult } from './types.js'
-import { GEMINI_MODELS } from 'src/config/constants.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
 
 /**
  * Scoring Agent - Calculates lead score (0-100) and fit scores
- * 
+ *
  * Base scoring: role, company, conversation quality, budget signals
  * Multimodal bonuses: voice (+10), screen (+15), webcam (+5), uploads (+10)
  */
@@ -36,8 +36,8 @@ export async function scoringAgent(
 
   // Step 3: Analyzing conversation quality
   // Calculate categories covered from the covered object
-  const categoriesCovered = conversationFlow?.covered 
-    ? Object.values(conversationFlow.covered).filter(Boolean).length 
+  const categoriesCovered = conversationFlow?.covered
+    ? Object.values(conversationFlow.covered).filter(Boolean).length
     : 0
   steps.push({
     label: 'Analyzing conversation quality',
@@ -59,7 +59,7 @@ export async function scoringAgent(
   if (multimodalContext?.hasRecentAudio) multimodalBonuses.push('Voice +10')
   if (multimodalContext?.hasRecentImages) multimodalBonuses.push('Screen +15')
   if (multimodalContext?.hasRecentUploads) multimodalBonuses.push('Uploads +10')
-  
+
   if (multimodalBonuses.length > 0) {
     steps.push({
       label: 'Adding multimodal bonuses',

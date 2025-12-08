@@ -207,7 +207,7 @@ export function handleContextUpdate(
               await multimodalContextManager.addVisualAnalysis(
                 client.sessionId!,
                 analysis,
-                modalityKey as 'screen' | 'webcam',
+                modalityKey,
                 imageBytes,
                 imageData
               )

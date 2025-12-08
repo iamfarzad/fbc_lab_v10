@@ -1,7 +1,7 @@
-import { google, generateText } from 'src/lib/ai-client.js'
+import { google, generateText } from '../../lib/ai-client.js'
 import { z } from 'zod'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult } from './types.js'
-import { GEMINI_MODELS } from 'src/config/constants.js'
+import { GEMINI_MODELS } from '../../config/constants.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
 
 // Proposal interface for structured output
@@ -74,7 +74,7 @@ const ProposalSchema = z.object({
 
 /**
  * Proposal Agent - Generates formal consulting proposals
- * 
+ *
  * Triggered: User requests quote OR consulting fit > 0.8 + explicit consent
  * Model: gemini-2.5-flash (reliable for pricing)
  * Output: Structured JSON for PDF generation
@@ -272,8 +272,8 @@ OUTPUT: Valid JSON only, no explanation.`
     timestamp: Date.now()
   })
 
-  const estimatedValue = typeof proposal.investment?.total === 'number' && Number.isFinite(proposal.investment.total) 
-    ? proposal.investment.total 
+  const estimatedValue = typeof proposal.investment?.total === 'number' && Number.isFinite(proposal.investment.total)
+    ? proposal.investment.total
     : 0
 
   return {

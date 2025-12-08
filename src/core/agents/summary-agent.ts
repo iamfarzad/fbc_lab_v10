@@ -122,7 +122,7 @@ TONE: Professional but conversational. This is a valuable document they'll share
   })
 
   // Extract metadata (groundingMetadata, reasoning) from response
-  const { extractGeminiMetadata } = await import('src/lib/extract-gemini-metadata')
+  const { extractGeminiMetadata } = await import('../../lib/extract-gemini-metadata.js')
   const extractedMetadata = extractGeminiMetadata(result)
 
   // Schema for summary output
