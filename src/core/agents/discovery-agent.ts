@@ -1,5 +1,7 @@
 import { safeGenerateText } from '../../lib/gemini-safe.js'
+import { streamText, google } from '../../lib/ai-client.js'
 import { formatMessagesForAI } from '../../lib/format-messages.js'
+import { buildModelSettings } from '../../lib/multimodal-helpers.js'
 import { detectExitIntent } from '../../lib/exit-detection.js'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult, FunnelStage } from './types.js'
 import type { ConversationFlowState, ConversationCategory } from '../../types/conversation-flow-types.js'
@@ -140,26 +142,9 @@ URL ANALYSIS (${primaryUrlStr}):
     timestamp: Date.now()
   })
 
-  // Build system prompt with all context
-  let systemPrompt = `You are F.B/c Discovery AI - a lead qualification specialist.
-
-CRITICAL PERSONALIZATION RULES:
-- ALWAYS use the company name and person's role in your responses when available
-- NEVER give generic responses - every response should reference specific context
-- If research shows company info, USE IT in your response (e.g., "Since [Company] is in [Industry]...")
-- Avoid generic phrases like "many leaders feel that way" - instead, personalize based on their role/industry
-
-USER CORRECTION DETECTION (CRITICAL):
-- If the user says "I'm not the [role]", "I'm not a [title]", "That's not my role", or corrects ANY information about themselves:
-  1. IMMEDIATELY acknowledge the correction apologetically
-  2. Ask them to clarify their actual role/information
-  3. NEVER use the incorrect information again in this conversation
-  4. Do NOT reference the old incorrect data in any future responses
-- Examples of corrections to watch for:
-  - "I'm not the CEO" → Stop using "CEO" and ask for their actual role
-  - "That's not my company" → Ask for correct company
-  - "I don't work there anymore" → Acknowledge and update understanding
-- If you used wrong information, apologize briefly and move on - don't dwell on the mistake
+  // Build context-first prompt, then anchor instructions at the end
+  let contextSection = `CONTEXT:
+${conversationFlow ? formatConversationStatus(conversationFlow) : 'Starting discovery'}
 
 INTELLIGENCE CONTEXT:
 ${intelligenceContext?.company?.name ? `Company: ${(intelligenceContext.company).name} (USE THIS NAME IN YOUR RESPONSE!)` : '(No company identified yet)'}
@@ -171,38 +156,47 @@ ${(intelligenceContext)?.budget?.hasExplicit ? `Budget: explicit (${(intelligenc
 ${(intelligenceContext)?.timeline?.urgency ? `Timeline urgency: ${((intelligenceContext).timeline.urgency).toFixed(2)}` : ''}
 ${intelligenceContext?.leadScore ? `Lead Score: ${intelligenceContext.leadScore}` : ''}
 ${intelligenceContext?.location ? `Location: ${typeof intelligenceContext.location === 'object' && 'city' in intelligenceContext.location ? (intelligenceContext.location as {city?: string}).city : 'Unknown'}` : ''}
-${urlContext ? `${urlContext}\n\nReference this naturally in your response.` : ''}
+${urlContext ? `${urlContext}\nReference this naturally in your response.` : ''}`
 
-YOUR MISSION:
-Systematically discover lead's needs across 6 categories:
+  if (multimodalContext?.hasRecentImages) {
+    contextSection += `\n- Screen/webcam active: Reference specific elements naturally`
+    if (multimodalContext.recentAnalyses.length > 0 && multimodalContext.recentAnalyses[0]) {
+      contextSection += `\n  Recent analysis: ${multimodalContext.recentAnalyses[0].substring(0, 150)}...`
+    }
+  }
+
+  if (multimodalContext?.hasRecentUploads) {
+    contextSection += `\n- Documents uploaded: Reference insights from uploaded docs`
+  }
+
+  if (voiceActive) {
+    contextSection += `\n- Voice active: Keep responses concise for voice playback (2 sentences max)`
+  }
+
+  const instructionSection = `INSTRUCTIONS:
+You are F.B/c Discovery AI - a lead qualification specialist.
+
+CRITICAL PERSONALIZATION RULES:
+- ALWAYS use the company name and person's role in your responses when available
+- NEVER give generic responses - every response should reference specific context
+- If research shows company info, USE IT in your response (e.g., "Since [Company] is in [Industry]...")
+- Avoid generic phrases like "many leaders feel that way" - instead, personalize based on their role/industry
+
+USER CORRECTION DETECTION (CRITICAL):
+- If the user corrects any information about themselves:
+  1. IMMEDIATELY acknowledge the correction apologetically
+  2. Ask them to clarify their actual role/information
+  3. NEVER use the incorrect information again in this conversation
+  4. Do NOT reference the old incorrect data in any future responses
+- If you used wrong information, apologize briefly and move on - don't dwell on the mistake
+
+MISSION (DISCOVERY CATEGORIES):
 1. GOALS - What are they trying to achieve?
 2. PAIN - What's broken/frustrating?
 3. DATA - Where is their data? How organized?
 4. READINESS - Team buy-in? Change management?
 5. BUDGET - Timeline? Investment range?
 6. SUCCESS - What metrics matter?
-
-CONVERSATION FLOW STATUS:
-${conversationFlow ? formatConversationStatus(conversationFlow) : 'Starting discovery'}
-
-MULTIMODAL AWARENESS:`
-
-  if (multimodalContext?.hasRecentImages) {
-    systemPrompt += `\n- Screen/webcam active: Reference specific elements naturally`
-    if (multimodalContext.recentAnalyses.length > 0 && multimodalContext.recentAnalyses[0]) {
-      systemPrompt += `\n  Recent analysis: ${multimodalContext.recentAnalyses[0].substring(0, 150)}...`
-    }
-  }
-
-  if (multimodalContext?.hasRecentUploads) {
-    systemPrompt += `\n- Documents uploaded: Reference insights from uploaded docs`
-  }
-
-  if (voiceActive) {
-    systemPrompt += `\n- Voice active: Keep responses concise for voice playback (2 sentences max)`
-  }
-
-  systemPrompt += `
 
 LANGUAGE RULES:
 - ALWAYS respond in English unless the user explicitly switches languages
@@ -212,11 +206,10 @@ LANGUAGE RULES:
 
 STYLE:
 - Sound like a sharp, friendly consultant (no fluff)
-- Two sentences max per turn
+${voiceActive ? '- Two sentences max per turn (voice mode)' : ''}
 - Ask ONE focused question at a time
 - Mirror user's language style (not language) and build on latest turn
 - If they shared a URL, act like you deeply read it
-- Reference hiring, tech stack, initiatives naturally
 - Natural integration of multimodal context:
   ✅ GOOD: "I noticed your dashboard shows revenue declining..."
   ❌ BAD: "Based on the screen share tool output..."
@@ -226,10 +219,13 @@ ${conversationFlow?.recommendedNext ? `Focus on: ${conversationFlow.recommendedN
 ${conversationFlow?.recommendedNext && PHRASE_BANK[conversationFlow.recommendedNext]
       ? `Suggested phrasing: "${PHRASE_BANK[conversationFlow.recommendedNext][0]}"`
       : ''}
-
 ${conversationFlow?.shouldOfferRecap
       ? 'Deliver a two-sentence recap of what you learned, then ask your next question.'
       : ''}`
+
+  const systemPrompt = `${contextSection}
+
+${instructionSection}`
 
   // Step 2: Check for question fatigue
   const consecutiveQuestions = countConsecutiveQuestions(messages);
@@ -269,21 +265,116 @@ ${conversationFlow?.shouldOfferRecap
     timestamp: Date.now()
   })
 
-  let result
+  type StreamPart = any
+
+  let result: any
   let generatedText = ''
   let extractedMetadata: { groundingMetadata?: any; reasoning?: string } = {}
+  const isStreaming = context.streaming === true && context.onChunk
 
   try {
-    result = await safeGenerateText({
-      system: systemPrompt,
-      messages: formatMessagesForAI(messages),
-      temperature: context.thinkingLevel === 'high' ? 1.0 : 0.7
-    })
+    if (isStreaming) {
+      // Streaming mode: use streamText
+      const modelSettings = buildModelSettings(context, messages, { thinkingLevel: 'high' })
+      const stream = await streamText({
+        model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
+        system: systemPrompt,
+        messages: formatMessagesForAI(messages),
+        temperature: 1.0
+      })
 
-    generatedText = result.text || ''
-    
-    // Extract metadata (groundingMetadata, reasoning) from response
-    extractedMetadata = extractGeminiMetadata(result)
+      // Stream all events (text, tool calls, reasoning, etc.) in real-time
+      for await (const part of stream.fullStream as AsyncIterable<StreamPart>) {
+        if (part.type === 'text-delta') {
+          // Stream text tokens as they arrive
+          generatedText += part.text
+          if (context.onChunk) {
+            context.onChunk(part.text)
+          }
+        } else if (part.type === 'tool-call' && context.onMetadata) {
+          // Stream tool calls in real-time
+          context.onMetadata({
+            type: 'tool_call',
+            toolCall: part
+          })
+        } else if (part.type === 'tool-result' && context.onMetadata) {
+          // Stream tool results in real-time
+          context.onMetadata({
+            type: 'tool_result',
+            toolResult: part
+          })
+        } else if (part.type === 'reasoning-delta' && context.onMetadata) {
+          // Stream reasoning in real-time (if supported by model)
+          context.onMetadata({
+            type: 'reasoning',
+            reasoning: part.delta || part.text
+          })
+        } else if (part.type === 'reasoning-start' && context.onMetadata) {
+          // Stream reasoning start event
+          context.onMetadata({
+            type: 'reasoning_start',
+            message: 'AI is thinking...'
+          })
+        }
+      }
+
+      // Get final result for metadata extraction
+      const streamResult = await stream
+      // Extract text from stream result (text is already accumulated in generatedText)
+      // streamResult.text is a Promise<string>, so we use the accumulated text
+      // Try to extract metadata (streamText result may have different structure)
+      try {
+        // Create a mock result object for metadata extraction
+        const textValue = await streamResult.text
+        const { text: _, ...rest } = streamResult as any
+        const mockResult = { text: textValue || generatedText, ...rest } as any
+        extractedMetadata = extractGeminiMetadata(mockResult)
+        
+        // Stream tool calls if they occurred (from final result)
+        if (context.onMetadata) {
+          try {
+            const toolCalls = await streamResult.toolCalls
+            if (toolCalls && toolCalls.length > 0) {
+              for (const toolCall of toolCalls) {
+                context.onMetadata({
+                  type: 'tool_call',
+                  toolCall: toolCall
+                })
+              }
+            }
+          } catch {
+            // Ignore if toolCalls not available
+          }
+        }
+        
+        // Send final metadata if available
+        if (context.onMetadata && extractedMetadata) {
+          context.onMetadata({
+            type: 'final_metadata',
+            reasoning: extractedMetadata.reasoning,
+            groundingMetadata: extractedMetadata.groundingMetadata
+          })
+        }
+      } catch {
+        // If extraction fails, continue without metadata
+        extractedMetadata = {}
+      }
+    } else {
+      // Non-streaming mode: use safeGenerateText
+      const modelSettings = buildModelSettings(context, messages, { thinkingLevel: 'high' })
+      result = await safeGenerateText({
+        system: systemPrompt,
+        messages: formatMessagesForAI(messages),
+        temperature: 1.0,
+        modelId: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW,
+        modelSettings
+      })
+
+      generatedText = result.text || ''
+      
+      // Extract metadata (groundingMetadata, reasoning) from response
+      extractedMetadata = extractGeminiMetadata(result)
+    }
 
     // If empty, use fallback
     if (!generatedText || generatedText.trim() === '') {
@@ -292,16 +383,22 @@ ${conversationFlow?.shouldOfferRecap
         ? PHRASE_BANK[conversationFlow.recommendedNext][0]
         : "What's the main goal you're trying to achieve with AI?"
       generatedText = fallbackQuestion || "What's the main goal you're trying to achieve with AI?"
+      
+      // If streaming, send fallback text
+      if (isStreaming && context.onChunk) {
+        context.onChunk(fallbackQuestion || "What's the main goal you're trying to achieve with AI?")
+      }
     }
   } catch (error) {
     // Enhanced error logging
     logger.error(
-        '[Discovery Agent] generateText failed',
+        '[Discovery Agent] generateText/streamText failed',
         error instanceof Error ? error : new Error(String(error)),
         {
             sessionId: context.sessionId,
             messageCount: messages.length,
-            hasConversationFlow: !!conversationFlow
+            hasConversationFlow: !!conversationFlow,
+            isStreaming
         }
     );
     
@@ -311,6 +408,11 @@ ${conversationFlow?.shouldOfferRecap
       : "What's the main goal you're trying to achieve with AI?"
     
     generatedText = fallbackQuestion || "What's the main goal you're trying to achieve with AI?"
+    
+    // If streaming, send fallback text
+    if (isStreaming && context.onChunk) {
+      context.onChunk(fallbackQuestion || "What's the main goal you're trying to achieve with AI?")
+    }
     
     // Mark this as an error so frontend knows not to retry
     steps.push({

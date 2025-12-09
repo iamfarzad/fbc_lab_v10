@@ -10,15 +10,14 @@ import { WebPreviewCard } from './Attachments';
 import { User, ChevronDown, Sparkles } from 'lucide-react';
 import { CONTACT_CONFIG } from 'src/config/constants';
 import { useState } from 'react';
-import MessageMetadata from './MessageMetadata';
 import { ToolCall } from './ToolCallIndicator';
 
 interface ChatMessageProps {
     item: TranscriptItem;
     onPreview: (attachment: any) => void;
-    onDownloadReport?: () => void;
-    onEmailReport?: () => void;
-    onBookCall?: () => void;
+    onDownloadReport?: (() => void) | undefined;
+    onEmailReport?: (() => void) | undefined;
+    onBookCall?: (() => void) | undefined;
     isDarkMode?: boolean;
     agentMode?: 'idle' | 'listening' | 'thinking' | 'speaking';
     activeTools?: ToolCall[];
@@ -34,11 +33,30 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     agentMode = 'idle',
     activeTools = []
 }) => {
+    // Early return if message has no content at all
+    const hasContent = item.text?.trim() || item.attachment || item.reasoning || item.error;
+    const isStreaming = !item.isFinal && item.role === 'model' && item.status === 'streaming';
+    
+    // Don't render if no content and not actively streaming
+    if (!hasContent && !isStreaming) {
+        return null;
+    }
+    
     const isUser = item.role === 'user';
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
     
-    // Determine display mode: use agentMode if not idle, otherwise infer from status
-    const displayMode = agentMode !== 'idle' ? agentMode : (item.status === 'streaming' ? 'thinking' : 'idle');
+    // Normalize the visual mode used for status + shimmer
+    const hasActiveTools = activeTools.some(t => t.status === 'running');
+    const shimmerMode =
+        hasActiveTools
+            ? 'thinking' // show analyzing vibe when tools are running
+            : item.status === 'streaming'
+                ? 'thinking'
+                : agentMode === 'speaking'
+                    ? 'speaking'
+                    : agentMode === 'listening'
+                        ? 'listening'
+                        : 'thinking';
 
     // Handle System Messages - hide text if attachment exists (attachment is the real content)
     if (item.text.startsWith('[System:') && !item.attachment) {
@@ -78,24 +96,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             {/* Content Column */}
             <div className={`flex flex-col gap-2 max-w-[85%] md:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
                 
-                {/* Speaker Name with Status Indicator */}
+                {/* Speaker Name with Inline Typing Indicator */}
                 <div className="flex items-center gap-2 ml-1">
                     <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
                         {isUser ? 'You' : 'F.B/c'}
                     </span>
-                    {/* Compact Mode Indicator - Show when processing */}
-                    {!isUser && !item.isFinal && (
-                        (item.status === 'streaming' || !item.status || (item.status && item.status !== 'error' && item.status !== 'complete')) ? (
-                            <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 italic animate-pulse">
-                                {activeTools.some(t => t.status === 'running') 
-                                    ? 'Analyzing...' 
-                                    : displayMode === 'speaking' 
-                                        ? 'Talking...' 
-                                        : displayMode === 'listening' 
-                                            ? 'Listening...' 
-                                            : 'Typing...'}
+                    {/* Inline typing indicator - shows when thinking/streaming */}
+                    {!isUser && (item.status === 'streaming' || (!item.isFinal && !item.text?.trim())) && (
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-1 h-1 bg-zinc-400 dark:bg-zinc-500 rounded-full animate-pulse"></div>
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                {hasActiveTools ? 'Analyzing...' : shimmerMode === 'speaking' ? 'Talking...' : 'Typing...'}
                             </span>
-                        ) : null
+                            {/* Shimmer line */}
+                            <div className="h-0.5 w-12 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                                <div className="h-full w-full bg-gradient-to-r from-transparent via-zinc-400 dark:via-zinc-500 to-transparent animate-shimmer"></div>
+                            </div>
+                        </div>
                     )}
                 </div>
 
@@ -185,16 +202,24 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     </div>
                 ) : null}
 
-                {/* 4. Grounding (Sources) - Visual Cards */}
+                {/* 4. Grounding (Sources) - Enhanced Visibility with Research Header */}
                 {(item.groundingMetadata?.webSearchQueries?.length || item.groundingMetadata?.groundingChunks?.length) ? (
-                    <div className="mt-3 w-full">
+                    <div className="mt-4 w-full p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-800/30">
+                        <div className="flex items-center gap-2 mb-3">
+                            <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                            <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300">Research Sources</span>
+                        </div>
+                        
                         {/* Search Queries */}
                         {item.groundingMetadata?.webSearchQueries && item.groundingMetadata.webSearchQueries.length > 0 && (
                             <div className="mb-3">
-                                <div className="flex flex-wrap gap-2 text-[10px] text-zinc-400 mb-2">
-                                    <span className="font-medium text-zinc-500 dark:text-zinc-400">Searched:</span>
+                                <div className="text-[10px] font-medium text-blue-600 dark:text-blue-400 mb-2">Searched:</div>
+                                <div className="flex flex-wrap gap-2">
                                     {item.groundingMetadata.webSearchQueries.map((q, i) => (
-                                        <span key={i} className="flex items-center gap-1 px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full">
+                                        <span key={i} className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-full text-[10px] text-blue-700 dark:text-blue-300">
                                             <SearchIcon /> "{q}"
                                         </span>
                                     ))}
@@ -205,7 +230,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                         {/* Source Cards Grid */}
                         {item.groundingMetadata.groundingChunks?.length > 0 && (
                             <div>
-                                <div className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-2">Sources:</div>
+                                <div className="text-[10px] font-medium text-blue-600 dark:text-blue-400 mb-2">Sources:</div>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                                     {item.groundingMetadata.groundingChunks
                                         .filter((chunk: any) => chunk.web?.uri || chunk.maps?.uri)
@@ -252,18 +277,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     />
                 )}
 
-              {/* Metadata Footer - Only show for successful responses, not errors */}
+              {/* Inline Metadata - Timestamp and Token Count (no card) */}
         {!isUser && item.isFinal && item.status !== 'error' && (
-             <div className="mt-2 pl-1">
-                <MessageMetadata 
-                    meta={{
-                        timestamp: new Date(item.timestamp),
-                        model: 'gemini-2.0-flash-exp', // Example default
-                        ...(item.processingTime !== undefined ? { responseTime: item.processingTime } : {}),
-                        ...(item.text.length > 0 ? { tokenCount: Math.ceil(item.text.length / 4) } : {})
-                    }}
-                    expandable={true}
-                />
+             <div className="mt-1.5 pl-1 flex items-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-500">
+                <span className="opacity-60" title={new Date(item.timestamp).toLocaleString()}>
+                    {(() => {
+                        const now = new Date();
+                        const diff = now.getTime() - new Date(item.timestamp).getTime();
+                        if (diff < 60000) return 'just now';
+                        if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+                        if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+                        return new Date(item.timestamp).toLocaleDateString();
+                    })()}
+                </span>
+                {item.processingTime && (
+                    <>
+                        <span>•</span>
+                        <span className="opacity-60">{item.processingTime < 1000 ? `${item.processingTime}ms` : `${(item.processingTime / 1000).toFixed(1)}s`}</span>
+                    </>
+                )}
+                {item.text.length > 0 && (
+                    <>
+                        <span>•</span>
+                        <span className="opacity-60">{Math.ceil(item.text.length / 4)} tokens</span>
+                    </>
+                )}
              </div>
         )}
       </div>

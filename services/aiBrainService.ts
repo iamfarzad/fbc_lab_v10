@@ -338,6 +338,239 @@ export class AIBrainService {
     }
 
     /**
+     * Streaming chat method that handles SSE responses
+     * Streams agent responses progressively and calls onChunk for each chunk
+     */
+    async chatStream(
+        messages: Array<{ role: string; content: string; attachments?: Array<{ mimeType: string; data: string }> }>,
+        options?: {
+            conversationFlow?: any;
+            intelligenceContext?: any;
+            onChunk?: (text: string) => void;
+        }
+    ): Promise<AgentResponse> {
+        try {
+            const url = `${this.baseUrl}/api/chat`;
+
+            const payload = {
+                messages,
+                sessionId: this.sessionId,
+                stream: true, // Enable streaming
+                ...(options?.conversationFlow && { conversationFlow: options.conversationFlow }),
+                ...(options?.intelligenceContext && { intelligenceContext: options.intelligenceContext })
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMsg = `Server error: ${response.status}`;
+                try {
+                    if (errorText.trim().startsWith('{') || errorText.trim().startsWith('[')) {
+                        const errorJson = JSON.parse(errorText);
+                        errorMsg = errorJson.error || errorJson.message || errorMsg;
+                    } else {
+                        errorMsg = errorText || errorMsg;
+                    }
+                } catch {
+                    errorMsg = errorText && errorText.length < 500 ? errorText : `Server error: ${response.status}`;
+                }
+                return {
+                    success: false,
+                    error: errorMsg
+                };
+            }
+
+            // Check if response is SSE stream
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('text/event-stream')) {
+                // Fallback to non-streaming if not SSE
+                const data = await response.json();
+                return {
+                    success: data.success !== false,
+                    output: data.output || data.text || data.message,
+                    agent: data.agent,
+                    model: data.model,
+                    metadata: data.metadata
+                };
+            }
+
+            // Parse SSE stream
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let accumulatedContent = '';
+            let finalResult: AgentResponse | null = null;
+            let chunkCount = 0;
+            let metadataCount = 0;
+
+            console.log('[AIBrainService] Starting SSE stream parsing');
+
+            if (reader) {
+                // eslint-disable-next-line no-constant-condition
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataText = line.slice(6).trim();
+                            if (dataText && dataText !== '[DONE]') {
+                                try {
+                                    interface StreamMessage {
+                                        type?: string;
+                                        content?: string;
+                                        agent?: string;
+                                        model?: string;
+                                        metadata?: any;
+                                        error?: string;
+                                        toolCall?: any;
+                                        reasoning?: string;
+                                        [key: string]: any;
+                                    }
+                                    const parsed = JSON.parse(dataText) as StreamMessage;
+
+                                    if (parsed.type === 'error') {
+                                        return {
+                                            success: false,
+                                            error: parsed.error || 'Streaming error occurred'
+                                        };
+                                    }
+
+                                    if (parsed.type === 'content' && parsed.content) {
+                                        const previousLength = accumulatedContent.length;
+                                        accumulatedContent = parsed.content;
+                                        chunkCount++;
+                                        const newChunkLength = accumulatedContent.length - previousLength;
+                                        console.log('[AIBrainService] Received content chunk', { 
+                                            chunkCount, 
+                                            accumulatedLength: accumulatedContent.length,
+                                            newChunkLength: newChunkLength,
+                                            isNewChunk: newChunkLength > 0
+                                        });
+                                        // Call onChunk callback with the accumulated content
+                                        // Note: Server sends accumulated text, so we pass the full accumulated content
+                                        // The UI should handle progressive updates
+                                        if (options?.onChunk) {
+                                            options.onChunk(accumulatedContent);
+                                        }
+                                    }
+
+                                    // Handle metadata events (tool calls, reasoning, thinking)
+                                    if (parsed.type === 'meta') {
+                                        metadataCount++;
+                                        console.log('[AIBrainService] Received metadata event', { 
+                                            metadataCount,
+                                            metaType: parsed.type,
+                                            hasToolCall: !!parsed.toolCall,
+                                            hasReasoning: !!parsed.reasoning
+                                        });
+                                        // These are intermediate events - could be used for UI updates
+                                        // Tool calls, reasoning steps, thinking states, etc.
+                                        // For now, we just accumulate them in metadata
+                                        if (!finalResult) {
+                                            finalResult = {
+                                                success: true,
+                                                output: accumulatedContent,
+                                                agent: 'Unknown',
+                                                model: '',
+                                                metadata: {}
+                                            };
+                                        }
+                                        // Merge metadata events into final result
+                                        if (parsed.toolCall) {
+                                            if (!finalResult.metadata) finalResult.metadata = {};
+                                            if (!Array.isArray(finalResult.metadata.tools)) {
+                                                finalResult.metadata.tools = [];
+                                            }
+                                            (finalResult.metadata.tools as any[]).push(parsed.toolCall);
+                                        }
+                                        if (parsed.reasoning) {
+                                            if (!finalResult.metadata) finalResult.metadata = {};
+                                            finalResult.metadata.reasoning = parsed.reasoning;
+                                        }
+                                    }
+
+                                    if (parsed.type === 'done') {
+                                        console.log('[AIBrainService] Stream complete', {
+                                            totalChunks: chunkCount,
+                                            totalMetadata: metadataCount,
+                                            finalLength: accumulatedContent.length,
+                                            agent: parsed.agent
+                                        });
+                                        finalResult = {
+                                            success: true,
+                                            output: accumulatedContent,
+                                            agent: parsed.agent || 'Unknown',
+                                            model: parsed.model || '',
+                                            metadata: parsed.metadata || (finalResult?.metadata || {})
+                                        };
+                                    }
+                                } catch (parseError) {
+                                    // Ignore parse errors for malformed JSON
+                                    console.warn('[AIBrainService] Failed to parse SSE message:', parseError);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Return final result or accumulated content
+            if (finalResult) {
+                return finalResult;
+            }
+
+            return {
+                success: true,
+                output: accumulatedContent,
+                agent: 'Unknown',
+                model: '',
+                metadata: {}
+            };
+        } catch (error: any) {
+            // Detect connection refused / network errors
+            const errorMsg = error?.message || '';
+            const isConnectionRefused = 
+                errorMsg.includes('ECONNREFUSED') || 
+                errorMsg.includes('Failed to fetch') ||
+                errorMsg.includes('NetworkError') ||
+                error?.code === 'ECONNREFUSED';
+
+            if (isConnectionRefused) {
+                const isDev = typeof window !== 'undefined' && 
+                    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                
+                const helpMessage = isDev 
+                    ? 'API server not running. Start it with: pnpm dev:api:3002'
+                    : 'Unable to connect to API server. Please try again later.';
+                
+                console.error('[AIBrainService] Connection error in chatStream:', { isDev, originalError: errorMsg });
+                return {
+                    success: false,
+                    error: helpMessage
+                };
+            }
+
+            console.error('[AIBrainService] Error in chatStream:', error);
+            return {
+                success: false,
+                error: error.message || 'Unknown error occurred'
+            };
+        }
+    }
+
+    /**
      * Convert transcript history to messages format expected by the API
      */
     static transcriptToMessages(transcript: TranscriptItem[]): Array<{ role: string; content: string; attachments?: Array<{ mimeType: string; data: string }> }> {

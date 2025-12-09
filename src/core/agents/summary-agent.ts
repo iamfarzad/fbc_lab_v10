@@ -1,7 +1,8 @@
-import { google, generateText } from '../../lib/ai-client.js'
+import { google, generateText, streamText } from '../../lib/ai-client.js'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep } from './types.js'
 import { GEMINI_MODELS } from '../../config/constants.js'
 import { multimodalContextManager } from '../context/multimodal-context.js'
+import { buildModelSettings } from '../../lib/multimodal-helpers.js'
 import { z } from 'zod'
 
 /**
@@ -51,8 +52,7 @@ export async function summaryAgent(
     timestamp: Date.now()
   })
 
-  const systemPrompt = `You are F.B/c Summary AI - create executive summaries of discovery conversations.
-
+  const contextSection = `CONTEXT:
 LEAD INFORMATION:
 ${JSON.stringify(intelligenceContext, null, 2)}
 
@@ -73,10 +73,13 @@ Recent visual analyses:
 ${multimodalData.visualContext.map((v, i) => `${i + 1}. ${v.analysis.substring(0, 200)}...`).join('\n')}
 
 Recent uploads:
-${multimodalData.uploadContext.map((u, i) => `${i + 1}. ${u.filename}: ${u.analysis.substring(0, 150)}...`).join('\n')}
+${multimodalData.uploadContext.map((u, i) => `${i + 1}. ${u.filename}: ${u.analysis.substring(0, 150)}...`).join('\n')}`
+
+  const instructionSection = `INSTRUCTIONS:
+You are F.B/c Summary AI - create executive summaries of discovery conversations.
 
 YOUR MISSION:
-Create a structured summary for the lead to share with stakeholders.
+Create a structured summary for the lead to share with stakeholders. Provide a detailed analysis with specific examples and actionable recommendations.
 
 OUTPUT REQUIRED (JSON only):
 {
@@ -104,6 +107,10 @@ OUTPUT REQUIRED (JSON only):
 
 TONE: Professional but conversational. This is a valuable document they'll share internally.`
 
+  const systemPrompt = `${contextSection}
+
+${instructionSection}`
+
   // Step 4: Determining recommended solution
   steps.push({
     label: 'Determining recommended solution',
@@ -112,14 +119,99 @@ TONE: Professional but conversational. This is a valuable document they'll share
     timestamp: Date.now()
   })
 
-  const result = await generateText({
-    model: google(GEMINI_MODELS.DEFAULT_CHAT), // Use DEFAULT_CHAT model
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: 'Generate the conversation summary based on all provided context.' }
-    ],
-    temperature: 1.0 // Recommended for high thinking
-  })
+  const isStreaming = context.streaming === true && context.onChunk
+  type StreamPart = any
+
+  let result: any
+  let generatedText = ''
+
+  if (isStreaming) {
+    // Streaming mode: use streamText
+    // Summary always has multimodal context, use high resolution for detailed analysis
+    const modelSettings = buildModelSettings(context, messages, { 
+      thinkingLevel: 'high',
+      defaultMediaResolution: 'media_resolution_high'
+    })
+    const stream = await streamText({
+      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Generate the conversation summary based on all provided context.' }
+      ],
+      temperature: 1.0
+    })
+
+    // Stream all events (text, tool calls, reasoning, etc.) in real-time
+    for await (const part of stream.fullStream as AsyncIterable<StreamPart>) {
+      if (part.type === 'text-delta') {
+        // Stream text tokens as they arrive
+        generatedText += part.text
+        if (context.onChunk) {
+          context.onChunk(part.text)
+        }
+      } else if (part.type === 'tool-call' && context.onMetadata) {
+        // Stream tool calls in real-time
+        context.onMetadata({
+          type: 'tool_call',
+          toolCall: part
+        })
+      } else if (part.type === 'tool-result' && context.onMetadata) {
+        // Stream tool results in real-time
+        context.onMetadata({
+          type: 'tool_result',
+          toolResult: part
+        })
+      } else if (part.type === 'reasoning-delta' && context.onMetadata) {
+        // Stream reasoning in real-time (if supported by model)
+        context.onMetadata({
+          type: 'reasoning',
+          reasoning: part.delta || part.text
+        })
+      } else if (part.type === 'reasoning-start' && context.onMetadata) {
+        // Stream reasoning start event
+        context.onMetadata({
+          type: 'reasoning_start',
+          message: 'AI is thinking...'
+        })
+      }
+    }
+
+    // Get final result for metadata extraction
+    result = await stream
+    
+    // Stream tool calls if they occurred (from final result)
+    if (context.onMetadata) {
+      try {
+        const toolCalls = await result.toolCalls
+        if (toolCalls && toolCalls.length > 0) {
+          for (const toolCall of toolCalls) {
+            context.onMetadata({
+              type: 'tool_call',
+              toolCall: toolCall
+            })
+          }
+        }
+      } catch {
+        // Ignore if toolCalls not available
+      }
+    }
+  } else {
+    // Non-streaming mode: use generateText
+    // Summary always has multimodal context, use high resolution for detailed analysis
+    const modelSettings = buildModelSettings(context, messages, { 
+      thinkingLevel: 'high',
+      defaultMediaResolution: 'media_resolution_high'
+    })
+    result = await generateText({
+      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Generate the conversation summary based on all provided context.' }
+      ],
+      temperature: 1.0 // Recommended for high thinking
+    })
+    generatedText = result.text || ''
+  }
 
   // Extract metadata (groundingMetadata, reasoning) from response
   const { extractGeminiMetadata } = await import('../../lib/extract-gemini-metadata.js')
@@ -147,7 +239,8 @@ TONE: Professional but conversational. This is a valuable document they'll share
   // Parse JSON from response
   let summary: z.infer<typeof SummarySchema>
   try {
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/)
+    const textToParse = generatedText || result.text || ''
+    const jsonMatch = textToParse.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
       const raw = JSON.parse(jsonMatch[0]) as unknown
       summary = SummarySchema.parse(raw)

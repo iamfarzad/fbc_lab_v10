@@ -53,6 +53,17 @@ export const Lightbox: React.FC<{ attachment: any; onClose: () => void }> = ({ a
 
     const isImage = attachment.type === 'image' || attachment.mimeType?.startsWith('image/');
 
+    // ESC key handler
+    React.useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [onClose]);
+
     const handleWheel = (e: React.WheelEvent) => {
         if (!isImage) return;
         e.stopPropagation();
@@ -81,11 +92,26 @@ export const Lightbox: React.FC<{ attachment: any; onClose: () => void }> = ({ a
 
     const textContent = !isImage ? (attachment.textContent || (attachment.data ? decodeBase64(attachment.data as string) : '')) : '';
 
+    const handleBackdropClick = (e: React.MouseEvent) => {
+        // Only close if clicking the backdrop, not the content
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in-up" onClick={onClose}>
+        <div 
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in-up" 
+            onClick={handleBackdropClick}
+        >
             <button 
-                onClick={onClose}
-                className="absolute top-6 right-6 p-2 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all z-[101]"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                }}
+                className="absolute top-6 right-6 p-2 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all z-[101] focus:outline-none focus:ring-2 focus:ring-white/50"
+                aria-label="Close preview"
+                title="Close (ESC)"
             >
                 <X className="w-6 h-6" />
             </button>

@@ -401,7 +401,7 @@ export const CALENDAR_CONFIG = {
 
 // Gemini Configuration
 export const GEMINI_CONFIG = {
-  DEFAULT_TEMPERATURE: 0.7,
+  DEFAULT_TEMPERATURE: 1.0,
   MAX_TOKENS: 8192,
   SYSTEM_PROMPT: `You are F.B/c, Farzad Bayat's sharp, friendly consulting assistant.
 - Speak concisely (2 sentences max by default).

@@ -98,6 +98,7 @@ export async function buildLiveConfig(
 
   // Use different base prompts for admin vs client
   let fullInstruction: string
+  const contextBlockParts: string[] = []
   if (isAdminSession) {
     // Admin voice uses admin personality
     fullInstruction = `You are F.B/c Agent - think Jarvis meets Elon Musk. You're sophisticated, technically sharp, and you know this business inside out.
@@ -162,14 +163,14 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
 
   // ADD USER CONTEXT (from client - quick personalization for voice start)
   const { buildQuickPersonalization, buildPersonalizationContext } = await import('src/core/prompts/personalization-builder')
-  fullInstruction += buildQuickPersonalization(userContext)
+  contextBlockParts.push(buildQuickPersonalization(userContext))
 
   // ADD LOCATION CONTEXT (if available)
   if (locationData) {
     const locationStr = locationData.city && locationData.country 
       ? `${locationData.city}, ${locationData.country}`
       : `${locationData.latitude.toFixed(4)}, ${locationData.longitude.toFixed(4)}`
-    fullInstruction += `\n\nUSER LOCATION: The user is located in ${locationStr}. Use this information when discussing weather, local time, nearby services, or location-specific topics. Always use Celsius for temperature.`
+    contextBlockParts.push(`USER LOCATION: The user is located in ${locationStr}. Use this information when discussing weather, local time, nearby services, or location-specific topics. Always use Celsius for temperature.`)
     serverLogger.debug('Added location to system instruction', { sessionId, location: locationStr })
   }
 
@@ -210,7 +211,7 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
           })
         } as Parameters<typeof buildPersonalizationContext>[0])
 
-        fullInstruction += personalizedContext
+        contextBlockParts.push(personalizedContext)
         
         serverLogger.debug('Loaded session context for voice', {
           sessionId,
@@ -228,9 +229,15 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
   if (!isAdminSession) {
     const stageSupplement = getStagePromptSupplement(currentStage, conversationFlow)
     if (stageSupplement) {
-      fullInstruction += stageSupplement
+      contextBlockParts.push(stageSupplement)
     }
   }
+
+  // Add conversation flow and session identifiers to context block
+  if (conversationFlow && Object.keys(conversationFlow).length > 0) {
+    contextBlockParts.push(`CONVERSATION FLOW CONTEXT:\n${JSON.stringify(conversationFlow, null, 2)}`)
+  }
+  contextBlockParts.push(`SESSION CONTEXT:\n- Session ID: ${sessionId}\n- Stage: ${currentStage}`)
 
 
   // ADD ENHANCED MULTIMODAL CONTEXT SNAPSHOT (if available)
@@ -242,7 +249,7 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
       const { promptSupplement, flags } = await multimodalContextManager.getVoiceMultimodalSummary(sessionId)
       
       if (promptSupplement) {
-        fullInstruction += promptSupplement
+        contextBlockParts.push(promptSupplement)
       }
       
       // Log multimodal engagement for analytics
@@ -260,8 +267,12 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
 
   // ADD PRIOR CHAT CONTEXT
   if (priorContext) {
-    fullInstruction += `\n\n${priorContext}`
+    contextBlockParts.push(priorContext)
   }
+
+  // Combine context first, then anchor instructions at the end
+  const contextBlock = contextBlockParts.filter(Boolean).join('\n\n')
+  fullInstruction = `${contextBlock}\n\nINSTRUCTIONS:\n${fullInstruction}`
 
   // Cap total instruction at 4000 chars to avoid token bloat
   if (fullInstruction.length > 4000) {
@@ -307,8 +318,9 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
 
   const liveConfig: any = {
     responseModalities: [Modality.AUDIO],
-    // Note: Transcription is enabled by default for native-audio-preview models
-    // Empty objects can cause error 1007 with some configurations
+    // CRITICAL: Explicitly enable transcription (not enabled by default)
+    inputAudioTranscription: {},  // Enable input transcription (empty object = use default model)
+    outputAudioTranscription: {}, // Enable output transcription (empty object = use default model)
     speechConfig: {
       voiceConfig: {
         prebuiltVoiceConfig: {
@@ -323,10 +335,14 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
         }
       ]
     },
-    // TEMP: Disable function declarations to test if they cause 1007
-    // tools: [{ googleSearch: {} }]
-    // TODO: Re-enable when googleSearch alone works:
-    // tools: toolsConfig
+    tools: toolsConfig,
+    // Gemini 3 Best Practices (per https://ai.google.dev/gemini-api/docs/gemini-3)
+    // Live API supports generationConfig with temperature (confirmed via docs)
+    generationConfig: {
+      temperature: 1.0  // Gemini 3 optimized default - keep at 1.0 per best practices
+      // Note: thinkingConfig may not be supported in Live API (only in standard Gemini 3 API)
+      // Note: media_resolution may not be supported in Live API (only in standard Gemini 3 API)
+    }
   }
 
   if (DEBUG_MODE) {

@@ -10,13 +10,15 @@ export interface Landmark3D {
  */
 export const FaceLandmarkStore = {
   current: [] as Landmark3D[],
+  inputAspectRatio: 1.0, // Ratio of Input Height / Input Width (e.g. 1.77 for Portrait)
   lastUpdate: 0,
   
   /**
    * Updates the current landmarks and timestamp.
    */
-  update(landmarks: Landmark3D[]) {
+  update(landmarks: Landmark3D[], aspectRatio: number = 1.0) {
     this.current = landmarks;
+    this.inputAspectRatio = aspectRatio;
     this.lastUpdate = Date.now();
   },
 
@@ -28,6 +30,10 @@ export const FaceLandmarkStore = {
         return [];
     }
     return this.current;
+  },
+
+  getAspectRatio(): number {
+      return this.inputAspectRatio;
   },
 
   /**

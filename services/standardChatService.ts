@@ -1,7 +1,8 @@
 
 
 
-import { GoogleGenAI, Content, Part, Tool, Type } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
+import type { Content, Part, Tool } from '@google/genai';
 import { TranscriptItem, ResearchResult } from 'types';
 import { GEMINI_MODELS } from 'src/config/constants';
 import { unifiedContext } from './unifiedContext';
@@ -104,11 +105,11 @@ export class StandardChatService {
         message: string,
         attachment?: { mimeType: string, data: string },
         modelOverride?: string
-    ): Promise<{ text: string, reasoning?: string, groundingMetadata?: any, toolCalls?: any[] }> {
+    ): Promise<{ text: string, reasoning?: string, groundingMetadata?: unknown, toolCalls?: unknown[] }> {
         // Define variables at function scope so error handler can access them
         const activeModel: string = modelOverride || this.defaultModel;
         let historyContent: Content[] = [];
-        let chatConfig: any;
+        let chatConfig: any = {};
         let supportsTools = false;
 
         try {
@@ -156,23 +157,21 @@ export class StandardChatService {
             const timeContext = `Current Date: ${now.toLocaleDateString()} | Current Time: ${now.toLocaleTimeString()} | Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
 
             // 3. System Instructions & Tools Configuration
-            let systemInstruction =
-                `You are F.B/c AI, an advanced autonomous research agent for Farzad Bayat Consulting. ${timeContext}. ` +
-                "You possess 'System 2' deep thinking capabilities. " +
-                "Do not just answer questions; research them using Google Search, plan your response, and synthesize information. ";
+            const contextBlockParts: string[] = [
+                `TIME CONTEXT: ${timeContext}`
+            ];
 
-            // INJECT RESEARCH CONTEXT (from instance or snapshot)
             // INJECT RESEARCH CONTEXT (from instance or snapshot)
             const activeResearch = this.researchContext || snapshot.researchContext;
             if (activeResearch) {
                 const rc = activeResearch;
-                systemInstruction += `\n\n[CONTEXT: You know about this person]\n` +
-                    `Person: ${rc.person.fullName} (${rc.role})\n` +
-                    `Company: ${rc.company.name} (${rc.company.industry || 'Industry unknown'})\n` +
-                    `Summary: ${rc.company.summary || 'N/A'}\n` +
-                    `\nIMPORTANT: Don't just summarize what you know. Use this context to ask relevant questions.\n` +
-                    `Instead of "I understand you are...", ask "Since ${rc.company.name} is in ${rc.company.industry || 'your industry'}, what's your biggest challenge with...?"\n` +
-                    `Be conversational and discovery-focused, not informational.\n`;
+                contextBlockParts.push(
+                    `[CONTEXT: You know about this person]`,
+                    `Person: ${rc.person.fullName} (${rc.role})`,
+                    `Company: ${rc.company.name} (${rc.company.industry || 'Industry unknown'})`,
+                    `Summary: ${rc.company.summary || 'N/A'}`,
+                    `Use this context to ask relevant questions (discovery-focused).`
+                );
             }
 
             // Determine if Tools are supported by the model
@@ -188,10 +187,12 @@ export class StandardChatService {
             // Enable tools only for stable Pro models
             supportsTools = isStableProModel;
 
+            let systemInstruction = ''
+
             // Build base config
             chatConfig = {
-                temperature: 0.7,
-                systemInstruction: systemInstruction,
+                temperature: 1.0,
+                systemInstruction,
                 maxOutputTokens: 32768,
                 thinkingConfig: activeModel.includes('flash') ? undefined : {
                     thinkingBudget: 16384
@@ -253,16 +254,81 @@ export class StandardChatService {
             if (activeLocation) {
                 const lat = activeLocation.latitude.toFixed(4);
                 const lng = activeLocation.longitude.toFixed(4);
-                systemInstruction += `The user is located at Lat: ${lat}, Long: ${lng}. Use this for local queries. `;
+                contextBlockParts.push(`User location: Lat ${lat}, Long ${lng} (use for local queries).`);
             }
 
-            systemInstruction +=
-                "If the user provides an image, analyze it deeply. " +
+            const contextBlock = contextBlockParts.join('\n');
+
+            let instructionBlock =
+                "You are F.B/c AI, an advanced autonomous research agent for Farzad Bayat Consulting. " +
+                "You possess 'System 2' deep thinking capabilities. " +
+                "Do not just answer questions; research them using Google Search, plan your response, and synthesize information. ";
+
+            if (supportsTools) {
+                const dashboardTool = {
+                    functionDeclarations: [{
+                        name: "update_dashboard",
+                        description: "Updates the AI dashboard visual state. Call this when the user asks about a route, distance, weather, or specific data to visualize it on screen.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {
+                                shape: {
+                                    type: Type.STRING,
+                                    enum: ["orb", "chart", "map", "weather", "face", "brain", "clock", "code", "text", "dna", "shield", "hourglass", "planet", "constellation", "scanner", "vortex", "fireworks", "lightning", "flower"],
+                                    description: "The visual shape. Use 'map' for routes/distances, 'planet' for solar system."
+                                },
+                                text: { type: Type.STRING },
+                                data: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        temperature: { type: Type.STRING },
+                                        condition: { type: Type.STRING },
+                                        stockValue: { type: Type.STRING },
+                                        stockTrend: { type: Type.STRING },
+                                        locationTitle: { type: Type.STRING },
+                                        latitude: { type: Type.NUMBER },
+                                        longitude: { type: Type.NUMBER },
+                                        startLat: { type: Type.NUMBER },
+                                        startLng: { type: Type.NUMBER },
+                                        endLat: { type: Type.NUMBER },
+                                        endLng: { type: Type.NUMBER },
+                                        destinationTitle: { type: Type.STRING }
+                                    }
+                                }
+                            },
+                            required: ["shape"]
+                        }
+                    }]
+                };
+
+                const tools: Tool[] = [{ googleSearch: {} }, dashboardTool];
+
+                // Add code execution for non-flash Pro models
+                if (!activeModel.includes('flash')) {
+                    tools.push({ codeExecution: {} });
+                    instructionBlock += " Use the 'codeExecution' tool to solve math problems.";
+                }
+
+                // Try to add tools - but handle gracefully if API rejects them
+                chatConfig.tools = tools;
+            }
+
+            instructionBlock +=
+                " If the user provides an image, analyze it deeply. " +
                 "If discussing data (weather, stocks), provide specific values (e.g., '24°C', '+5%') to trigger UI visualizations. " +
+                "Treat text, images, and any media as a single stream—synthesize them together. " +
                 "CRITICAL: If there is a central concept, single keyword, or big idea you want to visualize on the screen, enclose it in double asterisks (e.g. **SYNERGY** or **ENTROPY**). Do this only for the most important word.";
 
-            // Update chatConfig.systemInstruction with the final systemInstruction (includes location if available)
-            chatConfig.systemInstruction = systemInstruction;
+            // Update chatConfig.systemInstruction with the final end-anchored structure
+            chatConfig.systemInstruction = `${contextBlock}
+
+INSTRUCTIONS:
+${instructionBlock}`;
+
+            // Add media_resolution for multimodal attachments
+            if (attachment) {
+                chatConfig.media_resolution = 'media_resolution_low';
+            }
 
             // 4. Initialize Chat
             const chat = this.ai.chats.create({
@@ -294,7 +360,7 @@ export class StandardChatService {
             // 6. Construct Response from all Parts (Text + Executable Code + Function Calls)
             let fullText = "";
             let reasoningText: string | undefined;
-            const toolCalls: any[] = [];
+            const toolCalls: unknown[] = [];
 
             const candidate = response.candidates?.[0];
             if (candidate && candidate.content && candidate.content.parts) {
@@ -353,6 +419,10 @@ export class StandardChatService {
                 // Retry without tools
                 const retryConfig = { ...chatConfig };
                 delete retryConfig.tools;
+                // Ensure media_resolution is preserved for attachments
+                if (attachment && !retryConfig.media_resolution) {
+                    retryConfig.media_resolution = 'media_resolution_low';
+                }
 
                 const retryChat = this.ai.chats.create({
                     model: activeModel,

@@ -173,90 +173,94 @@ export const ComplexShapes = {
         if (!pt) return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
         const regionPriority = getRegionPriority(landmarkIndex);
         
-        // Enhanced positioning with better scaling
-        const flipX = 1 - pt.x;
-         const baseScale = Math.min(ctx.width, ctx.height) * 0.85; // Slightly larger
-         const scale = baseScale * (1 + audio * 0.1); // Audio-reactive scaling
+         // 2. Aspect Ratio Correction
+         // MediaPipe coordinates (0-1) are normalized to the *input video dimensions*.
+         // If input is portrait (e.g. 720x1280), a y-dist of 0.1 is much longer (pixels) than x-dist 0.1.
+         // We must multiply Y offsets by the Aspect Ratio (Height/Width) to restore the physical shape.
+         // 2. Aspect Ratio Correction
+         const inputAR = FaceLandmarkStore.getAspectRatio() || 1; 
          
-         const offsetX = (flipX - 0.5) * scale;
-         const offsetY = (pt.y - 0.5) * scale;
-         
-         // Smoother, more subtle drift
-         const driftX = Math.sin(time * 0.0003 + landmarkIndex * 0.01) * 8;
-         const driftY = Math.cos(time * 0.0002 + landmarkIndex * 0.01) * 8;
+         const isMobile = ctx.width < 768; 
 
-         const tx = centerX + offsetX + driftX;
-         const ty = centerY + offsetY + driftY;
+         // 3. Scaling - Make it BIGGER on mobile
+         let baseScale;
+         let targetCenterY = centerY; // Use a mutable target for center
+
+         if (isMobile) {
+             // On mobile, fill the width. Face is usually ~0.6 of video width.
+             baseScale = ctx.width * 1.5; 
+             targetCenterY -= 60; // Shift up slightly to center in visible area
+         } else {
+             // Desktop
+             baseScale = Math.min(ctx.width, ctx.height) * 0.9;
+         }
+
+         const scale = baseScale * (1 + audio * 0.1); 
+         
+         // 4. Coordinate Mapping
+         const flipX = 1 - pt.x;
+         const offsetX = (flipX - 0.5) * scale;
+         
+         // Apply Aspect Ratio to Y to fix "squashed" face
+         const offsetY = (pt.y - 0.5) * scale * inputAR;
+         
+         // 5. Reduced Noise/Drift for sharper look
+         const driftX = Math.sin(time * 0.0003 + landmarkIndex * 0.05) * 2; 
+         const driftY = Math.cos(time * 0.0002 + landmarkIndex * 0.05) * 2;
+
+         const finalTx = centerX + offsetX + driftX;
+         const finalTy = targetCenterY + offsetY + driftY;
          
          // Enhanced depth perception
          const depthFromCenter = Math.abs(pt.z - faceCenterZ);
-         const depthScale = 1 - (depthFromCenter * 0.4); // Better depth mapping
+         const depthScale = 1 - (depthFromCenter * 0.4); 
          
-         // Enhanced scanner effect with multiple passes
+         // Scanner effect
          const scanSpeed = 0.08;
          const scanY1 = (time * scanSpeed) % ctx.height;
-         const scanY2 = ((time * scanSpeed) + ctx.height * 0.5) % ctx.height;
-         const distToScan1 = Math.abs(ty - scanY1);
-         const distToScan2 = Math.abs(ty - scanY2);
-         const minDist = Math.min(distToScan1, distToScan2);
+         const distToScan1 = Math.abs(finalTy - scanY1);
+         const minDist = distToScan1;
          
-         // Base alpha based on region importance
-         let targetAlpha = 0.25 + (regionPriority - 1) * 0.15;
+         let targetAlpha = 0.35 + (regionPriority - 1) * 0.12; 
+         if (visualState.mode === 'listening') targetAlpha *= 0.8;
          
          // Feature highlighting
          if (FACE_REGIONS.RIGHT_EYE.has(landmarkIndex) || FACE_REGIONS.LEFT_EYE.has(landmarkIndex)) {
-             targetAlpha = 0.7 + (audio * 0.3); // Eyes glow with audio
+             targetAlpha = 0.85 + (audio * 0.3); 
          } else if (FACE_REGIONS.MOUTH_INNER.has(landmarkIndex)) {
-             // Mouth is very reactive to audio
-             targetAlpha = 0.8 + (audio * 0.2);
-             // if (visualState.mode === 'speaking') {
-             //     targetAlpha = Math.min(1.0, targetAlpha + rawAudio * 0.4);
-             // }
+             targetAlpha = 0.9 + (audio * 0.2);
          } else if (FACE_REGIONS.NOSE_TIP.has(landmarkIndex)) {
-             targetAlpha = 0.6;
+             targetAlpha = 0.7;
          } else if (FACE_REGIONS.FACE_OVAL.has(landmarkIndex)) {
-             targetAlpha = 0.4;
+             targetAlpha = 0.5;
          }
          
-         // Scanner highlight effect
-         let noise = 0.02;
-         if (minDist < 50) {
-             const scanIntensity = 1 - (minDist / 50);
-             targetAlpha += scanIntensity * 0.6;
-             noise = 0.05 + (scanIntensity * 0.1);
+         // Scanner line
+         let noise = 0.01; // Reduced noise
+         if (minDist < 60) {
+             const scanIntensity = 1 - (minDist / 60);
+             targetAlpha += scanIntensity * 0.5;
+             noise = 0.04; 
          }
          
-         // Audio-reactive pulsing for mouth
-         if (FACE_REGIONS.MOUTH_INNER.has(landmarkIndex) && visualState.mode === 'speaking') {
-             const pulse = Math.sin(time * 0.01 + audio * Math.PI * 2) * 0.2;
-             targetAlpha += pulse;
-         }
+         // Breathing
+         const breathe = Math.sin(time * 0.001) * 2; // Reduced breathing amplitude
          
-         // Subtle breathing animation
-         const breathe = Math.sin(time * 0.0008) * 1.5;
-         const finalTx = tx + (tx - centerX) * breathe * 0.001;
-         const finalTy = ty + (ty - centerY) * breathe * 0.001;
-         
-         // Enhanced spring physics based on region
          let spring = PHYSICS.SnappySpring;
-         let friction = PHYSICS.DampedFriction;
-         
          if (regionPriority >= 4) {
-             // Eyes and mouth are more responsive
-             spring = PHYSICS.SnappySpring * 1.2;
-             friction = PHYSICS.DampedFriction * 0.95;
+             spring = PHYSICS.SnappySpring * 1.3;
          } else if (regionPriority >= 2) {
              spring = PHYSICS.StandardSpring;
          }
 
          return {
-             tx: finalTx,
-             ty: finalTy,
+             tx: finalTx + breathe, 
+             ty: finalTy + breathe,
              spring: Math.min(0.2, spring), 
-             friction: friction,
+             friction: PHYSICS.DampedFriction,
              noise: noise,
              targetAlpha: Math.min(1.0, targetAlpha),
-             scale: Math.max(0.3, Math.min(1.5, depthScale * (0.8 + regionPriority * 0.1)))
+             scale: Math.max(0.3, Math.min(1.5, depthScale * (0.8 + regionPriority * 0.15)))
          };
      }
 

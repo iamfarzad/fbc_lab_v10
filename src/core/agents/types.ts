@@ -11,6 +11,10 @@ export interface AgentContext {
   stage?: FunnelStage
   thinkingLevel?: 'low' | 'high'
   mediaResolution?: 'media_resolution_low' | 'media_resolution_medium' | 'media_resolution_high'
+  // Streaming support
+  streaming?: boolean
+  onChunk?: (chunk: string) => void
+  onMetadata?: ((metadata: any) => void) | undefined
 }
 
 export type CompanySize = '1-10' | '11-50' | '51-200' | '201-1000' | '1000+' | 'unknown'

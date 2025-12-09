@@ -5,13 +5,14 @@
 import { generateText as baseGenerateText, streamText as baseStreamText, generateObject as baseGenerateObject } from 'ai'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import type { GoogleGenerativeAIProvider } from '@ai-sdk/google'
+import type { GeminiModel } from '../config/constants.js'
 import { createRetryableGemini as baseCreateRetryableGemini, createRetryableGeminiStream as baseCreateRetryableGeminiStream, createRetryableGeminiReliable as baseCreateRetryableGeminiReliable } from './ai/retry-model.js'
 import { getResolvedGeminiApiKey } from '../config/env.js'
 
 let isGeminiConfigured = false
 let googleProvider: GoogleGenerativeAIProvider | null = null
 
-const ensureGeminiConfigured = () => {
+const ensureGeminiConfigured = (): GoogleGenerativeAIProvider => {
   if (!isGeminiConfigured) {
     const apiKey = getResolvedGeminiApiKey()
     if (!apiKey) {
@@ -22,11 +23,22 @@ const ensureGeminiConfigured = () => {
     googleProvider = createGoogleGenerativeAI({ apiKey })
     isGeminiConfigured = true
   }
-  return googleProvider!
+  if (!googleProvider) {
+    throw new Error('Gemini provider not initialized')
+  }
+  return googleProvider
+}
+
+export interface GeminiModelSettings {
+  thinking_level?: 'low' | 'high'
+  media_resolution?: 'media_resolution_low' | 'media_resolution_medium' | 'media_resolution_high'
+  // Allow passthrough for future Gemini 3 settings (e.g., thought_signatures)
+  thought_signature?: string
+  [key: string]: unknown
 }
 
 // Create a callable wrapper that uses the provider with resolved API key
-const googleWrapper = ((modelId: string, settings?: unknown) => {
+const googleWrapper = ((modelId: GeminiModel, settings?: GeminiModelSettings) => {
   const provider = ensureGeminiConfigured()
   // Cast to any to bypass strict type check if the installed SDK version doesn't explicitly support settings yet
   return (provider as any)(modelId, settings)
@@ -43,8 +55,11 @@ const ensurePropertiesCopied = () => {
   }
 }
 
-// Export as any to allow passing settings which might not be in the official type yet
-export const google: any = googleWrapper
+// Export as loosely typed factory to allow passing settings which might not be in the official type yet
+export const google = googleWrapper as unknown as (
+  modelId: GeminiModel,
+  settings?: GeminiModelSettings
+) => ReturnType<GoogleGenerativeAIProvider>
 
 export const generateText: typeof baseGenerateText = async (options) => {
   ensurePropertiesCopied()

@@ -64,6 +64,14 @@ export class GeminiLiveService {
   private sessionStartTimeout: NodeJS.Timeout | null = null;
   private rateLimiter = new RateLimiter(); // Initialize rate limiter
   private pendingMediaQueue: Array<{ mimeType: string; data: string }> = []; // Queue media until session ready
+  private pendingContextQueue: Array<{
+    sessionId?: string;
+    modality: 'screen' | 'webcam' | 'intelligence';
+    analysis: string;
+    imageData?: string;
+    capturedAt?: number;
+    metadata?: Record<string, unknown>;
+  }> = []; // Queue context updates until session ready
 
   constructor(config: LiveServiceConfig & { wsUrl?: string }) {
     this.config = config;
@@ -229,36 +237,23 @@ export class GeminiLiveService {
         this.isConnected = true;
         this.isSessionReady = true; // Mark session as ready
         
-        // Flush any queued media that was sent before session was ready
+        // Flush any queued media and context updates that were sent before session was ready
         this.flushPendingMedia();
+        this.flushPendingContext();
         
         this.config.onStateChange('CONNECTED');
       });
 
       this.liveClient.on('input_transcript', (text, isFinal) => {
+        // onTranscript callback updates React state, which syncs to unifiedContext via useChatSession
         this.config.onTranscript(text, true, isFinal);
-        if (isFinal) {
-          unifiedContext.addTranscriptItem({
-            id: crypto.randomUUID(),
-            role: 'user',
-            text,
-            timestamp: new Date(),
-            isFinal: true
-          });
-        }
+        // Removed duplicate unifiedContext.addTranscriptItem() - handled by handleTranscriptUpdate
       });
 
       this.liveClient.on('output_transcript', (text, isFinal) => {
+        // onTranscript callback updates React state, which syncs to unifiedContext via useChatSession
         this.config.onTranscript(text, false, isFinal);
-        if (isFinal) {
-          unifiedContext.addTranscriptItem({
-            id: crypto.randomUUID(),
-            role: 'model',
-            text,
-            timestamp: new Date(),
-            isFinal: true
-          });
-        }
+        // Removed duplicate unifiedContext.addTranscriptItem() - handled by handleTranscriptUpdate
       });
 
       this.liveClient.on('audio', (audioData, mimeType) => {
@@ -488,7 +483,9 @@ export class GeminiLiveService {
   }): void {
     if (!this.liveClient || !this.isConnected) return;
     if (!this.isSessionReady) {
-      console.warn('[GeminiLiveService] Context update blocked: Session not ready');
+      // Queue context update until session is ready
+      this.pendingContextQueue.push(update);
+      logger.debug(`[GeminiLiveService] Queued context update (${this.pendingContextQueue.length} in queue)`);
       return;
     }
     this.liveClient.sendContextUpdate({
@@ -538,22 +535,71 @@ export class GeminiLiveService {
 
   /**
    * Flush any media that was queued before session was ready
+   * Sends ALL queued frames to ensure no frames are lost
    */
   private flushPendingMedia(): void {
     if (this.pendingMediaQueue.length === 0) return;
     
     logger.debug(`[GeminiLiveService] Flushing ${this.pendingMediaQueue.length} queued media items`);
     
-    // Send last 5 frames to provide initial context without flooding
-    const framesToSend = this.pendingMediaQueue.slice(-5);
+    // Send ALL queued frames to avoid losing any frames
+    // If queue is very large, send in batches to avoid flooding
+    const framesToSend = [...this.pendingMediaQueue];
     this.pendingMediaQueue = [];
     
     if (framesToSend.length > 0 && this.liveClient) {
-      // Send as batch for efficiency
-      this.liveClient.sendRealtimeInput(
-        framesToSend.map(m => ({ mimeType: m.mimeType, data: m.data }))
-      );
-      logger.debug(`[GeminiLiveService] Sent ${framesToSend.length} queued frames`);
+      // Send in batches of 10 to avoid overwhelming the connection
+      const BATCH_SIZE = 10;
+      let batchIndex = 0;
+      
+      const sendBatch = () => {
+        if (batchIndex >= framesToSend.length) {
+          logger.debug(`[GeminiLiveService] Flushed all ${framesToSend.length} queued frames`);
+          return;
+        }
+        
+        const batch = framesToSend.slice(batchIndex, batchIndex + BATCH_SIZE);
+        this.liveClient!.sendRealtimeInput(
+          batch.map(m => ({ mimeType: m.mimeType, data: m.data }))
+        );
+        logger.debug(`[GeminiLiveService] Sent batch ${Math.floor(batchIndex / BATCH_SIZE) + 1}/${Math.ceil(framesToSend.length / BATCH_SIZE)} (${batch.length} frames)`);
+        
+        batchIndex += BATCH_SIZE;
+        
+        // Small delay between batches to avoid flooding
+        if (batchIndex < framesToSend.length) {
+          setTimeout(sendBatch, 50);
+        } else {
+          logger.debug(`[GeminiLiveService] Flushed all ${framesToSend.length} queued frames`);
+        }
+      };
+      
+      sendBatch();
+    }
+  }
+
+  /**
+   * Flush any context updates that were queued before session was ready
+   * Sends ALL queued context updates to ensure no context is lost
+   */
+  private flushPendingContext(): void {
+    if (this.pendingContextQueue.length === 0) return;
+    
+    logger.debug(`[GeminiLiveService] Flushing ${this.pendingContextQueue.length} queued context updates`);
+    
+    // Send ALL queued context updates
+    const updatesToSend = [...this.pendingContextQueue];
+    this.pendingContextQueue = [];
+    
+    if (updatesToSend.length > 0 && this.liveClient) {
+      updatesToSend.forEach((update, index) => {
+        this.liveClient!.sendContextUpdate({
+          sessionId: this.sessionId,
+          ...update
+        });
+        logger.debug(`[GeminiLiveService] Sent queued context update ${index + 1}/${updatesToSend.length} (modality: ${update.modality})`);
+      });
+      logger.debug(`[GeminiLiveService] Flushed all ${updatesToSend.length} queued context updates`);
     }
   }
 

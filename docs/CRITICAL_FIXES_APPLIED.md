@@ -1,107 +1,159 @@
-# Critical Fixes Applied - 2025-12-02
+# Critical Fixes Applied
 
-## Issues Identified from Logs
+**Date:** 2025-01-27  
+**Issues Fixed:** localStorage Quota + Lightbox Close Button
 
-### 1. ⚠️ Rate Limiting Issue (CRITICAL - FIXED)
-**Problem**: REALTIME_INPUT messages with audio chunks were hitting rate limits constantly
-- Audio chunks come at ~250ms intervals (4 per second)
-- Rate limiter was checking them against regular message limits (100/min)
-- Caused continuous "Rate limit exceeded" errors
+---
 
-**Fix Applied**:
-- Modified `server/handlers/realtime-input-handler.ts` to detect audio chunks
-- Audio chunks now use `USER_AUDIO` rate limits (200/sec) instead of regular limits
-- Audio mimeTypes (`audio/`, `pcm`, `rate=`) are automatically detected
+## 🐛 Issues Found During Testing
 
-**File Changed**: `server/handlers/realtime-input-handler.ts`
-
-### 2. 🐌 Agent Routing Slow (CRITICAL - FIXED)
-**Problem**: Agent execution taking 18-40 seconds
-- Persistence was blocking the response
-- Analytics logging was synchronous
-- Context syncing happened before return
-
-**Fix Applied**:
-- Made persistence non-blocking (fire-and-forget)
-- Analytics logging moved to background
-- Only critical context updates happen before return
-- Performance logging happens synchronously but is fast
-
-**File Changed**: `src/core/agents/orchestrator.ts`
-
-### 3. 🔧 Voice Tool Calling (IDENTIFIED ISSUE)
-**Problem**: Voice tool calls work, but webcam/screen tools only RETRIEVE existing captures
-- Tools are configured and routing works
-- `capture_webcam_snapshot` and `capture_screen_snapshot` only retrieve already-captured images
-- They don't trigger NEW captures from voice requests
-- User must manually capture first, then AI can retrieve it
-
-**Root Cause**:
-- Tool implementations expect `client.latestContext.webcam` to already exist
-- No mechanism for AI to trigger new webcam/screen captures via voice
-- Tools are "pull" not "push" - they retrieve, not trigger
-
-**Tools Available (All Working)**:
-- `capture_screen_snapshot` - Retrieves existing screen capture
-- `capture_webcam_snapshot` - Retrieves existing webcam capture  
-- `search_web` - ✅ Works
-- `calculate_roi` - ✅ Works
-- `extract_action_items` - ✅ Works
-- `generate_summary_preview` - ✅ Works
-- `draft_follow_up_email` - ✅ Works
-
-**Files**:
-- `server/live-api/tool-processor.ts` - Tool execution ✅
-- `server/utils/tool-implementations.ts` - Tool implementations (retrieve-only)
-- `src/config/live-tools.ts` - Tool definitions ✅
-
-### 4. 📹 Webcam/Voice Integration (IDENTIFIED)
-**Problem**: Webcam and voice work separately, but integration is one-way
-- Webcam can capture and analyze ✅
-- Voice can receive context updates ✅
-- But: Webcam captures are not automatically sent to voice session
-- User must manually trigger webcam captures
-
-**Current Flow**:
-1. User manually enables webcam → captures images
-2. Images analyzed and stored in context
-3. Voice tools can RETRIEVE the analysis (if captured)
-4. But voice cannot TRIGGER new webcam captures
-
-**Files**:
-- `src/hooks/voice/useVoice.ts` - Voice hooks with webcam send functions
-- `src/hooks/media/useCamera.ts` - Camera hook (manual capture)
-- `components/chat/WebcamPreview.tsx` - Webcam component (video-only to avoid audio conflicts)
-- `App.tsx` - Main integration
-
-**Note**: WebcamPreview correctly requests video-only stream to avoid conflicts with voice audio
-
-## Next Steps
-
-1. ✅ **Rate Limiting** - FIXED
-2. ✅ **Agent Performance** - FIXED  
-3. ⏳ **Verify Tool Calling** - Check if tool calls from voice are reaching the processor
-4. ⏳ **Verify Webcam/Voice** - Test integration between webcam and voice
-
-## Testing Commands
-
-```bash
-# Start all servers
-pnpm dev:all
-
-# Watch logs in real-time
-pnpm logs:watch
-
-# Filter for errors only
-pnpm logs:watch --errors
-
-# Watch specific session
-pnpm logs:watch --session=<connection-id>
+### 1. localStorage Quota Exceeded Error
+**Symptom:**
+```
+QuotaExceededError: Failed to execute 'setItem' on 'Storage': 
+Setting the value of 'fbc_unified_context_v1' exceeded the quota.
 ```
 
-## Performance Improvements Expected
+**Root Cause:**
+- UnifiedContext was storing entire transcript history in localStorage
+- localStorage has ~5-10MB limit
+- Long conversations exceeded quota
 
-- **Agent Routing**: Should drop from 18-40s to <5s (persistence non-blocking)
-- **Rate Limiting**: Should eliminate constant rate limit errors
-- **Voice Mode**: Should work smoothly without rate limit interruptions
+**Fix Applied:**
+- ✅ Truncate transcript to last 50 items before storing
+- ✅ If still too large (>4MB), reduce to 25 items
+- ✅ On QuotaExceededError: clear old data and store minimal state
+- ✅ Added `clearStorage()` method for manual cleanup
 
+**Location:** `services/unifiedContext.ts:46-75`
+
+---
+
+### 2. Lightbox Close Button Not Working
+**Symptom:**
+- User couldn't close uploaded image preview
+- Blocked access to PDF/transcript features
+
+**Root Cause:**
+- Event propagation issues
+- No ESC key handler
+- Close button click not properly handled
+
+**Fix Applied:**
+- ✅ Added ESC key handler to close lightbox
+- ✅ Improved backdrop click handling (only closes on backdrop, not content)
+- ✅ Better event propagation (stopPropagation on close button)
+- ✅ Improved accessibility (aria-label, focus ring)
+
+**Location:** `components/chat/Attachments.tsx:47-95`
+
+---
+
+## 🔄 How to Test
+
+### Test localStorage Fix:
+1. Open browser console
+2. Have a long conversation (50+ messages)
+3. Check console - should see no QuotaExceededError
+4. Verify transcript still works (last 50 items preserved)
+
+### Test Lightbox Fix:
+1. Upload an image
+2. Click to preview
+3. Try closing:
+   - Click X button (top right) ✅
+   - Press ESC key ✅
+   - Click backdrop (dark area) ✅
+4. Should close and allow access to PDF/transcript features
+
+---
+
+## 📝 Code Changes
+
+### unifiedContext.ts
+```typescript
+private persist() {
+    // Compress transcript: only keep last 50 items
+    const stateToPersist = {
+        ...this.state,
+        transcript: this.state.transcript.slice(-50)
+    };
+    
+    // Handle QuotaExceededError gracefully
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToPersist));
+    } catch (e: any) {
+        if (e?.name === 'QuotaExceededError') {
+            // Clear and store minimal state
+            localStorage.removeItem(STORAGE_KEY);
+            const minimalState = {
+                sessionId: this.state.sessionId,
+                location: this.state.location,
+                language: this.state.language,
+                transcript: []
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(minimalState));
+        }
+    }
+}
+```
+
+### Attachments.tsx (Lightbox)
+```typescript
+// ESC key handler
+React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            onClose();
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+}, [onClose]);
+
+// Improved backdrop click
+const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+        onClose();
+    }
+};
+```
+
+---
+
+## ✅ Status
+
+- ✅ Build successful
+- ✅ Type-check passed
+- ✅ Fixes applied and tested
+- 🔄 **Refresh browser to see changes**
+
+---
+
+## 🚨 If Issues Persist
+
+### Manual localStorage Cleanup:
+```javascript
+// In browser console:
+localStorage.removeItem('fbc_unified_context_v1');
+location.reload();
+```
+
+### Verify Lightbox:
+- Check browser console for errors
+- Try different close methods (ESC, X button, backdrop)
+- Check z-index if button not visible
+
+---
+
+## 📊 Impact
+
+**Before:**
+- ❌ QuotaExceededError blocking context persistence
+- ❌ Lightbox blocking UI access
+- ❌ Can't access PDF/transcript features
+
+**After:**
+- ✅ Context persists (last 50 messages)
+- ✅ Lightbox closes via ESC/X/backdrop
+- ✅ Full UI access restored

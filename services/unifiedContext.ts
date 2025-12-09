@@ -46,9 +46,43 @@ class UnifiedContext {
     private persist() {
         if (typeof window === 'undefined') return;
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
-        } catch (e) {
+            // Compress transcript: only keep last 50 items to prevent quota exceeded
+            const stateToPersist = {
+                ...this.state,
+                transcript: this.state.transcript.slice(-50) // Keep only last 50 messages
+            };
+            
+            const serialized = JSON.stringify(stateToPersist);
+            
+            // Check size before storing (localStorage limit is ~5-10MB)
+            const sizeInMB = new Blob([serialized]).size / (1024 * 1024);
+            if (sizeInMB > 4) {
+                // If still too large, truncate transcript further
+                stateToPersist.transcript = stateToPersist.transcript.slice(-25);
+                console.warn('[UnifiedContext] State too large, truncating transcript to last 25 items');
+            }
+            
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToPersist));
+        } catch (e: any) {
+            if (e?.name === 'QuotaExceededError') {
+                // Clear old data and try again with minimal state
+                console.warn('[UnifiedContext] Quota exceeded, clearing old data and storing minimal state');
+                try {
+                    localStorage.removeItem(STORAGE_KEY);
+                    // Store only essential data
+                    const minimalState = {
+                        sessionId: this.state.sessionId,
+                        location: this.state.location,
+                        language: this.state.language,
+                        transcript: [] // Clear transcript to free space
+                    };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(minimalState));
+                } catch (retryError) {
+                    console.error('[UnifiedContext] Failed to persist even minimal state:', retryError);
+                }
+            } else {
             console.warn('[UnifiedContext] Failed to persist state:', e);
+            }
         }
     }
 
@@ -81,6 +115,21 @@ class UnifiedContext {
             localStorage.removeItem(STORAGE_KEY);
         }
         this.notify();
+    }
+
+    /**
+     * Clear localStorage to free up quota
+     * Useful when quota is exceeded
+     */
+    public clearStorage() {
+        if (typeof window !== 'undefined') {
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+                console.log('[UnifiedContext] Storage cleared');
+            } catch (e) {
+                console.error('[UnifiedContext] Failed to clear storage:', e);
+            }
+        }
     }
 
     getSnapshot(): UnifiedState {

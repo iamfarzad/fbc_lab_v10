@@ -5,14 +5,15 @@ import { ResearchResult } from 'types';
 import { WebPreviewCard } from './chat/Attachments';
 import { AdminChatPanel } from './admin/chat/AdminChatPanel';
 import { cn } from 'src/lib/utils';
+import { useTheme } from '../context/ThemeContext';
 
 interface AdminDashboardProps {
   onClose: () => void;
   researchService: LeadResearchService | null;
-  isDarkMode?: boolean;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchService, isDarkMode }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchService }) => {
+  const { isDarkMode } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pin, setPin] = useState('');
   const [activeTab, setActiveTab] = useState<'leads' | 'intelligence' | 'settings' | 'metrics' | 'chat'>('leads');
@@ -462,7 +463,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchServic
 
                {activeTab === 'chat' && (
                    <div className="h-full w-full animate-fade-in-up">
-                       <AdminChatPanel isDarkMode={isDarkMode ?? false} className="h-full" />
+                       <AdminChatPanel className="h-full" />
                    </div>
                )}
 

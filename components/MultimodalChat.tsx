@@ -12,6 +12,7 @@ import { ResponseTimeBadge } from './chat/MessageMetadata';
 import WebcamPreview from './chat/WebcamPreview';
 import ScreenSharePreview from './chat/ScreenSharePreview';
 import IconButton from './chat/shared/IconButton';
+import { ResearchingIndicator } from './chat/ResearchingIndicator';
 
 interface MultimodalChatProps {
   items: TranscriptItem[];
@@ -26,6 +27,7 @@ interface MultimodalChatProps {
   isScreenShareInitializing?: boolean;
   onScreenShareToggle?: () => void;
   isLocationShared?: boolean | undefined;
+  locationData?: { latitude: number; longitude: number; city?: string } | null;
   localAiAvailable?: boolean | undefined;
   onLocalAction?: (text: string, action: 'rewrite' | 'proofread') => Promise<string>;
   onStopGeneration?: () => void;
@@ -36,6 +38,8 @@ interface MultimodalChatProps {
   onGeneratePDF?: () => void;
   onEmailPDF?: () => void;
   onGenerateDiscoveryReport?: () => void;
+  onDownloadDiscoveryReport?: () => void;
+  onEmailDiscoveryReport?: () => void;
   userEmail?: string | undefined;
   userName?: string | undefined;
   activeTools?: ToolCall[];
@@ -44,6 +48,8 @@ interface MultimodalChatProps {
   // Screen Share Props
   screenShareStream?: MediaStream | null;
   screenShareError?: string | null;
+  // Research
+  isResearching?: boolean;
 }
 
 const MultimodalChat: React.FC<MultimodalChatProps> = ({ 
@@ -59,6 +65,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     isScreenShareInitializing,
     onScreenShareToggle,
     isLocationShared,
+    locationData,
     onStopGeneration,
     visible = true,
     onToggleVisibility,
@@ -67,12 +74,15 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onGeneratePDF,
     onEmailPDF,
     onGenerateDiscoveryReport,
+    onDownloadDiscoveryReport,
+    onEmailDiscoveryReport,
     userEmail,
     activeTools = [],
     latency: _latency,
     agentMode = 'idle',
     screenShareStream,
-    screenShareError
+    screenShareError,
+    isResearching = false
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -374,6 +384,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
                  <StatusBadges 
                     isLocationShared={isLocationShared}
+                    locationData={locationData}
                     className=""
                  />
               </div>
@@ -471,35 +482,54 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
           <div className={`
                 relative flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8 custom-scrollbar mask-image-gradient
-                ${items.length === 0 ? 'flex flex-col justify-center' : ''} 
+                ${items.length === 0 && !isResearching ? 'flex flex-col justify-center' : ''} 
             `}>
-            {items.length === 0 ? (
-              <div className="w-full animate-fade-in-up">
-                <EmptyState 
-                    onSuggest={(text) => onSendMessage(text)}
-                />
+            {isResearching && (
+              <div className="w-full mb-4">
+                <ResearchingIndicator isResearching={isResearching} />
               </div>
-            ) : (
-              items
-                .filter(item => item.text || item.attachment || item.reasoning || item.error || (!item.isFinal && item.role === 'model'))
-                .map((item, index) => (
-                <div key={item.id + index}>
-                  <ChatMessage 
-                    item={item} 
-                    onPreview={setPreviewItem}
-                    isDarkMode={isDarkMode}
-                    agentMode={agentMode}
-                    activeTools={activeTools}
-                  />
-                  {index === items.length - 1 && item.role === 'model' && item.isFinal && item.processingTime && (
-                    <ResponseTimeBadge 
-                      ms={item.processingTime}
-                      className="mt-1 ml-5"
-                    />
-                  )}
-                </div>
-              ))
             )}
+            {(() => {
+              // Filter out empty messages (no text, attachment, reasoning, or error)
+              // Only keep streaming messages if they have some content or are actively streaming
+              const validItems = items.filter(item => {
+                const hasContent = item.text?.trim() || item.attachment || item.reasoning || item.error;
+                const isStreaming = !item.isFinal && item.role === 'model';
+                // Keep if has content OR is actively streaming (will get content soon)
+                return hasContent || (isStreaming && item.status === 'streaming');
+              });
+              
+              return validItems.length === 0 ? (
+                <div className="w-full animate-fade-in-up">
+                  <EmptyState 
+                      onSuggest={(text) => onSendMessage(text)}
+                  />
+                </div>
+              ) : (
+                <>
+                  {validItems.map((item, index) => (
+                  <div key={item.id + index}>
+                    <ChatMessage 
+                      item={item} 
+                      onPreview={setPreviewItem}
+                      isDarkMode={isDarkMode}
+                      agentMode={agentMode}
+                      activeTools={activeTools}
+                      onDownloadReport={onDownloadDiscoveryReport}
+                      onEmailReport={onEmailDiscoveryReport}
+                      onBookCall={() => window.open('https://cal.com/farzadbayat/30min', '_blank')}
+                    />
+                    {index === items.length - 1 && item.role === 'model' && item.isFinal && item.processingTime && (
+                      <ResponseTimeBadge 
+                        ms={item.processingTime}
+                        className="mt-1 ml-5"
+                      />
+                    )}
+                  </div>
+                  ))}
+                </>
+              );
+            })()}
             <div ref={endRef} />
           </div>
           

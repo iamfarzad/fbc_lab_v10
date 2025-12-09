@@ -66,8 +66,15 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                     });
                     faceMesh.onResults((results: any) => {
                          if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+                             let ratio = 1.0;
+                             // Calculate aspect ratio (Height / Width) to correct normalized coordinates
+                             if (results.image && results.image.width > 0 && results.image.height > 0) {
+                                 ratio = results.image.height / results.image.width;
+                             } else if (videoRef.current && videoRef.current.videoWidth > 0) {
+                                 ratio = videoRef.current.videoHeight / videoRef.current.videoWidth;
+                             }
                              // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-                             FaceLandmarkStore.update(results.multiFaceLandmarks[0] as Landmark3D[]);
+                             FaceLandmarkStore.update(results.multiFaceLandmarks[0] as Landmark3D[], ratio);
                          }
                     });
                     faceMeshRef.current = faceMesh;
@@ -93,11 +100,7 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                 
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
-                    await videoRef.current.play().catch(e => {
-                        if (e.name === 'AbortError' || e.message?.includes('interrupted')) {
-                            return;
-                        }
-                    });
+                    // Removed redundant play() call - handled by onLoadedData to avoid race conditions
                 }
     
                 if (onCameraStart) onCameraStart();

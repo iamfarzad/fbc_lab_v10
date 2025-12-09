@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { logger } from 'src/lib/logger-client'
+import { useTheme } from '../context/ThemeContext';
 
 
 interface TermsOverlayProps {
@@ -10,10 +11,10 @@ interface TermsOverlayProps {
     location: boolean;
   }) => void;
   onCancel: () => void;
-  isDarkMode?: boolean;
 }
 
-const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel, isDarkMode }) => {
+const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => {
+  const { isDarkMode } = useTheme();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [companyUrl, setCompanyUrl] = useState('');

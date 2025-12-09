@@ -1,5 +1,6 @@
 import { safeGenerateText } from '../../lib/gemini-safe.js';
 import { formatMessagesForAI } from '../../lib/format-messages.js';
+import { buildModelSettings } from '../../lib/multimodal-helpers.js';
 import { toolExecutor } from '../tools/tool-executor.js';
 import { getChatToolDefinitions } from '../tools/unified-tool-registry.js';
 import { z } from 'zod';
@@ -106,10 +107,12 @@ Respond to the user's last message and close.`;
     ...agentTools
   };
 
+  const modelSettings = buildModelSettings(context, messages, { thinkingLevel: 'high' })
   const result = await safeGenerateText({
     system: systemPrompt,
     messages: formatMessagesForAI(messages),
-    temperature: 0.8,
+    temperature: 1.0,
+    modelSettings,
     tools
   });
 

@@ -41,6 +41,7 @@ export interface ResearchResult {
     title?: string
     description?: string
   }>
+  groundingMetadata?: any
 }
 
 // Zod schema for ResearchResult (used with generateObject)
@@ -81,7 +82,7 @@ export interface LocationData {
 
 export class LeadResearchService {
   // Cached research function
-  private cachedResearch: (email: string, name?: string, companyUrl?: string, sessionId?: string, location?: LocationData) => Promise<ResearchResult>
+  private cachedResearch: (email: string, name?: string, companyUrl?: string, sessionId?: string, location?: LocationData, options?: { contents?: any[] }) => Promise<ResearchResult>
 
   constructor() {
     // Wrap the internal method with caching (24 hour TTL)
@@ -91,23 +92,44 @@ export class LeadResearchService {
       {
         ttl: CACHE_TTL.VERY_LONG, // 24 hours
         keyPrefix: 'lead-research:',
-        keyGenerator: (email: string, name: string | undefined, companyUrl: string | undefined, _sessionId: string | undefined, location: LocationData | undefined) => 
-          `${email}|${name || ''}|${companyUrl || ''}|${location?.city || ''}`
+        keyGenerator: (
+          email: string,
+          name: string | undefined,
+          companyUrl: string | undefined,
+          _sessionId: string | undefined,
+          location: LocationData | undefined,
+          options?: { contents?: any[] }
+        ) =>
+          `${email}|${name || ''}|${companyUrl || ''}|${location?.city || ''}|${options?.contents ? 'has-contents' : 'no-contents'}|temp-1.0`
       }
     )
   }
 
-  async researchLead(email: string, name?: string, companyUrl?: string, sessionId?: string, location?: LocationData): Promise<ResearchResult> {
+  async researchLead(
+    email: string,
+    name?: string,
+    companyUrl?: string,
+    sessionId?: string,
+    location?: LocationData,
+    options?: { contents?: any[] }
+  ): Promise<ResearchResult> {
     // Client-side Caching (localStorage)
     // This preserves the behavior from the old service for browser environments
     const cacheKey = `lead_research_${email}_${name || ''}_${location?.city || ''}`
     
+    let clientCacheHit = false
     if (typeof window !== 'undefined') {
         const cached = localStorage.getItem(cacheKey)
         if (cached) {
-            logger.debug('Using cached research', { email })
+            logger.debug('[LeadResearch] Client cache hit', { email })
             try {
-                return JSON.parse(cached) as ResearchResult
+                const parsed = JSON.parse(cached) as ResearchResult
+                logger.debug('[LeadResearch] researchLead completed (client cache)', { 
+                  email, 
+                  cacheHit: true,
+                  citations: parsed.citations?.length || 0
+                })
+                return parsed
             } catch (e) {
                 console.warn('Failed to parse cached research, re-fetching', e)
                 localStorage.removeItem(cacheKey)
@@ -116,7 +138,20 @@ export class LeadResearchService {
     }
 
     // Execute research (using server-side cache wrapper)
-    const result = await this.cachedResearch(email, name, companyUrl, sessionId, location)
+    let result: ResearchResult
+    let serverCacheHit = false
+    const startTime = Date.now()
+    try {
+      result = await this.cachedResearch(email, name, companyUrl, sessionId, location, options)
+      // If result came back very quickly (< 100ms), likely from server cache
+      // This is a heuristic since we can't directly detect cache hits from the wrapper
+      const duration = Date.now() - startTime
+      serverCacheHit = duration < 100
+    } catch {
+      // If cache layer fails, fall back to direct call
+      logger.debug('[LeadResearch] Cache wrapper failed, using direct call', { email })
+      result = await this.researchLeadInternal(email, name, companyUrl, sessionId, location, options)
+    }
 
     // Update client-side cache
     if (typeof window !== 'undefined' && result) {
@@ -127,10 +162,23 @@ export class LeadResearchService {
       }
     }
 
+    logger.debug('[LeadResearch] researchLead completed', { 
+      email, 
+      clientCacheHit,
+      serverCacheHit,
+      citations: result.citations?.length || 0
+    })
     return result
   }
 
-  private async researchLeadInternal(email: string, name?: string, companyUrl?: string, sessionId?: string, location?: LocationData): Promise<ResearchResult> {
+  private async researchLeadInternal(
+    email: string,
+    name?: string,
+    companyUrl?: string,
+    sessionId?: string,
+    location?: LocationData,
+    options?: { contents?: any[] }
+  ): Promise<ResearchResult> {
     void sessionId
 
     try {
@@ -177,83 +225,140 @@ export class LeadResearchService {
         : ''
 
       // Use generateObject with Google Grounding Search
-      const prompt = `Research the following individual and company using Google Search.
+      // Build context block first (end-anchored structure)
+      const contextBlock = `Research the following individual and company using Google Search.
 
-    Target:
+Target:
 Email: ${email}
 Name: ${name || 'Unknown'}
 Domain: ${domain}
-    Company Context: ${companyUrl || 'Use email domain'}
-${locationContext ? `    ${locationContext}` : ''}
-    
-    Task:
-    1. Identify the company details (Industry, Size, Summary, Country).
-    2. Identify the person's role and seniority.
-    3. STRATEGIC ANALYSIS:
-       - Find recent news/events about the company.
-       - Identify key competitors.
-       - Infer likely pain points based on the role and industry trends.
-${location ? `    4. LOCATION-BASED INSIGHTS:
-       - Search for any local business presence or offices near the user's location.
-       - Find relevant local market information.
-       - Identify any location-specific opportunities or challenges.` : ''}
-    
-Return structured data matching the schema.`
+Company Context: ${companyUrl || 'Use email domain'}
+${locationContext ? `${locationContext}` : ''}
+
+Task:
+1) Identify the company details (Industry, Size, Summary, Country).
+2) Identify the person's role and seniority.
+3) Strategic analysis:
+   - Find recent news/events about the company.
+   - Identify key competitors.
+   - Infer likely pain points based on the role and industry trends.
+${location ? `4) Location-based insights:
+   - Search for any local business presence or offices near the user's location.
+   - Find relevant local market information.
+   - Identify any location-specific opportunities or challenges.` : ''}`
+
+      const instructionBlock = `INSTRUCTIONS:
+- Use Google Search aggressively (grounded facts only).
+- Be concise unless detail is essential.
+- If unsure, state uncertainty instead of guessing.
+- Return structured data matching the schema exactly.`
+
+      const prompt = `${contextBlock}
+
+${instructionBlock}`
 
       try {
-        const { object: parsed } = await generateObject({
-          model: google(GEMINI_MODELS.DEFAULT_CHAT),
+        // Use Gemini 3 Pro for complex research with thinking_level high
+        // Check if multimodal content is provided in options
+        const hasMultimodal = options?.contents && options.contents.length > 0
+        const modelSettings: any = {
+          thinking_level: 'high',
+          ...(hasMultimodal && { media_resolution: 'media_resolution_medium' })
+        }
+        const generateObjectParams: Parameters<typeof generateObject>[0] = {
+          model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
           messages: [
             {
               role: 'system',
-              content: 'You are an elite B2B researcher. Use Google Search aggressively.'
+              content: 'You are an elite B2B researcher. Use Google Search aggressively and cite sources when available.'
             },
-            {
-              role: 'user',
-              content: prompt
-            }
+            ...(options?.contents && options.contents.length > 0
+              ? [
+                  // Preserve system prompt above and append user content plus provided multimodal contents
+                  {
+                    role: 'user',
+                    content: prompt
+                  },
+                  ...options.contents
+                ]
+              : [
+                  {
+                    role: 'user',
+                    content: prompt
+                  }
+                ])
           ],
           schema: ResearchResultSchema,
-          temperature: 0.3
-          // Note: Google Grounding Search may work via model/prompt configuration
-        })
+          temperature: 1.0 // Explicit to match cache key
+        }
+        
+        // Add tools if supported (may not be in type definitions for generateObject)
+        const paramsWithTools = {
+          ...generateObjectParams,
+          tools: { googleSearch: {} } as any
+        } as Parameters<typeof generateObject>[0]
+        
+        const { object: parsed, response } = await generateObject(paramsWithTools)
+        
+        // Type assertion: parsed should match ResearchResultSchema
+        const typedParsed = parsed as z.infer<typeof ResearchResultSchema>
+        if (!typedParsed) {
+          throw new Error('Failed to parse research result from AI response')
+        }
+
+        // Extract grounding metadata with defensive checks for different response structures
+        const groundingMetadata = 
+          (response as any)?.groundingMetadata || 
+          (response as any)?.candidates?.[0]?.groundingMetadata ||
+          null
+        
+        const citations =
+          groundingMetadata?.groundingChunks
+            ?.map((chunk: any) => ({
+              uri: chunk?.retrievedUri || chunk?.web?.uri || chunk?.uri,
+              title: chunk?.title || chunk?.web?.title,
+              description: chunk?.description || chunk?.snippet || chunk?.web?.snippet
+            }))
+            ?.filter((c: any) => c?.uri) || []
 
         // Build ResearchResult from parsed object
         const researchResult: ResearchResult = {
           company: {
-            name: parsed.company.name,
-            domain: parsed.company.domain,
-            ...(parsed.company.industry && { industry: parsed.company.industry }),
-            ...(parsed.company.size && { size: parsed.company.size }),
-            ...(parsed.company.summary && { summary: parsed.company.summary }),
-            ...(parsed.company.website && { website: parsed.company.website }),
-            ...(parsed.company.linkedin && { linkedin: parsed.company.linkedin }),
-            ...(parsed.company.country && { country: parsed.company.country })
+            name: typedParsed.company.name,
+            domain: typedParsed.company.domain,
+            ...(typedParsed.company.industry && { industry: typedParsed.company.industry }),
+            ...(typedParsed.company.size && { size: typedParsed.company.size }),
+            ...(typedParsed.company.summary && { summary: typedParsed.company.summary }),
+            ...(typedParsed.company.website && { website: typedParsed.company.website }),
+            ...(typedParsed.company.linkedin && { linkedin: typedParsed.company.linkedin }),
+            ...(typedParsed.company.country && { country: typedParsed.company.country })
           },
           person: {
-            fullName: parsed.person.fullName,
-            ...(parsed.person.role && { role: parsed.person.role }),
-            ...(parsed.person.seniority && { seniority: parsed.person.seniority }),
-            ...(parsed.person.profileUrl && { profileUrl: parsed.person.profileUrl }),
-            ...(parsed.person.company && { company: parsed.person.company })
+            fullName: typedParsed.person.fullName,
+            ...(typedParsed.person.role && { role: typedParsed.person.role }),
+            ...(typedParsed.person.seniority && { seniority: typedParsed.person.seniority }),
+            ...(typedParsed.person.profileUrl && { profileUrl: typedParsed.person.profileUrl }),
+            ...(typedParsed.person.company && { company: typedParsed.person.company })
           },
-          ...(parsed.strategic && { 
+          ...(typedParsed.strategic && { 
              strategic: {
-               latest_news: parsed.strategic.latest_news || [],
-               competitors: parsed.strategic.competitors || [],
-               pain_points: parsed.strategic.pain_points || [],
-               market_trends: parsed.strategic.market_trends || []
+               latest_news: typedParsed.strategic.latest_news || [],
+               competitors: typedParsed.strategic.competitors || [],
+               pain_points: typedParsed.strategic.pain_points || [],
+               market_trends: typedParsed.strategic.market_trends || []
              }
           }),
-          role: parsed.role,
-          confidence: parsed.confidence,
-          citations: [] // Citations would come from grounding metadata if available
+          role: typedParsed.role,
+          confidence: typedParsed.confidence,
+          citations,
+          ...(groundingMetadata ? { groundingMetadata } : {})
         }
         
         logger.debug('✅ [Lead Research] Completed', {
             company: researchResult.company.name,
             person: researchResult.person.fullName,
-            confidence: researchResult.confidence
+            confidence: researchResult.confidence,
+            citations: researchResult.citations?.length || 0
         })
         
         return researchResult

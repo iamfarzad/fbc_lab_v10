@@ -18,6 +18,7 @@ export interface StatusBadgesProps {
   agentMode?: 'idle' | 'listening' | 'thinking' | 'speaking'
   hasActiveTools?: boolean
   className?: string | undefined
+  locationData?: { latitude: number; longitude: number; city?: string } | null | undefined
 }
 
 const StatusBadges: React.FC<StatusBadgesProps> = ({
@@ -25,15 +26,27 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
   isProcessing: _isProcessing,
   agentMode: _agentMode = 'idle',
   hasActiveTools: _hasActiveTools = false,
-  className = ''
+  className = '',
+  locationData
 }) => {
+  const [showCoordinates, setShowCoordinates] = React.useState(false)
+
   // Only show location badge, processing indicator moved to chat messages
   if (!isLocationShared) return null
+
+  const coordinates = locationData && typeof locationData.latitude === 'number' && typeof locationData.longitude === 'number'
+    ? `${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}`
+    : null
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       {/* Location Shared */}
       {isLocationShared && (
+        <div 
+          className="relative group"
+          onMouseEnter={() => setShowCoordinates(true)}
+          onMouseLeave={() => setShowCoordinates(false)}
+        >
         <Badge
           variant="status"
           icon={<MapPin className="w-3 h-3" />}
@@ -41,6 +54,24 @@ const StatusBadges: React.FC<StatusBadgesProps> = ({
         >
           <span className="hidden sm:inline">Location Active</span>
         </Badge>
+          
+          {/* Coordinates Tooltip on Hover */}
+          {showCoordinates && coordinates && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-3 py-2 bg-black dark:bg-zinc-900 text-white dark:text-zinc-100 text-[10px] font-mono rounded-lg border border-zinc-700 dark:border-zinc-700 shadow-lg z-50 whitespace-nowrap pointer-events-none">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-3 h-3 text-orange-400" />
+                <span>{coordinates}</span>
+              </div>
+              {locationData?.city && (
+                <div className="text-[9px] text-zinc-400 mt-1 text-center">
+                  {locationData.city}
+                </div>
+              )}
+              {/* Tooltip Arrow */}
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-black dark:bg-zinc-900 border-l border-t border-zinc-700 dark:border-zinc-700 rotate-45"></div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

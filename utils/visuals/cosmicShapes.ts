@@ -4,308 +4,106 @@ import { cx, cy, PHYSICS } from './mathHelpers';
 
 export const CosmicShapes = {
   planet(ctx: ParticleContext): ShapeResult {
-    const { index, total, time } = ctx;
+    const { index, total, time, audio, visualState } = ctx;
     const centerX = cx(ctx);
     const centerY = cy(ctx);
 
-    // Animation Timeline (based on time since shape activation)
-    // Use a cycle that resets to show the zoom effect periodically
-    const cycleDuration = 12000; // 12 second cycle
-    const cycleTime = time % cycleDuration;
+    // SATURN-LIKE PLANET VISUALIZATION using pure particle physics
     
-    // Phase 1: Milky Way (0-3s)
-    // Phase 2: Arrow appears, zoom starts (1-4s)
-    // Phase 3: Zooming in (4-8s)
-    // Phase 4: Solar system (8-12s)
+    // Config
+    const planetRadius = 85; 
+    const ringInnerRadius = 120;
+    const ringOuterRadius = 240;
+    const tiltAngle = 0.4; // Tilt of the rings (radians)
+    const rotationSpeed = time * 0.0003;
     
-    const milkyWayPhase = cycleTime < 3000;
-    const arrowPhase = cycleTime > 1000 && cycleTime < 4000;
-    const zoomPhase = cycleTime > 4000 && cycleTime < 8000;
-    const solarSystemPhase = cycleTime >= 8000;
+    const isPlanetBody = index < total * 0.35; // 35% particles for body
     
-    // Zoom interpolation (0 = Milky Way view, 1 = Solar System view)
-    let zoomProgress = 0;
-    if (zoomPhase) {
-        zoomProgress = (cycleTime - 4000) / 4000; // 0 to 1 during zoom
-        // Smooth easing
-        zoomProgress = zoomProgress * zoomProgress * (3 - 2 * zoomProgress);
-    } else if (solarSystemPhase) {
-        zoomProgress = 1;
-    }
+    // Audio Reactivity
+    const activeAudio = visualState.mode === 'speaking' ? audio : audio * 0.5;
+    const pulse = 1 + (activeAudio * 0.15); // Subtle pulse
     
-    // Scale factor: starts huge (Milky Way), ends at normal (Solar System)
-    const milkyWayScale = 50; // Much larger scale for galaxy view
-    const solarSystemScale = 1;
-    const currentScale = milkyWayScale * (1 - zoomProgress) + solarSystemScale * zoomProgress;
-    
-    // Offset for zoom target (where we're zooming to)
-    const zoomTargetX = centerX + 200; // Solar system location in galaxy
-    const zoomTargetY = centerY - 100;
-    const offsetX = (zoomTargetX - centerX) * (1 - zoomProgress);
-    const offsetY = (zoomTargetY - centerY) * (1 - zoomProgress);
-
-    // Dedicate particles for arrow (15% of total)
-    const arrowParticleStart = Math.floor(total * 0.85);
-    const arrowParticleCount = total - arrowParticleStart;
-    const isArrowParticle = index >= arrowParticleStart;
-    
-    // Handle arrow particles separately
-    if (isArrowParticle) {
-        if (arrowPhase) {
-            const arrowIndex = index - arrowParticleStart;
-            const arrowBaseX = zoomTargetX;
-            const arrowBaseY = zoomTargetY;
-            const arrowLength = 150 * currentScale;
-            const arrowAngle = Math.PI * 0.35; // Angle pointing to solar system
-            
-            // Arrow visibility pulse
-            const pulse = Math.sin(time * 0.005) * 0.3 + 0.7;
-            
-            // Arrow shaft (70% of arrow particles)
-            if (arrowIndex < arrowParticleCount * 0.7) {
-                const shaftProgress = arrowIndex / (arrowParticleCount * 0.7);
-                const shaftX = arrowBaseX + Math.cos(arrowAngle) * arrowLength * shaftProgress;
-                const shaftY = arrowBaseY + Math.sin(arrowAngle) * arrowLength * shaftProgress;
-                
-                return {
-                    tx: shaftX,
-                    ty: shaftY,
-                    spring: 0.2,
-                    friction: 0.85,
-                    noise: 0,
-                    targetAlpha: 1.0 * pulse
-                };
-            }
-            
-            // Arrowhead (30% of arrow particles)
-            const headIndex = arrowIndex - Math.floor(arrowParticleCount * 0.7);
-            const headTotal = arrowParticleCount - Math.floor(arrowParticleCount * 0.7);
-            const headProgress = headIndex / headTotal;
-            
-            const headCenterX = arrowBaseX + Math.cos(arrowAngle) * arrowLength * 0.85;
-            const headCenterY = arrowBaseY + Math.sin(arrowAngle) * arrowLength * 0.85;
-            const headSize = 40 * currentScale;
-            
-            // Arrowhead shape (triangle)
-            const headAngle1 = arrowAngle + Math.PI;
-            const headAngle2 = arrowAngle + Math.PI + Math.PI/6;
-            const headAngle3 = arrowAngle + Math.PI - Math.PI/6;
-            
-            let headAngle;
-            if (headProgress < 0.33) {
-                headAngle = headAngle1;
-            } else if (headProgress < 0.66) {
-                headAngle = headAngle2;
-            } else {
-                headAngle = headAngle3;
-            }
-            
-            const headOffset = headSize * (0.3 + headProgress * 0.7);
-            const headX = headCenterX + Math.cos(headAngle) * headOffset;
-            const headY = headCenterY + Math.sin(headAngle) * headOffset;
-            
-            return {
-                tx: headX,
-                ty: headY,
-                spring: 0.2,
-                friction: 0.85,
-                noise: 0,
-                targetAlpha: 1.0 * pulse
-            };
-        } else {
-            // Hide arrow particles when not in arrow phase
-            return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
-        }
-    }
-    
-    // Regular particles for Milky Way / Solar System
-    const regularIndex = index;
-    const regularTotal = arrowParticleStart;
-
-    // MILKY WAY VIEW
-    if (milkyWayPhase || (!solarSystemPhase && zoomProgress < 0.3)) {
-        // Galaxy spiral arms
-        const armIndex = regularIndex % 4; // 4 spiral arms
-        const armAngle = (armIndex / 4) * Math.PI * 2;
+    if (isPlanetBody) {
+        // --- 1. PLANET SPHERE ---
+        // distributing particles on a sphere surface + volume
+        const sphereIdx = index;
+        // Golden spiral on sphere for even distribution
+        const goldenRatio = (1 + Math.sqrt(5)) / 2;
+        const theta = 2 * Math.PI * sphereIdx / goldenRatio;
+        const phi = Math.acos(1 - 2 * (sphereIdx + 0.5) / (total * 0.35));
         
-        // Spiral arm particles
-        const t = (regularIndex / regularTotal);
-        const spiralTurns = 3;
-        const spiralAngle = t * spiralTurns * Math.PI * 2 + armAngle + (time * 0.0001);
-        const spiralR = t * 800 * currentScale;
+        let r = planetRadius;
         
-        // Galaxy center
-        if (t < 0.1) {
-            const centerR = t * 200 * currentScale;
-            const centerAngle = Math.random() * Math.PI * 2;
-            return {
-                tx: centerX + Math.cos(centerAngle) * centerR + offsetX,
-                ty: centerY + Math.sin(centerAngle) * centerR + offsetY,
-                spring: 0.03,
-                friction: 0.95,
-                noise: 0.02,
-                targetAlpha: 0.6
-            };
-        }
+        // Add texture/bands to planet body
+        // e.g. Jupiter-like bands based on Y position (phi)
+        const bandNoise = Math.sin(phi * 8 + rotationSpeed * 2) * 5;
+        r += bandNoise;
         
-        // Spiral arms
-        const tx = centerX + Math.cos(spiralAngle) * spiralR + offsetX;
-        const ty = centerY + Math.sin(spiralAngle) * spiralR + offsetY;
+        // Convert spherical to cartesian
+        let x = r * Math.sin(phi) * Math.cos(theta);
+        let y = r * Math.sin(phi) * Math.sin(theta);
+        let z = r * Math.cos(phi);
+        
+        // Rotate the planet body itself slightly
+        const bodyRot = time * 0.0005;
+        const rx = x * Math.cos(bodyRot) - z * Math.sin(bodyRot);
+        const rz = x * Math.sin(bodyRot) + z * Math.cos(bodyRot);
+        x = rx; z = rz;
+        
+        // Apply tilt to match rings
+        const tiltedY = y * Math.cos(tiltAngle) - z * Math.sin(tiltAngle);
         
         return {
-            tx,
-            ty,
-            spring: 0.02,
-            friction: 0.96,
+            tx: centerX + x * pulse,
+            ty: centerY + tiltedY * pulse,
+            spring: PHYSICS.StandardSpring,
+            friction: PHYSICS.StandardFriction, 
+            noise: 0.02,
+            targetAlpha: 0.9 + (activeAudio * 0.1),
+            scale: 1.1 // Slightly larger particles for solid body
+        };
+    } else {
+        // --- 2. PLANET RINGS ---
+        // Flat disk with gaps
+        const ringIdx = index - (total * 0.35);
+        const ringTotal = total * 0.65;
+        const t = ringIdx / ringTotal; // 0 to 1
+        
+        // Radius distribution (from inner to outer)
+        // Use power function to put more particles near inner ring for density
+        const rNorm = Math.pow(t, 0.8); 
+        let r = ringInnerRadius + (rNorm * (ringOuterRadius - ringInnerRadius));
+        
+        // Create "Cassini Division" (gap in rings)
+        if (r > 190 && r < 205) {
+             r = r > 197.5 ? 208 : 188; // Push particles out of the gap
+        }
+        
+        const angle = (ringIdx * 137.5) + (time * 0.0002 * (300/r)); // Inner rings move faster
+        
+        // Ring position (flat disk on XZ plane)
+        let x = r * Math.cos(angle);
+        let y = 0; // Flat
+        let z = r * Math.sin(angle);
+        
+        // Apply Tilt
+        const tiltedY = y * Math.cos(tiltAngle) - z * Math.sin(tiltAngle);
+        // z computation not strictly needed for 2D render unless we do depth sorting, 
+        // but useful if we wanted logical Z
+        
+        // Audio wave flowing through rings
+        const wave = Math.sin(angle * 3 - time * 0.002) * (activeAudio * 15);
+        
+        return {
+            tx: centerX + x * pulse,
+            ty: centerY + tiltedY * pulse + wave, // Add wave to Y
+            spring: 0.08, // Looser for dust/rings
+            friction: 0.92,
             noise: 0.01,
-            targetAlpha: 0.4 * (1 - zoomProgress * 0.5)
+            targetAlpha: 0.6 + (Math.sin(angle * 2) * 0.2), // Variation in alpha
+            scale: 0.8 // Smaller dust particles
         };
     }
-    
-
-    // SOLAR SYSTEM Configuration
-    const planets = [
-        { r: 45, s: 2.5, size: 3 },    // Mercury
-        { r: 70, s: 1.5, size: 5 },    // Venus
-        { r: 100, s: 1.0, size: 6 },   // Earth
-        { r: 130, s: 0.8, size: 4 },   // Mars
-        { r: 190, s: 0.4, size: 14 },  // Jupiter
-        { r: 250, s: 0.3, size: 12 },  // Saturn
-        { r: 300, s: 0.2, size: 8 },   // Uranus
-        { r: 340, s: 0.15, size: 8 }   // Neptune
-    ];
-
-    // Interpolate solar system position during zoom
-    const solarX = centerX * zoomProgress + zoomTargetX * (1 - zoomProgress);
-    const solarY = centerY * zoomProgress + zoomTargetY * (1 - zoomProgress);
-    
-    // Apply scale
-    const scaledPlanets = planets.map(p => ({
-        ...p,
-        r: p.r * currentScale,
-        size: p.size * currentScale
-    }));
-
-    // 1. The Sun (Center ~5% of regular particles)
-    if (regularIndex < regularTotal * 0.05) {
-        const angle = Math.random() * Math.PI * 2;
-        const r = Math.sqrt(Math.random()) * 25 * currentScale; 
-        const pulse = Math.sin(time * 0.002) * 2 * currentScale;
-        return {
-            tx: solarX + Math.cos(angle) * (r + pulse),
-            ty: solarY + Math.sin(angle) * (r + pulse),
-            spring: 0.05,
-            friction: 0.9,
-            noise: 0.15,
-            targetAlpha: 0.9 * zoomProgress + 0.3 * (1 - zoomProgress)
-        };
-    }
-
-    // 2. Asteroid Belt & Planets
-    const remainingIndex = regularIndex - (regularTotal * 0.05);
-    const totalRem = regularTotal * 0.95;
-    
-    // Asteroid Belt
-    const asteroidBeltStart = totalRem * 0.45;
-    const asteroidBeltEnd = totalRem * 0.50;
-    
-    if (remainingIndex > asteroidBeltStart && remainingIndex < asteroidBeltEnd) {
-        const angle = (remainingIndex * 0.5) + (time * 0.0001);
-        const r = (150 + (Math.random() * 20)) * currentScale;
-        return {
-            tx: solarX + Math.cos(angle) * r,
-            ty: solarY + Math.sin(angle) * r,
-            spring: 0.01,
-            friction: 0.95,
-            noise: 0.05,
-            targetAlpha: (0.7 * zoomProgress) + (0.2 * (1 - zoomProgress))
-        };
-    }
-
-    // Planets
-    const particlesPerPlanet = totalRem / 9;
-    const planetIndex = Math.floor(remainingIndex / particlesPerPlanet);
-    
-    if (planetIndex < 8) {
-        const p = scaledPlanets[planetIndex];
-        const pIndex = remainingIndex % particlesPerPlanet;
-        
-        // Orbit Ring (70% of particles for this planet section)
-        if (pIndex < particlesPerPlanet * 0.7) {
-             const angle = (pIndex / (particlesPerPlanet * 0.7)) * Math.PI * 2;
-             const alpha = (0.2 * zoomProgress) + (0.05 * (1 - zoomProgress));
-             return {
-                 tx: solarX + Math.cos(angle) * (p?.r || 0),
-                 ty: solarY + Math.sin(angle) * (p?.r || 0),
-                 spring: PHYSICS.StandardSpring,
-                 friction: PHYSICS.StandardFriction,
-                 noise: 0,
-                 targetAlpha: alpha
-             };
-        } else {
-            // Planet Body - only visible during zoom/solar system phase
-            if (zoomProgress > 0.2) {
-                const planet = planets[planetIndex];
-                if (!planet || !p) return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
-                const orbitAngle = (time * 0.0005 * planet.s) + (planetIndex * 2.5);
-                const px = solarX + Math.cos(orbitAngle) * p.r;
-                const py = solarY + Math.sin(orbitAngle) * p.r;
-                
-                // Saturn Rings
-                if (planetIndex === 5 && Math.random() > 0.4) {
-                     const ringAngle = Math.random() * Math.PI * 2;
-                     const ringR = (p.size + 4 + (Math.random() * 6));
-                     return {
-                         tx: px + Math.cos(ringAngle) * ringR,
-                         ty: py + Math.sin(ringAngle) * ringR * 0.3,
-                         spring: 0.1,
-                         friction: PHYSICS.StandardFriction,
-                         noise: 0.02,
-                         targetAlpha: 0.8 * zoomProgress
-                     };
-                }
-                
-                const sphereAngle = Math.random() * Math.PI * 2;
-                const sphereR = Math.sqrt(Math.random()) * p.size;
-                
-                return {
-                    tx: px + Math.cos(sphereAngle) * sphereR,
-                    ty: py + Math.sin(sphereAngle) * sphereR,
-                    spring: 0.1,
-                    friction: PHYSICS.StandardFriction,
-                    noise: 0.02,
-                    targetAlpha: 0.9 * zoomProgress // Bodies fade in during zoom
-                };
-            } else {
-                // Hide planets during Milky Way phase
-                return { tx: solarX, ty: solarY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
-            }
-        }
-    }
-
-    // Distant Stars (background) - visible throughout
-    if (zoomProgress < 0.5) {
-        const angle = Math.random() * Math.PI * 2;
-        const r = (350 + Math.random() * 300) * currentScale;
-        return {
-            tx: centerX + Math.cos(angle) * r + offsetX,
-            ty: centerY + Math.sin(angle) * r + offsetY,
-            spring: 0.01,
-            friction: 0.95,
-            noise: 0,
-            targetAlpha: 0.5 * (1 - zoomProgress * 0.5)
-        };
-    }
-    
-    // Default fallback
-    return {
-        tx: solarX,
-        ty: solarY,
-        spring: 0.01,
-        friction: 0.95,
-        noise: 0,
-        targetAlpha: 0
-    };
   },
 
   atom(ctx: ParticleContext): ShapeResult {

@@ -1,4 +1,5 @@
 import { google, generateText } from '../../lib/ai-client.js'
+import { buildModelSettings } from '../../lib/multimodal-helpers.js'
 import { z } from 'zod'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult } from './types.js'
 import { GEMINI_MODELS } from '../../config/constants.js'
@@ -111,8 +112,7 @@ export async function proposalAgent(
     timestamp: Date.now()
   })
 
-  const systemPrompt = `You are F.B/c Proposal AI - create formal consulting proposals.
-
+  const contextSection = `CONTEXT:
 LEAD INFORMATION:
 ${JSON.stringify(intelligenceContext, null, 2)}
 
@@ -120,7 +120,10 @@ DISCOVERY SUMMARY:
 ${conversationFlow?.evidence ? JSON.stringify(conversationFlow.evidence).substring(0, 1000) : 'None'}
 
 FULL CONVERSATION:
-${messages.map(m => `${m.role}: ${m.content}`).join('\n')}
+${messages.map(m => `${m.role}: ${m.content}`).join('\n')}`
+
+  const instructionSection = `INSTRUCTIONS:
+You are F.B/c Proposal AI - create formal consulting proposals.
 
 YOUR MISSION:
 Create a detailed consulting proposal with accurate scope and pricing.
@@ -202,6 +205,10 @@ Adjust based on:
 
 OUTPUT: Valid JSON only, no explanation.`
 
+  const systemPrompt = `${contextSection}
+
+${instructionSection}`
+
   // Step 4: Calculating timeline
   steps.push({
     label: 'Calculating timeline',
@@ -210,14 +217,35 @@ OUTPUT: Valid JSON only, no explanation.`
     timestamp: Date.now()
   })
 
-  const result = await generateText({
-    model: google(GEMINI_MODELS.DEFAULT_RELIABLE),
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: 'Generate the formal consulting proposal based on the conversation and context.' }
-    ],
-    temperature: 0.3
-  })
+  let result: Awaited<ReturnType<typeof generateText>>
+  try {
+    const modelSettings = buildModelSettings(context, messages, { 
+      thinkingLevel: 'high',
+      defaultMediaResolution: 'media_resolution_medium'
+    })
+    result = await generateText({
+      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Generate the formal consulting proposal based on the conversation and context.' }
+      ],
+      temperature: 1.0
+    })
+  } catch (error) {
+    console.warn('[Proposal Agent] Falling back to Flash model after error:', error)
+    const modelSettings = buildModelSettings(context, messages, { 
+      thinkingLevel: 'high',
+      defaultMediaResolution: 'media_resolution_medium'
+    })
+    result = await generateText({
+      model: google(GEMINI_MODELS.DEFAULT_RELIABLE, modelSettings),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Generate the formal consulting proposal based on the conversation and context.' }
+      ],
+      temperature: 1.0
+    })
+  }
 
   // Parse and validate JSON from response
   let proposal: Proposal

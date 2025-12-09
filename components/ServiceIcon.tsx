@@ -1,16 +1,16 @@
 import React from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 interface ServiceIconProps {
     iconType: 'book' | 'people' | 'code';
     color: 'orange' | 'blue' | 'purple';
-    isDarkMode?: boolean;
 }
 
 export const ServiceIcon: React.FC<ServiceIconProps> = ({
     iconType,
-    color,
-    isDarkMode = false
+    color
 }) => {
+    const { isDarkMode } = useTheme();
     const colorClasses = {
         orange: isDarkMode ? 'text-orange-400' : 'text-orange-600',
         blue: isDarkMode ? 'text-blue-400' : 'text-blue-600',

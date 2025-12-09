@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!body || typeof body !== 'object') {
       return res.status(400).json({ error: 'Invalid JSON body' });
     }
-    const { image, prompt } = body;
+    const { image, prompt }: { image?: string; prompt?: string } = body;
 
     if (!image) {
       return res.status(400).json({ error: 'No image data provided' })
@@ -61,7 +61,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     // Analyze with Gemini Vision
     const result = await generateText({
-      model: google(GEMINI_MODELS.DEFAULT_VISION),
+      model: (google as any)(GEMINI_MODELS.DEFAULT_VISION, {
+        media_resolution: 'media_resolution_low',
+        thinking_level: 'high'
+      }),
       messages: [
         {
           role: 'user',

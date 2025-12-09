@@ -4,10 +4,10 @@ import { useEffect, useRef } from 'react';
 import type { VisualState } from 'types';
 import { calculateParticleTarget } from 'utils/visuals/index';
 import type { ParticleContext } from 'utils/visuals/types';
+import { useTheme } from '../context/ThemeContext';
 
 interface AntigravityCanvasProps {
   visualState: VisualState;
-  isDarkMode?: boolean;
 }
 
 class Particle {
@@ -160,17 +160,30 @@ class Particle {
     
     // Use bright particles in dark mode, dark particles in light mode
     if (isDarkMode) {
-        ctx.fillStyle = `rgba(220, 220, 230, ${this.targetAlpha * 0.8})`;
+        ctx.fillStyle = `rgba(220, 220, 255, ${this.targetAlpha * 0.8})`;
     } else {
         ctx.fillStyle = `rgba(20, 20, 20, ${this.targetAlpha})`;
     }
     
     const d = Math.max(0.8, this.rad * 2); 
-    ctx.fillRect(Math.floor(this.x), Math.floor(this.y), d, d);
+    
+    // Velocity Stretch "Motion Blur"
+    // We stretch the particle in the direction of movement
+    // Cheaper than rotation: just stretch width/height based on vx/vy components
+    const stretchX = Math.abs(this.vx) * 1.5;
+    const stretchY = Math.abs(this.vy) * 1.5;
+    
+    ctx.fillRect(
+        Math.floor(this.x - stretchX * 0.5), 
+        Math.floor(this.y - stretchY * 0.5), 
+        d + stretchX, 
+        d + stretchY
+    );
   }
 }
 
-const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDarkMode = false }) => {
+const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) => {
+  const { isDarkMode } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const visualStateRef = useRef(visualState);
   const isDarkModeRef = useRef(isDarkMode);
@@ -223,14 +236,36 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
         const citationMultiplier = 1 + (citationCount * 0.1); // 10% more particles per citation, max ~2x
         const count = Math.floor(baseCount * Math.min(citationMultiplier, 2.0));
         
+        // Use display dimensions (not scaled) for particle initialization
+        const displayWidth = window.innerWidth;
+        const displayHeight = window.innerHeight;
+        
         for (let i = 0; i < count; i++) {
-            particlesRef.current.push(new Particle(canvas.width, canvas.height, i, count));
+            particlesRef.current.push(new Particle(displayWidth, displayHeight, i, count));
         }
     };
 
+    // Store display dimensions (not scaled)
+    let displayWidth = window.innerWidth;
+    let displayHeight = window.innerHeight;
+
     const resize = () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        displayWidth = window.innerWidth;
+        displayHeight = window.innerHeight;
+        
+        // Set actual canvas size in memory (scaled for device pixel ratio)
+        canvas.width = displayWidth * dpr;
+        canvas.height = displayHeight * dpr;
+        
+        // Scale the canvas back down using CSS
+        canvas.style.width = `${displayWidth}px`;
+        canvas.style.height = `${displayHeight}px`;
+        
+        // Reset transform and scale the drawing context
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(dpr, dpr);
+        
         initParticles();
     };
 
@@ -240,8 +275,8 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
     const animate = (time: number) => {
       const currentState = visualStateRef.current;
       const darkMode = isDarkModeRef.current;
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
+      const cx = displayWidth / 2;
+      const cy = displayHeight / 2;
       
       smoothedAudioRef.current += (currentState.audioLevel - smoothedAudioRef.current) * 0.3; 
       
@@ -256,7 +291,7 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
       } else {
           ctx.fillStyle = `rgba(248, 249, 250, ${clearOpacity})`;
       }
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, displayWidth, displayHeight);
 
       // Constellation Lines
       if (currentState.shape === 'constellation') {
@@ -286,7 +321,7 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
 
       // Chart Grid Lines (Background Only)
       if (currentState.shape === 'chart') {
-          const graphWidth = canvas.width * 0.6;
+          const graphWidth = displayWidth * 0.6;
           const graphHeight = 200;
           const startX = cx - graphWidth/2;
           
@@ -310,13 +345,13 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
       if (currentState.researchActive && currentState.shape === 'scanner') {
           // Draw scanning lines effect
           const scanSpeed = time * 0.003;
-          const scanY = (cy - canvas.height * 0.3) + (Math.sin(scanSpeed) * canvas.height * 0.6);
+          const scanY = (cy - displayHeight * 0.3) + (Math.sin(scanSpeed) * displayHeight * 0.6);
           
           ctx.beginPath();
           ctx.strokeStyle = darkMode ? 'rgba(255, 165, 0, 0.3)' : 'rgba(255, 140, 0, 0.4)';
           ctx.lineWidth = 2;
           ctx.moveTo(0, scanY);
-          ctx.lineTo(canvas.width, scanY);
+          ctx.lineTo(displayWidth, scanY);
           ctx.stroke();
           
           // Draw pulsing circles at citation points
@@ -340,10 +375,15 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
           }
       }
 
+      // Enable additive blending for "energy" look in dark mode
+      if (darkMode) {
+          ctx.globalCompositeOperation = 'screen';
+      }
+
       particlesRef.current.forEach(p => {
         p.update(
-            canvas.width, 
-            canvas.height, 
+            displayWidth, 
+            displayHeight, 
             mouseRef.current.x, 
             mouseRef.current.y, 
             currentState,
@@ -353,6 +393,9 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, isDa
         );
         p.draw(ctx, darkMode);
       });
+
+      // Reset blend mode for next frame
+      ctx.globalCompositeOperation = 'source-over';
 
       requestRef.current = requestAnimationFrame(animate);
     };

@@ -16,6 +16,16 @@ import { logger } from '../../lib/logger.js'
 import { agentPersistence } from './agent-persistence.js'
 
 /**
+ * Streaming callbacks interface
+ */
+export interface StreamingCallbacks {
+  onChunk: (chunk: string) => void
+  onMetadata?: (metadata: any) => void
+  onDone: (result: AgentResult) => void
+  onError: (error: Error) => void
+}
+
+/**
  * Simplified Multi-Agent Orchestrator - Routes conversations to specialized agents
  *
  * Architecture (2026):
@@ -330,4 +340,305 @@ export function getCurrentStage(context: AgentContext): FunnelStage {
     ['C-Level', 'VP', 'Director'].includes(seniority2)
 
   return isQualified ? 'QUALIFIED' : 'DISCOVERY'
+}
+
+/**
+ * Streaming version of routeToAgent - streams agent responses progressively
+ * 
+ * This function routes to the appropriate agent and streams the response
+ * as tokens are generated, rather than waiting for the complete response.
+ */
+export async function routeToAgentStream(
+  params: {
+    messages: ChatMessage[]
+    sessionId: string
+    currentStage: FunnelStage
+    intelligenceContext: any
+    multimodalContext: any
+    trigger?: string
+    conversationFlow?: any
+  },
+  callbacks: StreamingCallbacks
+): Promise<void> {
+  const {
+    messages,
+    sessionId,
+    currentStage,
+    intelligenceContext,
+    multimodalContext,
+    trigger,
+    conversationFlow
+  } = params
+
+  const { onChunk, onMetadata, onDone, onError } = callbacks
+  const lastMessage = messages[messages.length - 1]?.content || ''
+
+  try {
+    // === HIGHEST PRIORITY: BOOKING / EXIT / ADMIN ===
+    if (trigger === 'booking') {
+      const result = await closerAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId, 
+        streaming: true, 
+        onChunk, 
+        ...(onMetadata && { onMetadata })
+      })
+      onDone(result)
+      return
+    }
+
+    if (trigger === 'conversation_end') {
+      const result = await summaryAgent(messages, { 
+        intelligenceContext, 
+        multimodalContext, 
+        sessionId, 
+        conversationFlow, 
+        streaming: true, 
+        onChunk, 
+        ...(onMetadata && { onMetadata })
+      })
+      onDone(result)
+      return
+    }
+
+    if (trigger === 'admin') {
+      const result = await adminAgent(messages, { 
+        sessionId, 
+        streaming: true, 
+        onChunk, 
+        ...(onMetadata && { onMetadata })
+      })
+      onDone(result)
+      return
+    }
+
+    if (trigger === 'proposal_request') {
+      const result = await proposalAgent(messages, {
+        intelligenceContext,
+        multimodalContext,
+        sessionId,
+        conversationFlow,
+        streaming: true,
+        onChunk,
+        ...(onMetadata && { onMetadata })
+      })
+      onDone(result)
+      return
+    }
+
+    if (trigger === 'retargeting') {
+      // Retargeting agent doesn't support streaming yet - fallback to non-streaming
+      const result = await retargetingAgent({
+        leadContext: intelligenceContext,
+        conversationSummary: conversationFlow?.summary || 'No summary available',
+        scenario: 'no_booking_low_score'
+      })
+      onDone(result)
+      return
+    }
+
+    // === OBJECTION OVERRIDE (highest priority) ===
+    if (lastMessage) {
+      try {
+        const objection = await detectObjection(lastMessage)
+        if (objection.type && objection.confidence > 0.7) {
+          intelligenceContext.currentObjection = objection.type
+          const objectionContext: AgentContext = {
+            sessionId,
+            intelligenceContext,
+            multimodalContext
+          }
+          const result = await objectionAgent(messages, { 
+            ...objectionContext, 
+            streaming: true, 
+            onChunk, 
+            ...(onMetadata && { onMetadata })
+          })
+          onDone(result)
+          return
+        }
+      } catch (err) {
+        // Non-fatal - continue with normal routing
+        console.warn('Objection detection failed, continuing with normal routing', err)
+      }
+    }
+
+    // === STAGE-BASED ROUTING ===
+    logger.info(`[Orchestrator] Streaming routing based on stage: ${currentStage}`)
+
+    let agentResult: AgentResult
+
+    switch (currentStage) {
+      case 'DISCOVERY':
+        agentResult = await discoveryAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'SCORING':
+        agentResult = await scoringAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'QUALIFIED':
+        agentResult = await pitchAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'INTELLIGENCE_GATHERING':
+        agentResult = await discoveryAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'PITCHING':
+        agentResult = await pitchAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'WORKSHOP_PITCH':
+      case 'CONSULTING_PITCH':
+        agentResult = await pitchAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'OBJECTION':
+        agentResult = await objectionAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'PROPOSAL':
+        agentResult = await proposalAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'CLOSING':
+        agentResult = await closerAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'BOOKING_REQUESTED':
+      case 'BOOKED':
+        agentResult = await closerAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      case 'SUMMARY':
+        agentResult = await summaryAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+
+      default:
+        // Fallback to Discovery
+        agentResult = await discoveryAgent(messages, {
+          intelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow,
+          streaming: true,
+          onChunk,
+          ...(onMetadata && { onMetadata })
+        })
+        break
+    }
+
+    // Validate and return result via onDone callback
+    const validated = validateAndReturn(agentResult, lastMessage, currentStage, sessionId)
+    
+    // Non-blocking persistence
+    try {
+      await agentPersistence.persistAgentResult(sessionId, validated, {
+        sessionId,
+        intelligenceContext,
+        multimodalContext,
+        conversationFlow
+      })
+    } catch (persistErr) {
+      logger.debug('[Orchestrator] Persistence failed (non-fatal)', {
+        error: persistErr instanceof Error ? persistErr.message : String(persistErr),
+        sessionId
+      })
+    }
+
+    onDone(validated)
+  } catch (error) {
+    logger.error('[Orchestrator] Streaming error', error instanceof Error ? error : undefined)
+    onError(error instanceof Error ? error : new Error(String(error)))
+  }
 }

@@ -13,28 +13,41 @@ export async function objectionAgent(
   messages: ChatMessage[],
   context: AgentContext
 ): Promise<AgentResult> {
-  const { intelligenceContext } = context
+  const { intelligenceContext, streaming, onChunk, onDone } = context as AgentContext & { onDone?: (result: AgentResult) => void }
 
   const lastMessage = messages[messages.length - 1]?.content || ''
   
   if (!lastMessage) {
-    return {
-      output: "I'm not sure I fully understood your concern. Can you tell me more about what's holding you back?",
+    const fallback = "I'm not sure I fully understood your concern. Can you tell me more about what's holding you back?"
+    if (streaming && onChunk) {
+      // Stream the fallback response
+      onChunk(fallback)
+    }
+    const result = {
+      output: fallback,
       agent: 'Objection Agent (fallback)',
       model: GEMINI_MODELS.DEFAULT_CHAT,
       metadata: { stage: 'PITCHING' },
     }
+    if (onDone) onDone(result)
+    return result
   }
 
   const objection = await detectObjection(lastMessage)
 
   if (!objection.type || objection.confidence < 0.6) {
-    return {
-      output: "I'm not sure I fully understood your concern. Can you tell me more about what's holding you back?",
+    const fallback = "I'm not sure I fully understood your concern. Can you tell me more about what's holding you back?"
+    if (streaming && onChunk) {
+      onChunk(fallback)
+    }
+    const result = {
+      output: fallback,
       agent: 'Objection Agent (fallback)',
       model: GEMINI_MODELS.DEFAULT_CHAT,
       metadata: { stage: 'PITCHING' },
     }
+    if (onDone) onDone(result)
+    return result
   }
 
   // Build rebuttals with context
@@ -63,7 +76,19 @@ export async function objectionAgent(
 
   const response = rebuttals[objection.type] || "That's a fair point. Let me make sure I understand your concern correctly..."
 
-  return {
+  // If streaming, send response in chunks for better UX
+  if (streaming && onChunk) {
+    // Simulate streaming by sending in small chunks
+    const chunkSize = 10
+    for (let i = 0; i < response.length; i += chunkSize) {
+      const chunk = response.slice(i, i + chunkSize)
+      onChunk(chunk)
+      // Small delay to simulate real streaming
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+  }
+
+  const result = {
     output: response,
     agent: 'Objection Agent',
     model: GEMINI_MODELS.DEFAULT_CHAT,
@@ -72,5 +97,8 @@ export async function objectionAgent(
       currentObjection: objection.type,
     },
   }
+  
+  if (onDone) onDone(result)
+  return result
 }
 

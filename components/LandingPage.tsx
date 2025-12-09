@@ -4,16 +4,16 @@ import { VisualShape } from 'types';
 import { CONTACT_CONFIG } from 'src/config/constants';
 import AntigravityCanvas from './AntigravityCanvas';
 import { ServiceIcon } from './ServiceIcon';
+import { useTheme } from '../context/ThemeContext';
 
 interface LandingPageProps {
     onStartChat: (startVoice?: boolean) => void;
     onSectionChange?: (shape: VisualShape) => void;
-    isDarkMode?: boolean;
-    onToggleTheme?: () => void;
     onAdminAccess?: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange, isDarkMode = false, onToggleTheme, onAdminAccess }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange, onAdminAccess }) => {
+    const { isDarkMode, toggleTheme } = useTheme();
     const heroRef = useRef<HTMLDivElement>(null);
     const showcaseRef = useRef<HTMLElement>(null);
     const servicesRef = useRef<HTMLElement>(null);
@@ -120,7 +120,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                         <button onClick={() => scrollToSection(aboutRef)} className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${isDarkMode ? 'text-slate-300 hover:text-white hover:bg-white/10' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'}`}>About</button>
                         <button onClick={() => scrollToSection(contactRef)} className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${isDarkMode ? 'text-slate-300 hover:text-white hover:bg-white/10' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'}`}>Contact</button>
                     </nav>
-                    <button onClick={onToggleTheme} className={`w-9 h-9 flex items-center justify-center rounded-full transition-all hover:-translate-y-0.5 shadow-md ${isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-white/40 text-slate-800 hover:bg-white/60'}`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
+                    <button onClick={toggleTheme} className={`w-9 h-9 flex items-center justify-center rounded-full transition-all hover:-translate-y-0.5 shadow-md ${isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-white/40 text-slate-800 hover:bg-white/60'}`} title={isDarkMode ? "Light Mode" : "Dark Mode"}>
                         {isDarkMode ? (
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></svg>
                         ) : (
@@ -160,7 +160,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                         <div className={`flex items-center justify-between py-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
                             <span className="text-sm font-mono uppercase tracking-wider opacity-60">Appearance</span>
                             <button
-                                onClick={onToggleTheme}
+                                onClick={toggleTheme}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium ${isDarkMode ? 'bg-white/10 border-white/10 text-white' : 'bg-slate-100 border-slate-200 text-slate-700'}`}
                             >
                                 {isDarkMode ? 'Dark Mode' : 'Light Mode'}
@@ -351,7 +351,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                                 <div className="absolute inset-0">
                                     <AntigravityCanvas
                                         visualState={{ shape: 'brain', mode: 'idle', isActive: true, audioLevel: 0.3 }}
-                                        isDarkMode={isDarkMode}
                                     />
                                 </div>
                             )}
@@ -359,7 +358,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                                 <div className="absolute inset-0">
                                     <AntigravityCanvas
                                         visualState={{ shape: 'face', mode: 'idle', isActive: true, audioLevel: 0.3 }}
-                                        isDarkMode={isDarkMode}
                                     />
                                 </div>
                             )}
@@ -367,7 +365,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                                 <div className="absolute inset-0">
                                     <AntigravityCanvas
                                         visualState={{ shape: 'globe', mode: 'idle', isActive: true, audioLevel: 0.3 }}
-                                        isDarkMode={isDarkMode}
                                     />
                                 </div>
                             )}
@@ -375,7 +372,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                                 <div className="absolute inset-0">
                                     <AntigravityCanvas
                                         visualState={{ shape: 'wave', mode: 'idle', isActive: true, audioLevel: 0.3 }}
-                                        isDarkMode={isDarkMode}
                                     />
                                 </div>
                             )}
@@ -422,7 +418,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                         {/* Service 1 */}
                         <div className={`flex flex-col gap-6 p-8 border rounded-[32px] hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] transition-all duration-500 group hover:-translate-y-2 ${isDarkMode ? 'bg-white/5 border-white/10 hover:border-white/20' : 'bg-white/60 border-white/60 hover:border-white/80'}`}>
                             <div className={`relative w-12 h-12 rounded-2xl mb-2 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-sm overflow-hidden ${isDarkMode ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-orange-50 border border-orange-100'}`}>
-                                <ServiceIcon iconType="book" color="orange" isDarkMode={isDarkMode} />
+                                <ServiceIcon iconType="book" color="orange" />
                             </div>
                             <div className="flex-1">
                                 <h3 className={`text-lg font-bold mb-3 tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>AI STRATEGY DEVELOPMENT</h3>
@@ -443,7 +439,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                         {/* Service 2 */}
                         <div className={`flex flex-col gap-6 p-8 border rounded-[32px] hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] transition-all duration-500 group hover:-translate-y-2 ${isDarkMode ? 'bg-white/5 border-white/10 hover:border-white/20' : 'bg-white/60 border-white/60 hover:border-white/80'}`}>
                             <div className={`relative w-12 h-12 rounded-2xl mb-2 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 shadow-sm overflow-hidden ${isDarkMode ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-100'}`}>
-                                <ServiceIcon iconType="people" color="blue" isDarkMode={isDarkMode} />
+                                <ServiceIcon iconType="people" color="blue" />
                             </div>
                             <div className="flex-1">
                                 <h3 className={`text-lg font-bold mb-3 tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>TEAM TRAINING & WORKSHOPS</h3>
@@ -464,7 +460,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                         {/* Service 3 */}
                         <div className={`flex flex-col gap-6 p-8 border rounded-[32px] hover:shadow-[0_20px_40px_rgba(0,0,0,0.05)] transition-all duration-500 group hover:-translate-y-2 ${isDarkMode ? 'bg-white/5 border-white/10 hover:border-white/20' : 'bg-white/60 border-white/60 hover:border-white/80'}`}>
                             <div className={`relative w-12 h-12 rounded-2xl mb-2 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 shadow-sm overflow-hidden ${isDarkMode ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-100'}`}>
-                                <ServiceIcon iconType="code" color="purple" isDarkMode={isDarkMode} />
+                                <ServiceIcon iconType="code" color="purple" />
                             </div>
                             <div className="flex-1">
                                 <h3 className={`text-lg font-bold mb-3 tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>IMPLEMENTATION SUPPORT</h3>

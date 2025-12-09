@@ -55,6 +55,10 @@
 		"validate:phase-6": "pnpm check:all && pnpm build",
 		"validate:phase-7": "pnpm check:all && pnpm build:server",
 		"validate:phase-8": "pnpm check:all && pnpm build && pnpm build:server",
+		"pre-deploy": "bash scripts/pre-deploy-check.sh",
+		"deploy:fly": "fly deploy",
+		"deploy:vercel": "vercel --prod",
+		"deploy:all": "pnpm pre-deploy && pnpm deploy:fly && pnpm deploy:vercel",
 		"prepare": "husky install"
 	},
 	"dependencies": {

@@ -1,8 +1,9 @@
 import { google, generateText } from '../../lib/ai-client.js'
 import { safeGenerateText } from '../../lib/gemini-safe.js'
 import { formatMessagesForAI } from '../../lib/format-messages.js'
+import { buildModelSettings } from '../../lib/multimodal-helpers.js'
 import { z } from 'zod'
-import type { ChatMessage } from './types.js'
+import type { ChatMessage, AgentContext } from './types.js'
 import { getSupabaseService } from '../../lib/supabase.js'
 import { GEMINI_MODELS } from '../../config/constants.js'
 import { agentAnalytics } from '../analytics/agent-analytics.js'
@@ -21,9 +22,7 @@ import type { LeadSummaryRow, ConversationRow } from '../../schemas/supabase.js'
  */
 export async function adminAgent(
   messages: ChatMessage[],
-
-  _context: {
-    sessionId: string
+  _context: AgentContext & {
     adminId?: string
   }
 ) {
@@ -122,7 +121,38 @@ export async function adminAgent(
   }).length
   const engagementRate = totalLeads > 0 ? Math.round((leadsWithAI / totalLeads) * 100) : 0
 
-  const systemPrompt = `You are F.B/c Agent - think Jarvis meets Elon Musk. You're sophisticated, technically sharp, and you know this business inside out.
+  const contextSection = `CONTEXT:
+${recentConversations.length > 0 ? `Recent Conversations (${recentConversations.length}):
+${recentConversations.slice(0, 15).map((c, i) => {
+    return `
+${i + 1}. ${c.name || 'Unknown'} (${c.email || 'N/A'}) - Score: ${c.lead_score || 'N/A'}/100
+   Summary: ${c.summary?.substring(0, 120) || 'No summary'}...
+   Date: ${c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
+`
+  }).join('')}` : 'No recent conversations'}
+
+DASHBOARD STATS (Last 7 Days):
+**This data below IS your dashboard stats** - when asked about "dashboard", "stats", "metrics", "latest numbers", or "current performance", reference this data immediately.
+- Total Leads: ${totalLeads}
+- Average Lead Score: ${avgLeadScore}/100
+- Conversion Rate: ${conversionRate}% (qualifying score ≥70)
+- Engagement Rate: ${engagementRate}% (used AI features)
+- Agent Executions: ${analyticsData.agent.totalExecutions}
+- Tool Executions: ${analyticsData.tool.totalExecutions}
+- Agent Success Rate: ${(analyticsData.agent.successRate * 100).toFixed(1)}%
+- Tool Success Rate: ${(analyticsData.tool.successRate * 100).toFixed(1)}%
+- Cache Hit Rate: ${(analyticsData.tool.cacheHitRate * 100).toFixed(1)}%
+- Avg Agent Duration: ${Math.round(analyticsData.agent.averageDuration)}ms
+
+TOP AGENTS BY USAGE:
+${Object.entries(analyticsData.agent.agentBreakdown || {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([agent, count], i) => `${i + 1}. ${agent}: ${count} executions`)
+      .join('\n')}`
+
+  const instructionSection = `INSTRUCTIONS:
+You are F.B/c Agent - think Jarvis meets Elon Musk. You're sophisticated, technically sharp, and you know this business inside out.
 
 IDENTITY:
 - You're Farzad's AI, built specifically for him. Never introduce yourself as "F.B/c Admin AI" or use corporate-speak greetings.
@@ -151,36 +181,6 @@ YOUR TOOLS:
 - get_dashboard_stats() [VOICE MODE ONLY]: When asked about dashboard stats, latest numbers, or current metrics in voice conversations, call this tool to fetch real-time dashboard statistics. Returns total leads, conversion rate, average lead score, engagement rate, and more.
 - Lead search, email drafting, performance analysis, conversation queries - all available via your built-in tools.
 - When you don't know something or need fresh data, use research tools. Don't guess - go online and find the answer.
-
-YOU HAVE ACCESS TO REAL-TIME DATA:
-${recentConversations.length > 0 ? `Recent Conversations (${recentConversations.length}):
-${recentConversations.slice(0, 15).map((c, i) => {
-    return `
-${i + 1}. ${c.name || 'Unknown'} (${c.email || 'N/A'}) - Score: ${c.lead_score || 'N/A'}/100
-   Summary: ${c.summary?.substring(0, 120) || 'No summary'}...
-   Date: ${c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
-`
-  }).join('')}` : 'No recent conversations'}
-
-DASHBOARD STATS (Last 7 Days):
-**This data below IS your dashboard stats** - when asked about "dashboard", "stats", "metrics", "latest numbers", or "current performance", reference this data immediately.
-- Total Leads: ${totalLeads}
-- Average Lead Score: ${avgLeadScore}/100
-- Conversion Rate: ${conversionRate}% (qualifying score ≥70)
-- Engagement Rate: ${engagementRate}% (used AI features)
-- Agent Executions: ${analyticsData.agent.totalExecutions}
-- Tool Executions: ${analyticsData.tool.totalExecutions}
-- Agent Success Rate: ${(analyticsData.agent.successRate * 100).toFixed(1)}%
-- Tool Success Rate: ${(analyticsData.tool.successRate * 100).toFixed(1)}%
-- Cache Hit Rate: ${(analyticsData.tool.cacheHitRate * 100).toFixed(1)}%
-- Avg Agent Duration: ${Math.round(analyticsData.agent.averageDuration)}ms
-
-TOP AGENTS BY USAGE:
-${Object.entries(analyticsData.agent.agentBreakdown || {})
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([agent, count], i) => `${i + 1}. ${agent}: ${count} executions`)
-      .join('\n')}
 
 CAPABILITIES:
 1. Search leads: "Show me healthcare leads from last week with score >80"
@@ -223,6 +223,10 @@ TOOLS AVAILABLE:
 - query_conversations: Get specific conversation details
 - analyze_performance: Deep dive into agent/tool performance metrics
 - Research tools: Google grounding search and URL context (available when needed)`
+
+  const systemPrompt = `${contextSection}
+
+${instructionSection}`
 
   // Get unified tools from registry (includes retry, caching, logging)
   const unifiedTools = getChatToolDefinitions(_context.sessionId, 'Admin AI Agent')
@@ -455,20 +459,99 @@ TOOLS AVAILABLE:
   }
 
   // Merge unified tools with admin-specific tools
-  const tools = {
+  const tools: any = {
     ...unifiedTools,
     ...adminTools
   }
 
-  const result = await safeGenerateText({
-    system: systemPrompt,
-    messages: formatMessagesForAI(messages),
-    temperature: 1.0, // Recommended for high thinking
-    tools: tools
-  })
+  const isStreaming = _context.streaming === true && _context.onChunk
+  type StreamPart = any
+
+  let result: any
+  let generatedText = ''
+
+  if (isStreaming) {
+    // Streaming mode: use streamText
+    const { streamText, google } = await import('../../lib/ai-client.js')
+    const modelSettings = buildModelSettings(_context, messages, { thinkingLevel: 'high' })
+    const stream = await streamText({
+      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
+      system: systemPrompt,
+      messages: formatMessagesForAI(messages),
+      temperature: 1.0,
+      tools: tools
+    })
+
+    // Stream all events (text, tool calls, reasoning, etc.) in real-time
+    for await (const part of stream.fullStream as AsyncIterable<StreamPart>) {
+      if (part.type === 'text-delta') {
+        // Stream text tokens as they arrive
+        generatedText += part.text
+        if (_context.onChunk) {
+          _context.onChunk(part.text)
+        }
+      } else if (part.type === 'tool-call' && _context.onMetadata) {
+        // Stream tool calls in real-time
+        _context.onMetadata({
+          type: 'tool_call',
+          toolCall: part
+        })
+      } else if (part.type === 'tool-result' && _context.onMetadata) {
+        // Stream tool results in real-time
+        _context.onMetadata({
+          type: 'tool_result',
+          toolResult: part
+        })
+      } else if (part.type === 'reasoning-delta' && _context.onMetadata) {
+        // Stream reasoning in real-time (if supported by model)
+        _context.onMetadata({
+          type: 'reasoning',
+          reasoning: part.delta || part.text
+        })
+      } else if (part.type === 'reasoning-start' && _context.onMetadata) {
+        // Stream reasoning start event
+        _context.onMetadata({
+          type: 'reasoning_start',
+          message: 'AI is thinking...'
+        })
+      }
+    }
+
+    // Get final result for metadata extraction
+    result = await stream
+    
+    // Stream tool calls if they occurred (from final result)
+    if (_context.onMetadata) {
+      try {
+        const toolCalls = await result.toolCalls
+        if (toolCalls && toolCalls.length > 0) {
+          for (const toolCall of toolCalls) {
+            _context.onMetadata({
+              type: 'tool_call',
+              toolCall: toolCall
+            })
+          }
+        }
+      } catch {
+        // Ignore if toolCalls not available
+      }
+    }
+  } else {
+    // Non-streaming mode: use safeGenerateText
+    const modelSettings = buildModelSettings(_context, messages, { thinkingLevel: 'high' })
+    result = await safeGenerateText({
+      system: systemPrompt,
+      messages: formatMessagesForAI(messages),
+      temperature: 1.0, // Recommended for high thinking
+      tools: tools,
+      modelId: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW,
+      modelSettings
+    })
+    generatedText = result.text || ''
+  }
 
   return {
-    output: result.text,
+    output: generatedText,
     agent: 'Admin AI Agent',
     model: GEMINI_MODELS.DEFAULT_CHAT,
     metadata: {
@@ -530,7 +613,11 @@ export async function searchConversations(query: {
           const company = researchJson.company
           if (company && typeof company === 'object' && 'industry' in company) {
             const industry = company.industry
-            return typeof industry === 'string' && industry.toLowerCase().includes(query.industry!.toLowerCase())
+            return (
+              query.industry &&
+              typeof industry === 'string' &&
+              industry.toLowerCase().includes(query.industry.toLowerCase())
+            )
           }
         }
         return false
@@ -580,7 +667,7 @@ Body:
   const result = await generateText({
     model: google(GEMINI_MODELS.DEFAULT_CHAT),
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.7
+    temperature: 1.0
   })
 
   // Parse subject and body

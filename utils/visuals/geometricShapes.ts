@@ -977,52 +977,55 @@ export const GeometricShapes = {
 
   // NEW ANIMATIONS
 
-  vortex(ctx: ParticleContext): ShapeResult {
-    const { index, total, time, audio, rawAudio, visualState } = ctx;
+  vortex(ctx: ParticleContext): ShapeResult { // Renamed visually to "Halo" but keeping key 'vortex' to avoid breaking maps
+    const { index, total, time, audio } = ctx;
     const centerX = cx(ctx);
     const centerY = cy(ctx);
     
-    // Logarithmic spiral vortex
-    const turns = 12;
-    const t = index / total;
-    const angle = t * turns * Math.PI * 2 + (time * 0.0006 * (1 + audio * 0.5));
+    // "HALO" - A calming, stable concentric ring visualization
+    // Replaces the dizzying vortex.
     
-    // Tight spiral that expands
-    const spiralGrowth = 1.06;
-    const baseRadius = 5;
-    const maxRadius = 300 + (audio * 100);
-    const radius = baseRadius * Math.pow(spiralGrowth, t * turns);
-    const finalRadius = Math.min(radius, maxRadius);
+    const numRings = 7;
+    const particlesPerRing = Math.floor(total / numRings);
+    const ringIndex = Math.floor(index / particlesPerRing);
     
-    // Audio-reactive expansion
-    const audioExpansion = visualState.mode === 'speaking' ? rawAudio * 0.4 : audio * 0.2;
-    const r = finalRadius * (1 + audioExpansion);
+    // Normalize index within the ring
+    const indexInRing = index % particlesPerRing;
+    const t = indexInRing / particlesPerRing;
     
-    // Convert to cartesian
-    const tx = centerX + Math.cos(angle) * r;
-    const ty = centerY + Math.sin(angle) * r;
+    // Base Configuration
+    const baseR = 60 + (ringIndex * 35); // Rings at 60, 95, 130...
     
-    // Enhanced physics - tighter spring for vortex effect
-    const spring = PHYSICS.SnappySpring * 0.8;
-    const friction = 0.82; // Less friction for spinning
-    let targetAlpha = 0.7;
+    // Calming Motion: "Breathe"
+    // Each ring breathes at a slightly different rate
+    const breatheSpeed = 0.0008;
+    const breatheBase = Math.sin(time * breatheSpeed + (ringIndex * 0.5));
+    const breatheAmt = 15; // Pixels of expansion
     
-    // Particles closer to center are brighter
-    const distanceFromCenter = r / maxRadius;
-    targetAlpha = 0.5 + (1 - distanceFromCenter) * 0.4;
+    const currentR = baseR + (breatheBase * breatheAmt) + (audio * 40 * (ringIndex * 0.2));
     
-    // Audio-reactive glow
-    if (visualState.mode === 'speaking') {
-        targetAlpha = Math.min(1.0, targetAlpha + rawAudio * 0.3);
-    }
+    // Circle distribution
+    const angle = t * Math.PI * 2;
+    
+    let tx = centerX + Math.cos(angle) * currentR;
+    let ty = centerY + Math.sin(angle) * currentR;
+    
+    // Add subtle flow along the ring (not full rotation, just drift)
+    const drift = Math.sin(time * 0.0002 + ringIndex) * 10;
+    // Rotate very slightly to avoid static look
+    const slightRot = drift * 0.01;
+    const rx = (tx - centerX) * Math.cos(slightRot) - (ty - centerY) * Math.sin(slightRot);
+    const ry = (tx - centerX) * Math.sin(slightRot) + (ty - centerY) * Math.cos(slightRot);
+    tx = centerX + rx;
+    ty = centerY + ry;
 
     return {
-      tx,
-      ty,
-      spring,
-      friction,
-      noise: 0.01,
-      targetAlpha
+        tx,
+        ty,
+        spring: 0.05, // Custom fluid spring value
+        friction: PHYSICS.FluidFriction, // High friction for stability
+        noise: 0.005, // Very low noise
+        targetAlpha: 0.4 + (audio * 0.3) // Gentle glow
     };
   },
 

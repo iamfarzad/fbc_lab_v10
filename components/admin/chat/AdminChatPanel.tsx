@@ -11,18 +11,18 @@ import { Alert, AlertDescription } from 'src/components/ui/alert'
 import { Send, User, Bot } from 'lucide-react'
 import { cn } from 'src/lib/utils'
 import MarkdownRenderer from '../../chat/MarkdownRenderer'
+import { useTheme } from '../../../context/ThemeContext'
 
 interface AdminChatPanelProps {
   sessionId?: string
-  isDarkMode?: boolean
   className?: string
 }
 
 export function AdminChatPanel({
   sessionId,
-  isDarkMode = false,
   className
 }: AdminChatPanelProps) {
+  const { isDarkMode } = useTheme();
   const [currentSessionId, setCurrentSessionId] = useState<string>(
     sessionId || localStorage.getItem('admin-session-id') || `admin-${Date.now()}`
   )
@@ -242,6 +242,8 @@ export function AdminChatPanel({
     </div>
   )
 }
+
+
 
 
 

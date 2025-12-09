@@ -76,7 +76,7 @@ export default async function handler(
             });
         }
 
-        const { messages, sessionId, intelligenceContext, trigger, multimodalContext } = req.body;
+        const { messages, sessionId, intelligenceContext, trigger, multimodalContext, stream } = req.body;
 
         // Rate limiting - check before processing
         const effectiveSessionId = (sessionId || `session-${Date.now()}`) as string
@@ -181,6 +181,108 @@ export default async function handler(
             // Extract conversationFlow if provided (crucial for Discovery Agent)
             const conversationFlow = req.body.conversationFlow || null;
 
+            // Check if streaming is requested
+            const shouldStream = stream === true;
+
+            if (shouldStream) {
+                logger.info('[API /chat] Starting SSE streaming', { sessionId, messageCount: validMessages.length });
+                
+                // Return SSE stream
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+                res.setHeader('Access-Control-Allow-Origin', '*');
+                
+                // Import streaming orchestrator
+                const { routeToAgentStream } = await import('../src/core/agents/orchestrator.js');
+                
+                let accumulatedText = '';
+                let chunkCount = 0;
+                let metadataCount = 0;
+                
+                try {
+                    await routeToAgentStream({
+                        messages: validMessages as ChatMessage[],
+                        sessionId: sessionId || `session-${Date.now()}`,
+                        currentStage,
+                        intelligenceContext: intelligenceContext || {},
+                        multimodalContext: finalMultimodalContext || {
+                            hasRecentImages: false,
+                            hasRecentAudio: false,
+                            hasRecentUploads: false,
+                            recentAnalyses: [],
+                            recentUploads: []
+                        },
+                        trigger: trigger || 'chat',
+                        conversationFlow
+                    }, {
+                        onChunk: (chunk: string) => {
+                            accumulatedText += chunk;
+                            chunkCount++;
+                            logger.debug('[API /chat] Stream chunk', { 
+                                chunkLength: chunk.length, 
+                                accumulatedLength: accumulatedText.length,
+                                chunkCount 
+                            });
+                            // Send each chunk immediately (not accumulated) for true streaming
+                            res.write(`data: ${JSON.stringify({
+                                type: 'content',
+                                content: accumulatedText // Send accumulated for UI, but each chunk triggers a new event
+                            })}\n\n`);
+                        },
+                        onMetadata: (metadata: any) => {
+                            // Stream intermediate events: tool calls, reasoning, thinking states
+                            metadataCount++;
+                            logger.debug('[API /chat] Stream metadata', { 
+                                type: metadata.type,
+                                metadataCount,
+                                hasToolCall: !!metadata.toolCall,
+                                hasReasoning: !!metadata.reasoning
+                            });
+                            res.write(`data: ${JSON.stringify({
+                                type: 'meta',
+                                ...metadata
+                            })}\n\n`);
+                        },
+                        onDone: (result: any) => {
+                            logger.info('[API /chat] Stream complete', { 
+                                agent: result.agent,
+                                model: result.model,
+                                totalChunks: chunkCount,
+                                totalMetadata: metadataCount,
+                                finalLength: accumulatedText.length
+                            });
+                            res.write(`data: ${JSON.stringify({
+                                type: 'done',
+                                agent: result.agent,
+                                model: result.model,
+                                metadata: result.metadata
+                            })}\n\n`);
+                            res.write('data: [DONE]\n\n');
+                            res.end();
+                        },
+                        onError: (error: Error) => {
+                            res.write(`data: ${JSON.stringify({
+                                type: 'error',
+                                error: error.message
+                            })}\n\n`);
+                            res.write('data: [DONE]\n\n');
+                            res.end();
+                        }
+                    });
+                } catch (streamError) {
+                    logger.error('[API /chat] Streaming error', streamError instanceof Error ? streamError : undefined);
+                    res.write(`data: ${JSON.stringify({
+                        type: 'error',
+                        error: streamError instanceof Error ? streamError.message : 'Streaming failed'
+                    })}\n\n`);
+                    res.write('data: [DONE]\n\n');
+                    res.end();
+                }
+                return;
+            }
+
+            // Non-streaming path (existing behavior)
             // Route to appropriate agent with validated messages
             const result = await routeToAgent({
                 messages: validMessages as ChatMessage[],
