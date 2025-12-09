@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { ChatMessage, IntelligenceContext, MultimodalContextData, AgentMetadata, AgentResult } from '../src/core/agents/types.js';
 import type { FunnelStage } from '../src/core/types/funnel-stage.js';
-import type { ConversationFlowState } from '../types/conversation-flow-types.js';
+import type { ConversationFlowState } from '../src/types/conversation-flow-types.js';
 import { routeToAgent } from '../src/core/agents/orchestrator.js';
 import { logger } from '../src/lib/logger.js';
 import { multimodalContextManager } from '../src/core/context/multimodal-context.js';
@@ -15,7 +15,7 @@ interface ChatRequestBody {
   trigger?: string;
   multimodalContext?: MultimodalContextData;
   stream?: boolean;
-  conversationFlow?: ConversationFlowState | null;
+  conversationFlow?: ConversationFlowState;
 }
 
 interface IncomingMessage {
@@ -27,8 +27,8 @@ interface IncomingMessage {
 
 interface ValidatedMessage {
   role: 'user' | 'assistant' | 'system';
-  content?: string;
-  attachments?: Array<{ mimeType?: string; data?: string; [key: string]: unknown }>;
+  content?: string | undefined;
+  attachments?: Array<{ mimeType?: string; data?: string; [key: string]: unknown }> | undefined;
   [key: string]: unknown;
 }
 
@@ -94,7 +94,7 @@ export default async function handler(
         return;
     }
 
-    logger.debug('[API /chat] Request received', { method: req.method, body: req.body });
+    logger.debug('[API /chat] Request received', { method: req.method });
 
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -116,7 +116,7 @@ export default async function handler(
         const { messages, sessionId, intelligenceContext, trigger, multimodalContext, stream } = body;
 
         // Rate limiting - check before processing
-        const effectiveSessionId = (sessionId || `session-${Date.now()}`) as string
+        const effectiveSessionId = sessionId || `session-${Date.now()}`
         if (!rateLimit(effectiveSessionId, 'message')) {
             return res.status(429).json({
                 success: false,
@@ -137,28 +137,37 @@ export default async function handler(
                 const msg = m as IncomingMessage
                 if (!msg.role || typeof msg.role !== 'string') return false
                 // Must have content (string) OR attachments
-                const hasContent = msg.content && (typeof msg.content === 'string' ? msg.content.trim() : true)
-                const hasAttachments = msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0
+                const hasContent = Boolean(msg.content && (typeof msg.content === 'string' ? msg.content.trim() : false))
+                const hasAttachments = Boolean(msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0)
                 return hasContent || hasAttachments
             })
             .map((m: IncomingMessage): ValidatedMessage => {
                 // Normalize role: 'model' (Gemini API) -> 'assistant' (AI SDK)
-                const normalizedRole: 'user' | 'assistant' | 'system' = m.role === 'model'
-                    ? 'assistant'
-                    : (m.role === 'user' || m.role === 'system' || m.role === 'assistant'
-                        ? m.role as 'user' | 'assistant' | 'system'
-                        : 'user')
+                let normalizedRole: 'user' | 'assistant' | 'system' = 'user'
+                if (m.role === 'model') {
+                    normalizedRole = 'assistant'
+                } else if (m.role === 'user') {
+                    normalizedRole = 'user'
+                } else if (m.role === 'system') {
+                    normalizedRole = 'system'
+                } else if (m.role === 'assistant') {
+                    normalizedRole = 'assistant'
+                }
 
                 // Remove attachments from non-user messages (only user can send images)
-                const attachments = (normalizedRole === 'user' && m.attachments && Array.isArray(m.attachments))
-                    ? m.attachments
-                    : undefined
-
-                return {
-                    ...m,
-                    role: normalizedRole,
-                    attachments
-                }
+                const hasAttachments = normalizedRole === 'user' && m.attachments && Array.isArray(m.attachments) && m.attachments.length > 0
+                
+                const result: ValidatedMessage = hasAttachments
+                    ? {
+                        role: normalizedRole,
+                        content: m.content,
+                        attachments: m.attachments as Array<{ mimeType?: string; data?: string; [key: string]: unknown }>
+                    }
+                    : {
+                        role: normalizedRole,
+                        content: m.content
+                    }
+                return result
             })
 
         if (validMessages.length === 0) {
@@ -171,7 +180,7 @@ export default async function handler(
 
         // Determine current stage (single source of truth in API layer)
         const currentStage = determineCurrentStage(
-            intelligenceContext as IntelligenceContext | Record<string, unknown> | undefined,
+            intelligenceContext,
             trigger
         )
 
@@ -180,8 +189,8 @@ export default async function handler(
           try {
             const { error } = await supabaseService
               .from('conversations')
-              .update({ stage: currentStage as string })
-              .eq('session_id', sessionId as string)
+              .update({ stage: currentStage })
+              .eq('session_id', sessionId)
             
             if (error) throw error
           } catch (err) {
@@ -198,7 +207,7 @@ export default async function handler(
         if (!finalMultimodalContext && sessionId) {
             try {
                 const contextData = await multimodalContextManager.prepareChatContext(
-                    sessionId as string,
+                    sessionId,
                     true, // include visual
                     true  // include audio
                 )
@@ -217,7 +226,7 @@ export default async function handler(
 
         try {
             // Extract conversationFlow if provided (crucial for Discovery Agent)
-            const conversationFlow = body.conversationFlow || null;
+            const conversationFlow = body.conversationFlow;
 
             // Check if streaming is requested
             const shouldStream = stream === true;
@@ -240,7 +249,11 @@ export default async function handler(
                 
                 try {
                     await routeToAgentStream({
-                        messages: validMessages as ChatMessage[],
+                        messages: validMessages.map(msg => ({
+                            role: msg.role,
+                            content: msg.content || '',
+                            ...(msg.attachments && { attachments: msg.attachments })
+                        })) as ChatMessage[],
                         sessionId: sessionId || `session-${Date.now()}`,
                         currentStage,
                         intelligenceContext: (intelligenceContext as IntelligenceContext | undefined) || {},
@@ -324,7 +337,11 @@ export default async function handler(
             // Non-streaming path (existing behavior)
             // Route to appropriate agent with validated messages
             const result = await routeToAgent({
-                messages: validMessages as ChatMessage[],
+                messages: validMessages.map(msg => ({
+                    role: msg.role,
+                    content: msg.content || '',
+                    ...(msg.attachments && { attachments: msg.attachments })
+                })) as ChatMessage[],
                 sessionId: sessionId || `session-${Date.now()}`,
                 currentStage,
                 intelligenceContext: (intelligenceContext as IntelligenceContext | undefined) || {},
@@ -361,7 +378,7 @@ export default async function handler(
                 '[API /chat] Agent routing failed',
                 error instanceof Error ? error : new Error(String(error)),
                 {
-                    sessionId: sessionId as string | undefined,
+                    sessionId,
                     currentStage,
                     messageCount: validMessages.length,
                     hasIntelligenceContext: !!intelligenceContext,
