@@ -105,6 +105,13 @@ export class GeminiLiveService {
   }
 
   public async connect() {
+    logger.debug('[GeminiLiveService] connect() called', {
+      isConnected: this.isConnected,
+      hasLiveClient: !!this.liveClient,
+      hasInputAudioContext: !!this.inputAudioContext,
+      hasOutputAudioContext: !!this.outputAudioContext
+    });
+
     // Prevent duplicate connections - if already connecting or connected, return
     if (this.isConnected || this.liveClient) {
       console.warn('[GeminiLiveService] Already connected or connecting, skipping duplicate connect()');
@@ -113,22 +120,43 @@ export class GeminiLiveService {
 
     // If audio contexts exist from previous connection, clean them up first
     await this.cleanupAudio();
+    logger.debug('[GeminiLiveService] Audio cleanup complete');
 
     this.config.onStateChange('CONNECTING');
+    logger.debug('[GeminiLiveService] State changed to CONNECTING');
 
     try {
       // Initialize Audio Contexts - always create new ones after cleanup
+      logger.debug('[GeminiLiveService] Creating audio contexts...');
       this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: INPUT_SAMPLE_RATE,
+      });
+      logger.debug('[GeminiLiveService] Input audio context created', {
+        state: this.inputAudioContext.state,
+        sampleRate: this.inputAudioContext.sampleRate
       });
 
       this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: OUTPUT_SAMPLE_RATE,
       });
+      logger.debug('[GeminiLiveService] Output audio context created', {
+        state: this.outputAudioContext.state,
+        sampleRate: this.outputAudioContext.sampleRate
+      });
 
       // CRITICAL: Resume contexts on user gesture (Connect click)
-      if (this.inputAudioContext.state === 'suspended') await this.inputAudioContext.resume();
-      if (this.outputAudioContext.state === 'suspended') await this.outputAudioContext.resume();
+      if (this.inputAudioContext.state === 'suspended') {
+        logger.debug('[GeminiLiveService] Resuming suspended input audio context');
+        await this.inputAudioContext.resume();
+      }
+      if (this.outputAudioContext.state === 'suspended') {
+        logger.debug('[GeminiLiveService] Resuming suspended output audio context');
+        await this.outputAudioContext.resume();
+      }
+      logger.debug('[GeminiLiveService] Audio contexts ready', {
+        inputState: this.inputAudioContext.state,
+        outputState: this.outputAudioContext.state
+      });
 
       // Setup Output Chain
       this.outputNode = this.outputAudioContext.createGain();
@@ -149,14 +177,24 @@ export class GeminiLiveService {
       warmUpSource.start(0);
 
       // Get Microphone Stream
+      logger.debug('[GeminiLiveService] Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      logger.debug('[GeminiLiveService] Microphone stream obtained', {
+        tracks: stream.getTracks().length,
+        trackStates: stream.getTracks().map(t => ({ id: t.id, enabled: t.enabled, readyState: t.readyState }))
+      });
 
       // Create LiveClientWS instance
+      logger.debug('[GeminiLiveService] Creating LiveClientWS instance...');
       this.liveClient = new LiveClientWS();
+      logger.debug('[GeminiLiveService] LiveClientWS instance created');
 
       // Setup event listeners for Fly.io server events
       this.liveClient.on('connected', (connectionId) => {
-        logger.debug('[GeminiLiveService] Connected to Fly.io server:', { connectionId });
+        logger.debug('[GeminiLiveService] ✅ WebSocket CONNECTED to server', { 
+          connectionId,
+          timestamp: new Date().toISOString()
+        });
 
         const snapshot = unifiedContext.getSnapshot();
         const rc = snapshot.researchContext;
@@ -228,7 +266,10 @@ export class GeminiLiveService {
       });
 
       this.liveClient.on('session_started', (payload) => {
-        logger.debug('[GeminiLiveService] Session started:', payload);
+        logger.debug('[GeminiLiveService] ✅ SESSION STARTED', { 
+          payload,
+          timestamp: new Date().toISOString()
+        });
         // Clear timeout since we got session_started
         if (this.sessionStartTimeout) {
           clearTimeout(this.sessionStartTimeout);
@@ -236,23 +277,55 @@ export class GeminiLiveService {
         }
         this.isConnected = true;
         this.isSessionReady = true; // Mark session as ready
+        logger.debug('[GeminiLiveService] Session marked as ready', {
+          isConnected: this.isConnected,
+          isSessionReady: this.isSessionReady
+        });
         
         // Flush any queued media and context updates that were sent before session was ready
+        logger.debug('[GeminiLiveService] Flushing queued media and context...');
         this.flushPendingMedia();
         this.flushPendingContext();
         
         this.config.onStateChange('CONNECTED');
+        logger.debug('[GeminiLiveService] ✅ State changed to CONNECTED');
       });
 
       this.liveClient.on('input_transcript', (text, isFinal) => {
+        console.log('🔵 [GeminiLiveService] INPUT_TRANSCRIPT EVENT RECEIVED', { 
+          text: text?.substring(0, 100), 
+          isFinal, 
+          hasCallback: !!this.config.onTranscript,
+          fullLength: text?.length 
+        });
+        logger.debug('[GeminiLiveService] Received input_transcript', { text, isFinal, hasCallback: !!this.config.onTranscript });
         // onTranscript callback updates React state, which syncs to unifiedContext via useChatSession
-        this.config.onTranscript(text, true, isFinal);
+        if (this.config.onTranscript) {
+          console.log('🔵 [GeminiLiveService] Calling onTranscript callback for INPUT', { text: text?.substring(0, 50) });
+          this.config.onTranscript(text, true, isFinal);
+        } else {
+          console.error('🔴 [GeminiLiveService] onTranscript callback NOT SET for input!');
+          logger.warn('[GeminiLiveService] onTranscript callback not set!');
+        }
         // Removed duplicate unifiedContext.addTranscriptItem() - handled by handleTranscriptUpdate
       });
 
       this.liveClient.on('output_transcript', (text, isFinal) => {
+        console.log('🟢 [GeminiLiveService] OUTPUT_TRANSCRIPT EVENT RECEIVED', { 
+          text: text?.substring(0, 100), 
+          isFinal, 
+          hasCallback: !!this.config.onTranscript,
+          fullLength: text?.length 
+        });
+        logger.debug('[GeminiLiveService] Received output_transcript', { text, isFinal, hasCallback: !!this.config.onTranscript });
         // onTranscript callback updates React state, which syncs to unifiedContext via useChatSession
-        this.config.onTranscript(text, false, isFinal);
+        if (this.config.onTranscript) {
+          console.log('🟢 [GeminiLiveService] Calling onTranscript callback for OUTPUT', { text: text?.substring(0, 50) });
+          this.config.onTranscript(text, false, isFinal);
+        } else {
+          console.error('🔴 [GeminiLiveService] onTranscript callback NOT SET for output!');
+          logger.warn('[GeminiLiveService] onTranscript callback not set!');
+        }
         // Removed duplicate unifiedContext.addTranscriptItem() - handled by handleTranscriptUpdate
       });
 
@@ -293,6 +366,12 @@ export class GeminiLiveService {
       });
 
       this.liveClient.on('error', (error) => {
+        // Rate limit errors are expected during high audio activity - log as debug, not error
+        const errorStr = typeof error === 'string' ? error : String(error);
+        if (errorStr.includes('Rate limit exceeded') || errorStr.includes('RATE_LIMIT_EXCEEDED')) {
+          logger.debug('[GeminiLiveService] Rate limit warning (expected during high audio activity)', { error: errorStr });
+          return; // Don't change state for rate limit errors - they're expected
+        }
         console.error('[GeminiLiveService] Error:', error);
         this.config.onStateChange('ERROR');
       });
@@ -304,39 +383,60 @@ export class GeminiLiveService {
       });
 
       // Connect to Fly.io WebSocket server
+      logger.debug('[GeminiLiveService] Connecting WebSocket...');
       this.liveClient.connect();
+      logger.debug('[GeminiLiveService] WebSocket connect() called');
 
-      // Setup Input Processing & Analysis
-      this.inputSource = this.inputAudioContext.createMediaStreamSource(stream);
-      this.inputAnalyser = this.inputAudioContext.createAnalyser();
-      this.inputAnalyser.fftSize = 256; // Increased for better frequency resolution
-      this.inputAnalyser.smoothingTimeConstant = 0.3; // Smoother visual response
-      this.inputAnalyser.minDecibels = -90;
-      this.inputAnalyser.maxDecibels = -10;
-
-      // Load AudioWorklet module with fallback to ScriptProcessorNode
-      let useWorklet = true;
+      // Setup Input Processing & Analysis (optional - connection can work without it)
       try {
-        await this.inputAudioContext.audioWorklet.addModule('/audio-processor.js');
-      } catch (e) {
-        console.error('Failed to load audio worklet, falling back to ScriptProcessor', e);
-        useWorklet = false;
-      }
+        logger.debug('[GeminiLiveService] Setting up audio processing...', {
+          hasInputAudioContext: !!this.inputAudioContext,
+          hasStream: !!stream,
+          streamTracks: stream?.getTracks().length
+        });
+        
+        if (!this.inputAudioContext) {
+          logger.error('[GeminiLiveService] Input audio context is null!');
+          throw new Error('Audio context not initialized');
+        }
+        
+        if (!stream) {
+          logger.error('[GeminiLiveService] Stream is null!');
+          throw new Error('Microphone stream not available');
+        }
+        
+        logger.debug('[GeminiLiveService] Creating media stream source...');
+        this.inputSource = this.inputAudioContext.createMediaStreamSource(stream);
+        logger.debug('[GeminiLiveService] Media stream source created');
+        this.inputAnalyser = this.inputAudioContext.createAnalyser();
+        this.inputAnalyser.fftSize = 256; // Increased for better frequency resolution
+        this.inputAnalyser.smoothingTimeConstant = 0.3; // Smoother visual response
+        this.inputAnalyser.minDecibels = -90;
+        this.inputAnalyser.maxDecibels = -10;
 
-      if (useWorklet) {
-        // Modern AudioWorklet path
-        this.processor = new AudioWorkletNode(this.inputAudioContext, 'audio-recorder-worklet');
-        
-        // Connect audio graph: source -> analyser -> processor -> destination
-        this.inputSource.connect(this.inputAnalyser); // For visuals (must be before processor)
-        this.inputAnalyser.connect(this.processor); // For processing
-        this.processor.connect(this.inputAudioContext.destination);
-        
-        // CRITICAL: Only start sending audio AFTER session_started is received
-        (this.processor as AudioWorkletNode).port.onmessage = (event: MessageEvent) => {
-          if (!this.isConnected || !this.liveClient) {
-            return;
-          }
+        // Load AudioWorklet module with fallback to ScriptProcessorNode
+        let useWorklet = true;
+        try {
+          await this.inputAudioContext.audioWorklet.addModule('/audio-processor.js');
+        } catch (e) {
+          console.error('Failed to load audio worklet, falling back to ScriptProcessor', e);
+          useWorklet = false;
+        }
+
+        if (useWorklet) {
+          // Modern AudioWorklet path
+          this.processor = new AudioWorkletNode(this.inputAudioContext, 'audio-recorder-worklet');
+          
+          // Connect audio graph: source -> analyser -> processor -> destination
+          this.inputSource.connect(this.inputAnalyser); // For visuals (must be before processor)
+          this.inputAnalyser.connect(this.processor); // For processing
+          this.processor.connect(this.inputAudioContext.destination);
+          
+          // CRITICAL: Only start sending audio AFTER session_started is received
+          (this.processor as AudioWorkletNode).port.onmessage = (event: MessageEvent) => {
+            if (!this.isConnected || !this.liveClient) {
+              return;
+            }
           
           const inputData = event.data.audioData; // Float32Array from worklet
           if (!inputData) return;
@@ -379,7 +479,14 @@ export class GeminiLiveService {
 
       // Start analysis loop for visuals
       this.startAnalysisLoop();
-
+    } catch (audioErr) {
+        // Audio processing failed, but connection can still work for transcripts
+        logger.warn('[GeminiLiveService] Audio processing setup failed, continuing without audio processing', {
+          error: audioErr instanceof Error ? audioErr.message : String(audioErr)
+        });
+        // Don't throw - allow connection to proceed for text/transcript functionality
+        // The WebSocket connection is already established, so transcripts can still flow
+      }
     } catch (err) {
       console.error("Connection failed", err);
       this.config.onStateChange('ERROR');
@@ -459,14 +566,42 @@ export class GeminiLiveService {
   }
 
   public sendRealtimeMedia(media: { mimeType: string; data: string }) {
-    if (!this.liveClient || !this.isConnected) return;
+    // CRITICAL FIX: Allow queuing even if not fully connected (client exists = connection in progress)
+    // Only require liveClient to exist - if it exists, we can queue frames
+    if (!this.liveClient) {
+      logger.debug('[GeminiLiveService] Cannot send media - no client', {
+        hasClient: false
+      });
+      return;
+    }
+    
+    // Queue if session not ready (allows queuing during CONNECTING state)
     if (!this.isSessionReady) {
-        // Queue media until session is ready
+        // Queue media until session is ready (unified multimodal stream - frames will be sent together)
         this.pendingMediaQueue.push(media);
+        logger.debug(`[GeminiLiveService] Queued media frame (${this.pendingMediaQueue.length} in queue)`, {
+          mimeType: media.mimeType,
+          dataSize: media.data.length,
+          isConnected: this.isConnected,
+          isSessionReady: this.isSessionReady
+        });
         return;
     }
-    // LOGGING: Verify media streaming
-    // logger.debug(`[GeminiLiveService] Sending real-time media: ${media.mimeType}, size: ${media.data.length}`);
+    
+    // Only check isConnected when actually sending (not queuing)
+    if (!this.isConnected) {
+      logger.debug('[GeminiLiveService] Cannot send media - not connected', {
+        isConnected: this.isConnected,
+        isSessionReady: this.isSessionReady
+      });
+      return;
+    }
+    // Send immediately as part of unified multimodal stream
+    // Per Gemini 3 best practices: treat inputs (text + images/audio/video) as a single stream
+    logger.debug(`[GeminiLiveService] Sending real-time media (unified multimodal stream)`, {
+      mimeType: media.mimeType,
+      dataSize: media.data.length
+    });
     this.liveClient.sendRealtimeInput([{
       mimeType: media.mimeType,
       data: media.data
@@ -481,11 +616,24 @@ export class GeminiLiveService {
     capturedAt?: number;
     metadata?: Record<string, unknown>;
   }): void {
-    if (!this.liveClient || !this.isConnected) return;
+    // CRITICAL FIX: Allow queuing even if not fully connected (client exists = connection in progress)
+    if (!this.liveClient) return;
+    
+    // Queue if session not ready (allows queuing during CONNECTING state)
     if (!this.isSessionReady) {
       // Queue context update until session is ready
       this.pendingContextQueue.push(update);
-      logger.debug(`[GeminiLiveService] Queued context update (${this.pendingContextQueue.length} in queue)`);
+      logger.debug(`[GeminiLiveService] Queued context update (${this.pendingContextQueue.length} in queue)`, {
+        modality: update.modality,
+        isConnected: this.isConnected,
+        isSessionReady: this.isSessionReady
+      });
+      return;
+    }
+    
+    // Only check isConnected when actually sending (not queuing)
+    if (!this.isConnected) {
+      logger.debug('[GeminiLiveService] Cannot send context update - not connected');
       return;
     }
     this.liveClient.sendContextUpdate({
@@ -538,43 +686,56 @@ export class GeminiLiveService {
    * Sends ALL queued frames to ensure no frames are lost
    */
   private flushPendingMedia(): void {
-    if (this.pendingMediaQueue.length === 0) return;
+    if (this.pendingMediaQueue.length === 0) {
+      logger.debug('[GeminiLiveService] No queued media to flush');
+      return;
+    }
     
-    logger.debug(`[GeminiLiveService] Flushing ${this.pendingMediaQueue.length} queued media items`);
+    logger.debug(`[GeminiLiveService] Flushing ${this.pendingMediaQueue.length} queued media items (unified multimodal stream)`);
     
-    // Send ALL queued frames to avoid losing any frames
-    // If queue is very large, send in batches to avoid flooding
+    // Per Gemini 3 best practices: Send all queued frames as unified multimodal stream
+    // Treat inputs (text + images/audio/video) as a single stream, not siloed analyses
     const framesToSend = [...this.pendingMediaQueue];
     this.pendingMediaQueue = [];
     
     if (framesToSend.length > 0 && this.liveClient) {
-      // Send in batches of 10 to avoid overwhelming the connection
+      // Send frames in batches to avoid overwhelming the connection
+      // But ensure they're all sent as part of the unified stream
       const BATCH_SIZE = 10;
       let batchIndex = 0;
       
       const sendBatch = () => {
         if (batchIndex >= framesToSend.length) {
-          logger.debug(`[GeminiLiveService] Flushed all ${framesToSend.length} queued frames`);
+          logger.debug(`[GeminiLiveService] ✅ Flushed all ${framesToSend.length} queued frames (unified multimodal stream)`);
           return;
         }
         
         const batch = framesToSend.slice(batchIndex, batchIndex + BATCH_SIZE);
+        // Send batch as unified multimodal input (per Gemini 3 best practices)
         this.liveClient!.sendRealtimeInput(
           batch.map(m => ({ mimeType: m.mimeType, data: m.data }))
         );
-        logger.debug(`[GeminiLiveService] Sent batch ${Math.floor(batchIndex / BATCH_SIZE) + 1}/${Math.ceil(framesToSend.length / BATCH_SIZE)} (${batch.length} frames)`);
+        logger.debug(`[GeminiLiveService] Sent unified multimodal batch ${Math.floor(batchIndex / BATCH_SIZE) + 1}/${Math.ceil(framesToSend.length / BATCH_SIZE)} (${batch.length} frames)`, {
+          mimeTypes: batch.map(m => m.mimeType),
+          totalFrames: framesToSend.length
+        });
         
         batchIndex += BATCH_SIZE;
         
-        // Small delay between batches to avoid flooding
+        // Small delay between batches to avoid flooding (but keep them as unified stream)
         if (batchIndex < framesToSend.length) {
           setTimeout(sendBatch, 50);
         } else {
-          logger.debug(`[GeminiLiveService] Flushed all ${framesToSend.length} queued frames`);
+          logger.debug(`[GeminiLiveService] ✅ Flushed all ${framesToSend.length} queued frames (unified multimodal stream)`);
         }
       };
       
       sendBatch();
+    } else {
+      logger.warn('[GeminiLiveService] Cannot flush media - no client or no frames', {
+        hasClient: !!this.liveClient,
+        frameCount: framesToSend.length
+      });
     }
   }
 

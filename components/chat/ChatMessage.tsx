@@ -193,7 +193,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                         }
                     `}>
                         {!isUser && (
-                             <div className="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-sm border border-zinc-100 dark:border-zinc-800 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md">
+                             <div className="bg-white/80 dark:bg-zinc-900 backdrop-blur-sm border border-zinc-100 dark:border-zinc-800 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md">
                                 <MarkdownRenderer content={item.text} isUser={isUser} isDarkMode={isDarkMode} />
                              </div>
                         )}

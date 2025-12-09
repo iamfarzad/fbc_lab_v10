@@ -318,7 +318,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
       <div 
         className={`
             relative flex flex-col w-full h-full md:h-[calc(100%-3rem)] md:m-6 md:rounded-[32px] overflow-hidden 
-            bg-white/95 dark:bg-black/95 md:bg-white/40 md:dark:bg-black/40
+            bg-white dark:bg-zinc-950 md:bg-white/40 md:dark:bg-zinc-950/40
             backdrop-blur-xl border-none md:border md:border-white/40 dark:md:border-white/10 
             md:shadow-2xl pointer-events-auto transition-colors duration-500
         `}
@@ -370,7 +370,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
           </div>
 
           {/* CHAT HEADER */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 shrink-0 z-10 bg-white/40 dark:bg-black/40 backdrop-blur-md gap-4">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 shrink-0 z-10 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-md gap-4">
               <div className="flex items-center gap-3 min-w-0">
                  {/* Connection Dot & Title */}
                  <div className="flex items-center gap-2.5">
@@ -494,9 +494,11 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
               // Only keep streaming messages if they have some content or are actively streaming
               const validItems = items.filter(item => {
                 const hasContent = item.text?.trim() || item.attachment || item.reasoning || item.error;
-                const isStreaming = !item.isFinal && item.role === 'model';
+                const isStreaming = !item.isFinal && (item.role === 'model' || item.role === 'user');
                 // Keep if has content OR is actively streaming (will get content soon)
-                return hasContent || (isStreaming && item.status === 'streaming');
+                // Also keep voice transcripts even if text is empty initially (they're being built up)
+                const isVoiceTranscript = !item.isFinal && item.status === 'streaming';
+                return hasContent || isStreaming || isVoiceTranscript;
               });
               
               return validItems.length === 0 ? (

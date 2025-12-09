@@ -161,6 +161,16 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                                     
                                     // Send frame to parent - will be sent to Live API if connected
                                     if (base64) {
+                                        // Log every 10th frame to avoid spam (every ~5 seconds at 500ms interval)
+                                        if (!(window as any).webcamFrameCount) (window as any).webcamFrameCount = 0;
+                                        (window as any).webcamFrameCount++;
+                                        if ((window as any).webcamFrameCount % 10 === 0) {
+                                            console.log('📹 [WebcamPreview] Sending frame to onSendFrame callback', {
+                                                frameNumber: (window as any).webcamFrameCount,
+                                                size: base64.length,
+                                                hasCallback: typeof onSendFrame === 'function'
+                                            });
+                                        }
                                         onSendFrame(base64);
                                     }
     

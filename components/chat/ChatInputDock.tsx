@@ -200,7 +200,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
             >
                 <div className="
                     w-full
-                    bg-white/95 dark:bg-zinc-950/95 md:bg-white/80 md:dark:bg-zinc-950/80
+                    bg-white dark:bg-zinc-950 md:bg-white/80 md:dark:bg-zinc-950/80
                     backdrop-blur-xl border-t border-white/20 dark:border-white/10
                     p-4 pb-[env(safe-area-inset-bottom,24px)] md:pb-6
                     md:rounded-b-[32px]

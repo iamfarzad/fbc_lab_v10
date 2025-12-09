@@ -282,8 +282,13 @@ export const App: React.FC = () => {
         setVisualState,
         handleVolumeChange,
         handleTranscript: (text, isUser, isFinal, grounding, agent) => {
+             logger.debug('[App] handleTranscript called', { text: text?.substring(0, 50), isUser, isFinal, hasRef: !!handleTranscriptUpdateRef.current });
              // Use ref to always get latest function
-             handleTranscriptUpdateRef.current?.(text, isUser, isFinal, grounding, agent);
+             if (handleTranscriptUpdateRef.current) {
+                 handleTranscriptUpdateRef.current(text, isUser, isFinal, grounding, agent);
+             } else {
+                 logger.warn('[App] handleTranscriptUpdateRef.current is null!');
+             }
         },
         handleToolCall,
         standardChatRef,
@@ -318,6 +323,17 @@ export const App: React.FC = () => {
             researchActive: isResearching 
         }));
     }, [isResearching, setVisualState]);
+
+    // Log connection state changes
+    useEffect(() => {
+        logger.debug('[App] Connection state changed', {
+            connectionState,
+            hasLiveService: !!liveServiceRef.current,
+            isSessionReady: liveServiceRef.current?.getIsSessionReady?.() ?? false,
+            connectionId: liveServiceRef.current?.getConnectionId?.() ?? null,
+            transcriptLength: transcript.length
+        });
+    }, [connectionState, transcript.length]);
 
     // 10. Screen Share Hook
     const screenShare = useScreenShare({
@@ -720,19 +736,64 @@ export const App: React.FC = () => {
         void checkLocalAi();
     }, []);
 
+    // Throttle webcam frame logging (avoid spam)
+    const webcamFrameLogRef = useRef<number>(0);
+    
     // 15. Webcam Frame Handler (must be at top level, not in JSX)
     const handleSendVideoFrame = useCallback((base64: string) => {
         latestWebcamFrameRef.current = base64;
-        if (liveServiceRef.current && connectionState === LiveConnectionState.CONNECTED) {
+        
+        // Log every frame received from webcam (throttled to avoid spam)
+        const now = Date.now();
+        if (!webcamFrameLogRef.current || now - webcamFrameLogRef.current > 2000) {
+            console.log('📹 [App] Webcam frame received from WebcamPreview', {
+                size: base64.length,
+                hasLiveService: !!liveServiceRef.current,
+                connectionState,
+                isWebcamActive
+            });
+            webcamFrameLogRef.current = now;
+        }
+        
+        // Send frame if service exists and is connected (even if session not ready - will queue)
+        if (liveServiceRef.current && (connectionState === LiveConnectionState.CONNECTED || connectionState === LiveConnectionState.CONNECTING)) {
             try {
                 liveServiceRef.current.sendRealtimeMedia({ mimeType: 'image/jpeg', data: base64 });
-                logger.debug('[App] Webcam frame sent to Live API', { size: base64.length });
+                const isQueued = !liveServiceRef.current.getIsSessionReady();
+                logger.debug('[App] Webcam frame sent to Live API', { 
+                    size: base64.length,
+                    queued: isQueued,
+                    connectionState,
+                    sessionReady: liveServiceRef.current.getIsSessionReady()
+                });
+                // Log when actually sent (not queued) to verify connection
+                if (!isQueued) {
+                    console.log('✅ [App] Webcam frame SENT to Live API (not queued)', {
+                        size: base64.length,
+                        connectionState
+                    });
+                } else {
+                    console.log('⏳ [App] Webcam frame QUEUED (session not ready)', {
+                        size: base64.length,
+                        connectionState
+                    });
+                }
             } catch (err) {
                 console.error('[App] Failed to send webcam frame to Live API:', err);
             }
-        } else if (isWebcamActive && connectionState === LiveConnectionState.DISCONNECTED) {
-            logger.debug('[App] Webcam active but Live API disconnected, attempting connection');
-            void handleConnect();
+        } else {
+            // Log why frame is not being sent
+            if (!liveServiceRef.current) {
+                console.warn('⚠️ [App] Webcam frame NOT sent: liveServiceRef.current is null');
+            } else if (connectionState !== LiveConnectionState.CONNECTED && connectionState !== LiveConnectionState.CONNECTING) {
+                console.warn('⚠️ [App] Webcam frame NOT sent: connectionState is', connectionState);
+            }
+            
+            // Auto-connect if webcam is active but disconnected
+            if (isWebcamActive && connectionState === LiveConnectionState.DISCONNECTED) {
+                console.log('🔄 [App] Webcam active but Live API disconnected, attempting connection');
+                void handleConnect();
+            }
         }
     }, [connectionState, isWebcamActive, handleConnect]);
 

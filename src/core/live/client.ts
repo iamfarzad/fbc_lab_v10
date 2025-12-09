@@ -631,11 +631,39 @@ export class LiveClientWS {
         break
       }
       case 'input_transcript':
-        if (!msg.payload) return
+        if (!msg.payload) {
+          console.warn('⚠️ [LiveClient] INPUT_TRANSCRIPT message has no payload');
+          return
+        }
+        console.log('🔵 [LiveClient] 📝 INPUT_TRANSCRIPT message received from server', {
+          text: msg.payload.text?.substring(0, 100),
+          isFinal: msg.payload.isFinal,
+          fullLength: msg.payload.text?.length,
+          payloadKeys: Object.keys(msg.payload || {})
+        });
+        logger.debug('[LiveClient] 📝 Received INPUT_TRANSCRIPT', {
+          text: msg.payload.text?.substring(0, 50),
+          isFinal: msg.payload.isFinal,
+          fullLength: msg.payload.text?.length
+        });
         this.emit('input_transcript', msg.payload.text, Boolean(msg.payload.isFinal))
         break
       case 'output_transcript':
-        if (!msg.payload) return
+        if (!msg.payload) {
+          console.warn('⚠️ [LiveClient] OUTPUT_TRANSCRIPT message has no payload');
+          return
+        }
+        console.log('🟢 [LiveClient] 📝 OUTPUT_TRANSCRIPT message received from server', {
+          text: msg.payload.text?.substring(0, 100),
+          isFinal: msg.payload.isFinal,
+          fullLength: msg.payload.text?.length,
+          payloadKeys: Object.keys(msg.payload || {})
+        });
+        logger.debug('[LiveClient] 📝 Received OUTPUT_TRANSCRIPT', {
+          text: msg.payload.text?.substring(0, 50),
+          isFinal: msg.payload.isFinal,
+          fullLength: msg.payload.text?.length
+        });
         this.emit('output_transcript', msg.payload.text, Boolean(msg.payload.isFinal))
         break
       case 'text':

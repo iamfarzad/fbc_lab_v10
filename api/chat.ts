@@ -1,11 +1,36 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import type { ChatMessage } from '../src/core/agents/types.js';
+import type { ChatMessage, IntelligenceContext, MultimodalContextData, AgentMetadata, AgentResult } from '../src/core/agents/types.js';
 import type { FunnelStage } from '../src/core/types/funnel-stage.js';
+import type { ConversationFlowState } from '../types/conversation-flow-types.js';
 import { routeToAgent } from '../src/core/agents/orchestrator.js';
 import { logger } from '../src/lib/logger.js';
 import { multimodalContextManager } from '../src/core/context/multimodal-context.js';
 import { rateLimit } from '../src/lib/rate-limiter.js';
 import { supabaseService } from '../src/core/supabase/client.js';
+
+interface ChatRequestBody {
+  messages?: unknown[];
+  sessionId?: string;
+  intelligenceContext?: IntelligenceContext | Record<string, unknown>;
+  trigger?: string;
+  multimodalContext?: MultimodalContextData;
+  stream?: boolean;
+  conversationFlow?: ConversationFlowState | null;
+}
+
+interface IncomingMessage {
+  role?: string;
+  content?: string;
+  attachments?: Array<{ mimeType?: string; data?: string; [key: string]: unknown }>;
+  [key: string]: unknown;
+}
+
+interface ValidatedMessage {
+  role: 'user' | 'assistant' | 'system';
+  content?: string;
+  attachments?: Array<{ mimeType?: string; data?: string; [key: string]: unknown }>;
+  [key: string]: unknown;
+}
 
 /**
  * Determine current funnel stage based on intelligence context and triggers
@@ -14,20 +39,31 @@ import { supabaseService } from '../src/core/supabase/client.js';
  * This keeps the orchestrator pure and testable.
  */
 function determineCurrentStage(
-  intelligenceContext: any,
+  intelligenceContext: IntelligenceContext | Record<string, unknown> | undefined,
   trigger?: string
 ): FunnelStage {
   if (trigger === 'conversation_end') return 'SUMMARY'
   if (trigger === 'booking') return 'CLOSING'
   if (trigger === 'admin') return 'PITCHING' // Will be handled by orchestrator
 
+  // Type guard to check if it's a proper IntelligenceContext
+  const hasCompany = intelligenceContext && typeof intelligenceContext === 'object' && 'company' in intelligenceContext;
+  const hasBudget = intelligenceContext && typeof intelligenceContext === 'object' && 'budget' in intelligenceContext;
+  const hasPerson = intelligenceContext && typeof intelligenceContext === 'object' && 'person' in intelligenceContext;
+
+  if (!hasCompany || !hasBudget || !hasPerson) {
+    return 'DISCOVERY';
+  }
+
+  const ctx = intelligenceContext as IntelligenceContext;
+
   // ONLY fast-track if ALL THREE criteria are met (not just one)
   // This prevents skipping Discovery just because we know the company website
   const isFullyQualified =
-    intelligenceContext?.company?.size &&
-    intelligenceContext.company.size !== 'unknown' &&
-    intelligenceContext?.budget?.hasExplicit &&
-    ['C-Level', 'VP', 'Director'].includes((intelligenceContext?.person?.seniority || '') as string)
+    ctx.company?.size &&
+    ctx.company.size !== 'unknown' &&
+    ctx.budget?.hasExplicit &&
+    ['C-Level', 'VP', 'Director'].includes((ctx.person?.seniority || '') as string)
 
   // ALWAYS start with DISCOVERY unless fully qualified
   // Having a website alone is NOT enough to skip discovery
@@ -76,7 +112,8 @@ export default async function handler(
             });
         }
 
-        const { messages, sessionId, intelligenceContext, trigger, multimodalContext, stream } = req.body;
+        const body = req.body as ChatRequestBody;
+        const { messages, sessionId, intelligenceContext, trigger, multimodalContext, stream } = body;
 
         // Rate limiting - check before processing
         const effectiveSessionId = (sessionId || `session-${Date.now()}`) as string
@@ -94,21 +131,22 @@ export default async function handler(
         }
 
         // Validate and normalize message structure
-        const validMessages = messages
-            .filter((m: any) => {
+        const validMessages: ValidatedMessage[] = messages
+            .filter((m: unknown): m is IncomingMessage => {
                 if (!m || typeof m !== 'object') return false
-                if (!m.role || typeof m.role !== 'string') return false
+                const msg = m as IncomingMessage
+                if (!msg.role || typeof msg.role !== 'string') return false
                 // Must have content (string) OR attachments
-                const hasContent = m.content && (typeof m.content === 'string' ? m.content.trim() : true)
-                const hasAttachments = m.attachments && Array.isArray(m.attachments) && m.attachments.length > 0
+                const hasContent = msg.content && (typeof msg.content === 'string' ? msg.content.trim() : true)
+                const hasAttachments = msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0
                 return hasContent || hasAttachments
             })
-            .map((m: any) => {
+            .map((m: IncomingMessage): ValidatedMessage => {
                 // Normalize role: 'model' (Gemini API) -> 'assistant' (AI SDK)
-                const normalizedRole = m.role === 'model'
+                const normalizedRole: 'user' | 'assistant' | 'system' = m.role === 'model'
                     ? 'assistant'
                     : (m.role === 'user' || m.role === 'system' || m.role === 'assistant'
-                        ? m.role
+                        ? m.role as 'user' | 'assistant' | 'system'
                         : 'user')
 
                 // Remove attachments from non-user messages (only user can send images)
@@ -133,8 +171,8 @@ export default async function handler(
 
         // Determine current stage (single source of truth in API layer)
         const currentStage = determineCurrentStage(
-            intelligenceContext,
-            trigger as string | undefined
+            intelligenceContext as IntelligenceContext | Record<string, unknown> | undefined,
+            trigger
         )
 
         // Persist stage so reloads don't reset (safe fallback if table/column missing)
@@ -179,7 +217,7 @@ export default async function handler(
 
         try {
             // Extract conversationFlow if provided (crucial for Discovery Agent)
-            const conversationFlow = req.body.conversationFlow || null;
+            const conversationFlow = body.conversationFlow || null;
 
             // Check if streaming is requested
             const shouldStream = stream === true;
@@ -205,7 +243,7 @@ export default async function handler(
                         messages: validMessages as ChatMessage[],
                         sessionId: sessionId || `session-${Date.now()}`,
                         currentStage,
-                        intelligenceContext: intelligenceContext || {},
+                        intelligenceContext: (intelligenceContext as IntelligenceContext | undefined) || {},
                         multimodalContext: finalMultimodalContext || {
                             hasRecentImages: false,
                             hasRecentAudio: false,
@@ -230,21 +268,22 @@ export default async function handler(
                                 content: accumulatedText // Send accumulated for UI, but each chunk triggers a new event
                             })}\n\n`);
                         },
-                        onMetadata: (metadata: any) => {
+                        onMetadata: (metadata: AgentMetadata | Record<string, unknown>) => {
                             // Stream intermediate events: tool calls, reasoning, thinking states
                             metadataCount++;
+                            const meta = metadata as AgentMetadata & { type?: string; toolCall?: unknown; reasoning?: string };
                             logger.debug('[API /chat] Stream metadata', { 
-                                type: metadata.type,
+                                type: meta.type,
                                 metadataCount,
-                                hasToolCall: !!metadata.toolCall,
-                                hasReasoning: !!metadata.reasoning
+                                hasToolCall: !!meta.toolCall,
+                                hasReasoning: !!meta.reasoning
                             });
                             res.write(`data: ${JSON.stringify({
                                 type: 'meta',
                                 ...metadata
                             })}\n\n`);
                         },
-                        onDone: (result: any) => {
+                        onDone: (result: AgentResult) => {
                             logger.info('[API /chat] Stream complete', { 
                                 agent: result.agent,
                                 model: result.model,
@@ -288,7 +327,7 @@ export default async function handler(
                 messages: validMessages as ChatMessage[],
                 sessionId: sessionId || `session-${Date.now()}`,
                 currentStage,
-                intelligenceContext: intelligenceContext || {},
+                intelligenceContext: (intelligenceContext as IntelligenceContext | undefined) || {},
                 multimodalContext: finalMultimodalContext || {
                     hasRecentImages: false,
                     hasRecentAudio: false,
@@ -322,7 +361,7 @@ export default async function handler(
                 '[API /chat] Agent routing failed',
                 error instanceof Error ? error : new Error(String(error)),
                 {
-                    sessionId,
+                    sessionId: sessionId as string | undefined,
                     currentStage,
                     messageCount: validMessages.length,
                     hasIntelligenceContext: !!intelligenceContext,

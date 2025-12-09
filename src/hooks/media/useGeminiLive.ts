@@ -260,16 +260,21 @@ export function useGeminiLive({
     }, [setActiveRoute, setIsChatVisible]);
 
     // Callbacks for ScreenShare
+    // CRITICAL FIX: Allow CONNECTING state so frames can be queued (same as webcam)
     const handleSendRealtimeInput = useCallback((chunks: Array<{ mimeType: string; data: string }>) => {
-        if (liveServiceRef.current && connectionState === LiveConnectionState.CONNECTED) {
+        if (liveServiceRef.current && (connectionState === LiveConnectionState.CONNECTED || connectionState === LiveConnectionState.CONNECTING)) {
             chunks.forEach(chunk => {
+                // sendRealtimeMedia will queue if session not ready, or send immediately if ready
                 liveServiceRef.current?.sendRealtimeMedia(chunk);
             });
+        } else {
+            logger.debug('[useGeminiLive] Screen share frame dropped - not connected', { connectionState });
         }
     }, [connectionState]);
 
     const handleSendContextUpdate = useCallback((update: { sessionId?: string | null; modality: 'screen' | 'webcam' | 'intelligence'; analysis?: string; imageData?: string; capturedAt?: number; metadata?: Record<string, unknown> }) => {
-        if (liveServiceRef.current && connectionState === LiveConnectionState.CONNECTED && update.analysis) {
+        // CRITICAL FIX: Allow CONNECTING state so context updates can be queued
+        if (liveServiceRef.current && (connectionState === LiveConnectionState.CONNECTED || connectionState === LiveConnectionState.CONNECTING) && update.analysis) {
             const contextUpdate: any = {
                 modality: update.modality,
                 analysis: update.analysis,
@@ -280,6 +285,21 @@ export function useGeminiLive({
             if (update.metadata) contextUpdate.metadata = update.metadata;
             
             liveServiceRef.current.sendContextUpdate(contextUpdate);
+        } else {
+            // Log dropped context updates for debugging (matching handleSendRealtimeInput behavior)
+            logger.debug('[useGeminiLive] Context update dropped', {
+                connectionState,
+                hasLiveService: !!liveServiceRef.current,
+                hasAnalysis: !!update.analysis,
+                modality: update.modality,
+                reason: !liveServiceRef.current 
+                    ? 'no live service' 
+                    : (connectionState !== LiveConnectionState.CONNECTED && connectionState !== LiveConnectionState.CONNECTING)
+                    ? 'not connected'
+                    : !update.analysis
+                    ? 'no analysis'
+                    : 'unknown'
+            });
         }
     }, [connectionState]);
 

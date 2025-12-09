@@ -23,6 +23,10 @@ class Particle {
   totalParticles: number;
   scale: number; // Z-depth scale
   
+  // Physics variators for organic morphing
+  springMod: number;
+  frictionMod: number;
+  
   constructor(w: number, h: number, index: number, total: number) {
     this.index = index;
     this.totalParticles = total;
@@ -44,6 +48,11 @@ class Particle {
     this.baseAlpha = Math.random() * 0.6 + 0.2;
     this.targetAlpha = this.baseAlpha;
     this.scale = 1;
+    
+    // Give each particle unique physical traits
+    // Some are purely lighter, some heavier, some draggier
+    this.springMod = 0.85 + Math.random() * 0.3; // 0.85 to 1.15
+    this.frictionMod = 0.95 + Math.random() * 0.1; // Slight variation in drag
   }
 
   update(
@@ -86,36 +95,47 @@ class Particle {
         return;
     }
 
+    // Physics Integration with Variance
+    // Apply per-particle physical traits (mass/drag variance) to break "robot swarm" look
+    const mySpring = spring * this.springMod;
+    const myFriction = friction * this.frictionMod;
+
     // Forces
     const dx = tx - this.x;
     const dy = ty - this.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
     
-    // Physics Integration
-    this.vx += dx * spring;
-    this.vy += dy * spring;
+    this.vx += dx * mySpring;
+    this.vy += dy * mySpring;
     
+    // "Organic Curl" - Add curve to trajectories during large morphs
+    // Instead of straight lines, particles arc slightly
+    if (dist > 30) {
+        const curve = 0.002 * (this.index % 2 === 0 ? 1 : -1); // Alternating spin
+        this.vx += dy * curve; // Perpendicular force
+        this.vy -= dx * curve;
+    }
+
     // Orbit boost
     if (['orb', 'planet', 'atom'].includes(visualState.shape)) {
         const orbitSpeed = visualState.mode === 'speaking' ? 0.05 : 0.01; 
         const cx = w/2, cy = h/2;
         const odx = this.x - cx, ody = this.y - cy;
         const angle = Math.atan2(ody, odx);
-        const dist = Math.sqrt(odx*odx + ody*ody);
-        this.vx += Math.sin(angle) * orbitSpeed * dist * 0.02;
-        this.vy -= Math.cos(angle) * orbitSpeed * dist * 0.02;
+        const oDist = Math.sqrt(odx*odx + ody*ody);
+        this.vx += Math.sin(angle) * orbitSpeed * oDist * 0.02;
+        this.vy -= Math.cos(angle) * orbitSpeed * oDist * 0.02;
     }
 
     // Reasoning complexity affects particle behavior
-    // Higher complexity = more chaotic movement (higher noise, lower friction)
+    // ... (rest of function)
     const reasoningComplexity = visualState.reasoningComplexity || 0;
     let adjustedNoise = noise;
-    let adjustedFriction = friction;
+    let adjustedFriction = myFriction; 
     
     if (reasoningComplexity > 0) {
-        // Increase noise based on complexity (more complex = more random movement)
         adjustedNoise = noise * (1 + reasoningComplexity * 0.5);
-        // Decrease friction slightly (particles move more freely)
-        adjustedFriction = friction * (1 - reasoningComplexity * 0.2);
+        adjustedFriction = myFriction * (1 - reasoningComplexity * 0.2);
     }
     
     // Apply noise
@@ -146,6 +166,8 @@ class Particle {
     }
     
     targetR *= this.scale;
+    // Hard clamp to prevent huge particles
+    targetR = Math.min(targetR, 3.0);
     this.rad += (targetR - this.rad) * 0.2;
 
     // Integration
@@ -165,13 +187,14 @@ class Particle {
         ctx.fillStyle = `rgba(20, 20, 20, ${this.targetAlpha})`;
     }
     
-    const d = Math.max(0.8, this.rad * 2); 
+    // CLAMP SCALE: prevent huge pixelated blocks
+    // Even if zoomed in, particles should mimic "points" not "pixels"
+    const d = Math.min(2.5, Math.max(0.8, this.rad * 2)); 
     
     // Velocity Stretch "Motion Blur"
-    // We stretch the particle in the direction of movement
-    // Cheaper than rotation: just stretch width/height based on vx/vy components
-    const stretchX = Math.abs(this.vx) * 1.5;
-    const stretchY = Math.abs(this.vy) * 1.5;
+    // Cap the stretch to avoid long jagged lines
+    const stretchX = Math.min(4, Math.abs(this.vx) * 1.5);
+    const stretchY = Math.min(4, Math.abs(this.vy) * 1.5);
     
     ctx.fillRect(
         Math.floor(this.x - stretchX * 0.5), 
