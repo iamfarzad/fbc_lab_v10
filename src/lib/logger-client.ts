@@ -54,10 +54,9 @@ class ClientLogger {
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${contextStr}`
   }
 
-  debug(message: string, context?: LogContext): void {
-    if (this.isDevelopment) {
-      console.debug(this.formatMessage('debug', message, context))
-    }
+  debug(_message: string, _context?: LogContext): void {
+    // Suppress debug logs to avoid DevTools floods during local runs
+    return
   }
 
   info(message: string, context?: LogContext): void {
