@@ -306,3 +306,5 @@ useEffect(() => {
 4. `components/chat/ChatMessage.tsx` - Replace Shimmer card with inline status + dropdown
 5. `index.css` or `tailwind.config.js` - Add shimmer animation
 
+
+

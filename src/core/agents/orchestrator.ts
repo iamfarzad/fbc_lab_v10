@@ -9,6 +9,7 @@ import { retargetingAgent } from './retargeting-agent.js'
 import { scoringAgent } from './scoring-agent.js'
 import { detectObjection } from './utils/detect-objections.js'
 import { validateAgentResponse, quickValidate, generateValidationReport } from './response-validator.js'
+import { generateSystemPromptSupplement } from './utils/context-briefing.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
 import type { AgentResult, AgentContext, ChatMessage } from './types.js'
 // GEMINI_MODELS removed as unused
@@ -56,30 +57,45 @@ export async function routeToAgent(params: {
 
   const lastMessage = messages[messages.length - 1]?.content || ''
 
+  // Generate system prompt supplement from intelligence context
+  const systemPromptSupplement = generateSystemPromptSupplement(intelligenceContext)
+
+  // Helper function to add briefing to context
+  const addBriefingToContext = (baseContext: Partial<AgentContext>): AgentContext => ({
+    ...baseContext,
+    systemPromptSupplement,
+    sessionId: baseContext.sessionId || sessionId,
+    intelligenceContext: baseContext.intelligenceContext || intelligenceContext,
+    multimodalContext: baseContext.multimodalContext || multimodalContext,
+    conversationFlow: baseContext.conversationFlow || conversationFlow
+  } as AgentContext)
+
   // === HIGHEST PRIORITY: BOOKING / EXIT / ADMIN ===
   if (trigger === 'booking') {
-    return closerAgent(messages, { intelligenceContext, multimodalContext, sessionId })
+    return closerAgent(messages, addBriefingToContext({ intelligenceContext, multimodalContext, sessionId }))
   }
 
   if (trigger === 'conversation_end') {
-    return summaryAgent(messages, { intelligenceContext, multimodalContext, sessionId, conversationFlow })
+    return summaryAgent(messages, addBriefingToContext({ intelligenceContext, multimodalContext, sessionId, conversationFlow }))
   }
 
   if (trigger === 'admin') {
-    return adminAgent(messages, { sessionId })
+    // Admin agent may not need context, but include it for consistency
+    return adminAgent(messages, addBriefingToContext({ sessionId }))
   }
 
   if (trigger === 'proposal_request') {
-    return proposalAgent(messages, {
+    return proposalAgent(messages, addBriefingToContext({
       intelligenceContext,
       multimodalContext,
       sessionId,
       conversationFlow
-    })
+    }))
   }
 
   if (trigger === 'retargeting') {
-    // Retargeting agent has a specific signature
+    // Retargeting agent has a specific signature - it doesn't use AgentContext
+    // We'll need to handle this separately or update retargeting agent signature
     return retargetingAgent({
       leadContext: intelligenceContext,
       conversationSummary: conversationFlow?.summary || 'No summary available',
@@ -93,11 +109,11 @@ export async function routeToAgent(params: {
       const objection = await detectObjection(lastMessage)
       if (objection.type && objection.confidence > 0.7) {
         intelligenceContext.currentObjection = objection.type
-        const objectionContext: AgentContext = {
+        const objectionContext = addBriefingToContext({
           sessionId,
           intelligenceContext,
           multimodalContext
-        }
+        })
         return objectionAgent(messages, objectionContext)
       }
     } catch (err) {
@@ -113,121 +129,121 @@ export async function routeToAgent(params: {
 
   switch (currentStage) {
     case 'DISCOVERY':
-      result = await discoveryAgent(messages, {
+      result = await discoveryAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'SCORING':
       // Route to scoring agent to compute lead/fit scores
-      result = await scoringAgent(messages, {
+      result = await scoringAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'QUALIFIED':
       // Qualified leads can move to pitching
-      result = await pitchAgent(messages, {
+      result = await pitchAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'INTELLIGENCE_GATHERING':
       // Continue discovery-style interaction while intel gathers
-      result = await discoveryAgent(messages, {
+      result = await discoveryAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'PITCHING':
       // Pitch agent needs to know if it's Workshop or Consulting
       // This logic is inside pitchAgent usually? OR we determine it here
-      result = await pitchAgent(messages, {
+      result = await pitchAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'WORKSHOP_PITCH':
     case 'CONSULTING_PITCH':
       // Unified pitch agent will tailor messaging based on fit scores
-      result = await pitchAgent(messages, {
+      result = await pitchAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'OBJECTION':
-      result = await objectionAgent(messages, {
+      result = await objectionAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'PROPOSAL':
-      result = await proposalAgent(messages, {
+      result = await proposalAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'CLOSING':
-      result = await closerAgent(messages, {
+      result = await closerAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'BOOKING_REQUESTED':
     case 'BOOKED':
       // Keep momentum by staying in closer flow
-      result = await closerAgent(messages, {
+      result = await closerAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     case 'SUMMARY':
-      result = await summaryAgent(messages, {
+      result = await summaryAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
       break
 
     default:
       // Fallback to Discovery
-      result = await discoveryAgent(messages, {
+      result = await discoveryAgent(messages, addBriefingToContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
         conversationFlow
-      })
+      }))
   }
 
   // === RESPONSE VALIDATION ===
@@ -331,6 +347,31 @@ export function getCurrentStage(context: AgentContext): FunnelStage {
     return 'DISCOVERY'
   }
 
+  // Check for CLOSING: pitch delivered but no booking
+  if (intelligenceContext.pitchDelivered === true && intelligenceContext.calendarBooked === false) {
+    return 'CLOSING'
+  }
+
+  // Check for pitch stages based on fit scores
+  const fitScore = intelligenceContext.fitScore
+  if (fitScore) {
+    if (fitScore.workshop && fitScore.workshop > 0.7) {
+      return 'WORKSHOP_PITCH'
+    }
+    if (fitScore.consulting && fitScore.consulting > 0.7) {
+      return 'CONSULTING_PITCH'
+    }
+  }
+
+  // Check for SCORING: 4+ categories covered in conversation flow
+  const conversationFlow = context.conversationFlow
+  if (conversationFlow?.covered) {
+    const coveredCount = Object.values(conversationFlow.covered).filter(Boolean).length
+    if (coveredCount >= 4) {
+      return 'SCORING'
+    }
+  }
+
   // Check if qualified
   const seniority2 = String(intelligenceContext.person?.seniority || '')
   const isQualified =
@@ -373,56 +414,60 @@ export async function routeToAgentStream(
   const { onChunk, onMetadata, onDone, onError } = callbacks
   const lastMessage = messages[messages.length - 1]?.content || ''
 
+  // Generate system prompt supplement from intelligence context
+  const systemPromptSupplement = generateSystemPromptSupplement(intelligenceContext)
+
+  // Helper function to add briefing to context (for streaming)
+  const addBriefingToStreamingContext = (baseContext: Partial<AgentContext>): AgentContext => ({
+    ...baseContext,
+    systemPromptSupplement,
+    sessionId: baseContext.sessionId || sessionId,
+    intelligenceContext: baseContext.intelligenceContext || intelligenceContext,
+    multimodalContext: baseContext.multimodalContext || multimodalContext,
+    conversationFlow: baseContext.conversationFlow || conversationFlow,
+    streaming: true,
+    onChunk,
+    ...(onMetadata && { onMetadata })
+  } as AgentContext)
+
   try {
     // === HIGHEST PRIORITY: BOOKING / EXIT / ADMIN ===
     if (trigger === 'booking') {
-      const result = await closerAgent(messages, { 
+      const result = await closerAgent(messages, addBriefingToStreamingContext({ 
         intelligenceContext, 
         multimodalContext, 
-        sessionId, 
-        streaming: true, 
-        onChunk, 
-        ...(onMetadata && { onMetadata })
-      })
+        sessionId
+      }))
       onDone(result)
       return
     }
 
     if (trigger === 'conversation_end') {
-      const result = await summaryAgent(messages, { 
+      const result = await summaryAgent(messages, addBriefingToStreamingContext({ 
         intelligenceContext, 
         multimodalContext, 
         sessionId, 
-        conversationFlow, 
-        streaming: true, 
-        onChunk, 
-        ...(onMetadata && { onMetadata })
-      })
+        conversationFlow
+      }))
       onDone(result)
       return
     }
 
     if (trigger === 'admin') {
-      const result = await adminAgent(messages, { 
-        sessionId, 
-        streaming: true, 
-        onChunk, 
-        ...(onMetadata && { onMetadata })
-      })
+      const result = await adminAgent(messages, addBriefingToStreamingContext({ 
+        sessionId
+      }))
       onDone(result)
       return
     }
 
     if (trigger === 'proposal_request') {
-      const result = await proposalAgent(messages, {
+      const result = await proposalAgent(messages, addBriefingToStreamingContext({
         intelligenceContext,
         multimodalContext,
         sessionId,
-        conversationFlow,
-        streaming: true,
-        onChunk,
-        ...(onMetadata && { onMetadata })
-      })
+        conversationFlow
+      }))
       onDone(result)
       return
     }
@@ -444,17 +489,12 @@ export async function routeToAgentStream(
         const objection = await detectObjection(lastMessage)
         if (objection.type && objection.confidence > 0.7) {
           intelligenceContext.currentObjection = objection.type
-          const objectionContext: AgentContext = {
+          const objectionContext = addBriefingToStreamingContext({
             sessionId,
             intelligenceContext,
             multimodalContext
-          }
-          const result = await objectionAgent(messages, { 
-            ...objectionContext, 
-            streaming: true, 
-            onChunk, 
-            ...(onMetadata && { onMetadata })
           })
+          const result = await objectionAgent(messages, objectionContext)
           onDone(result)
           return
         }
@@ -471,150 +511,114 @@ export async function routeToAgentStream(
 
     switch (currentStage) {
       case 'DISCOVERY':
-        agentResult = await discoveryAgent(messages, {
+        agentResult = await discoveryAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'SCORING':
-        agentResult = await scoringAgent(messages, {
+        agentResult = await scoringAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'QUALIFIED':
-        agentResult = await pitchAgent(messages, {
+        agentResult = await pitchAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'INTELLIGENCE_GATHERING':
-        agentResult = await discoveryAgent(messages, {
+        agentResult = await discoveryAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'PITCHING':
-        agentResult = await pitchAgent(messages, {
+        agentResult = await pitchAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'WORKSHOP_PITCH':
       case 'CONSULTING_PITCH':
-        agentResult = await pitchAgent(messages, {
+        agentResult = await pitchAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'OBJECTION':
-        agentResult = await objectionAgent(messages, {
+        agentResult = await objectionAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'PROPOSAL':
-        agentResult = await proposalAgent(messages, {
+        agentResult = await proposalAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'CLOSING':
-        agentResult = await closerAgent(messages, {
+        agentResult = await closerAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'BOOKING_REQUESTED':
       case 'BOOKED':
-        agentResult = await closerAgent(messages, {
+        agentResult = await closerAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       case 'SUMMARY':
-        agentResult = await summaryAgent(messages, {
+        agentResult = await summaryAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
 
       default:
         // Fallback to Discovery
-        agentResult = await discoveryAgent(messages, {
+        agentResult = await discoveryAgent(messages, addBriefingToStreamingContext({
           intelligenceContext,
           multimodalContext,
           sessionId,
-          conversationFlow,
-          streaming: true,
-          onChunk,
-          ...(onMetadata && { onMetadata })
-        })
+          conversationFlow
+        }))
         break
     }
 

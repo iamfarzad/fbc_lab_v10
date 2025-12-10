@@ -1,5 +1,6 @@
 import { google, generateText, streamText } from '../../lib/ai-client.js'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep } from './types.js'
+import type { SummaryData } from '../pdf/utils/types.js'
 import { GEMINI_MODELS } from '../../config/constants.js'
 import { multimodalContextManager } from '../context/multimodal-context.js'
 import { buildModelSettings } from '../../lib/multimodal-helpers.js'
@@ -109,7 +110,8 @@ TONE: Professional but conversational. This is a valuable document they'll share
 
   const systemPrompt = `${contextSection}
 
-${instructionSection}`
+${instructionSection}
+${context.systemPromptSupplement || ''}`
 
   // Step 4: Determining recommended solution
   steps.push({
@@ -280,14 +282,31 @@ ${instructionSection}`
     timestamp: Date.now()
   })
 
+  // Step 7: Extracting artifacts from tool invocations
+  const artifacts = extractArtifacts(messages)
+  if (artifacts) {
+    steps.push({
+      label: 'Extracting artifacts',
+      description: `Found ${Object.keys(artifacts).length} high-value artifacts`,
+      status: 'complete',
+      timestamp: Date.now()
+    })
+  }
+
+  // Include artifacts in summary output
+  const summaryWithArtifacts = {
+    ...summary,
+    ...(artifacts && { artifacts })
+  }
+
   return {
-    output: JSON.stringify(summary, null, 2),
+    output: JSON.stringify(summaryWithArtifacts, null, 2),
     agent: 'Summary Agent',
     model: GEMINI_MODELS.DEFAULT_CHAT,
     metadata: {
       stage: 'SUMMARY' as const,
       chainOfThought: { steps },
-      summary,
+      summary: summaryWithArtifacts,
       multimodalEngagement: {
         voice: multimodalData.audioContext.length > 0,
         visual: multimodalData.visualContext.length > 0,
@@ -306,4 +325,96 @@ function formatDiscoveryStatus(flow: { covered?: Record<string, boolean> }): str
   return categories.map(cat =>
     `${cat}: ${covered[cat] ? '✅ Covered' : '❌ Not covered'}`
   ).join('\n')
+}
+
+/**
+ * Extract high-value artifacts from conversation history
+ * Scans messages for tool invocations and extracts structured artifact data
+ */
+function extractArtifacts(messages: ChatMessage[]): SummaryData['artifacts'] {
+  const artifacts: SummaryData['artifacts'] = {}
+
+  for (const msg of messages) {
+    // Check metadata for tool invocations
+    const metadata = msg.metadata as { toolInvocations?: Array<{ name?: string; result?: unknown; state?: string; arguments?: Record<string, unknown> }> } | undefined
+    const toolInvocations = metadata?.toolInvocations || []
+
+    for (const toolInv of toolInvocations) {
+      if (toolInv.state === 'complete' && toolInv.result) {
+        // Extract Executive Memo
+        if (toolInv.name === 'generate_executive_memo') {
+          const result = toolInv.result as { data?: { target_audience?: string; memo?: string; subject?: string } }
+          const args = toolInv.arguments as { target_audience?: 'CFO' | 'CEO' | 'CTO' } | undefined
+          if (result.data && args?.target_audience) {
+            artifacts.executiveMemo = {
+              targetAudience: args.target_audience,
+              content: result.data.memo || '',
+              ...(result.data.subject && { subject: result.data.subject })
+            }
+          }
+        }
+
+        // Extract Custom Syllabus
+        if (toolInv.name === 'generate_custom_syllabus') {
+          const result = toolInv.result as { data?: { syllabus?: string; modules?: Array<{ title: string; topics: string[] }> } }
+          // Try to parse syllabus text into modules if structured data not available
+          if (result.data) {
+            if (result.data.modules) {
+              artifacts.customSyllabus = {
+                title: 'Custom Workshop Syllabus',
+                modules: result.data.modules
+              }
+            } else if (result.data.syllabus) {
+              // Parse markdown syllabus into modules
+              const syllabusText = result.data.syllabus
+              const modules: Array<{ title: string; topics: string[] }> = []
+              const moduleMatches = syllabusText.matchAll(/###\s+(.+?)\n([\s\S]*?)(?=###|$)/g)
+              for (const match of moduleMatches) {
+                const title = match[1]?.trim() || ''
+                const content = match[2] || ''
+                const topics = content.split('\n')
+                  .map(line => line.replace(/^[-*]\s*/, '').trim())
+                  .filter(line => line.length > 0)
+                if (title && topics.length > 0) {
+                  modules.push({ title, topics })
+                }
+              }
+              if (modules.length > 0) {
+                artifacts.customSyllabus = {
+                  title: 'Custom Workshop Syllabus',
+                  modules
+                }
+              }
+            }
+          }
+        }
+
+        // Extract Cost of Inaction
+        if (toolInv.name === 'simulate_cost_of_inaction') {
+          const result = toolInv.result as { data?: { monthlyCost?: number; annualCost?: number; inefficient_process?: string } }
+          if (result.data && result.data.monthlyCost !== undefined && result.data.annualCost !== undefined) {
+            artifacts.costOfInaction = {
+              monthlyWaste: result.data.monthlyCost,
+              annualWaste: result.data.annualCost,
+              inefficiencySource: result.data.inefficient_process || 'Inefficient process'
+            }
+          }
+        }
+
+        // Extract Competitor Gap
+        if (toolInv.name === 'analyze_competitor_gap') {
+          const result = toolInv.result as { data?: { clientState?: string; competitors?: string[]; gapAnalysis?: string } }
+          if (result.data) {
+            artifacts.competitorGap = {
+              clientState: result.data.clientState || '',
+              competitors: result.data.competitors || [],
+              gapAnalysis: result.data.gapAnalysis || ''
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return Object.keys(artifacts).length > 0 ? artifacts : undefined
 }

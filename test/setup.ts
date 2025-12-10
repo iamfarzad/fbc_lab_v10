@@ -88,6 +88,67 @@ global.ResizeObserver = class ResizeObserver {
   unobserve() {}
 } as any
 
+// Mock Web Audio API for GeminiLiveService tests
+global.AudioWorkletNode = class AudioWorkletNode {
+  async addModule(url: string) { return Promise.resolve() }
+  port = { onmessage: null, postMessage: () => {} }
+  disconnect() {}
+  connect() {}
+} as any
+
+global.AnalyserNode = class AnalyserNode {
+  frequencyBinCount = 1024
+  fftSize = 2048
+  getByteFrequencyData(array: Uint8Array): void {
+    array.fill(0)
+  }
+  getFloatFrequencyData(array: Float32Array): void {
+    array.fill(0)
+  }
+  getByteTimeDomainData(array: Uint8Array): void {
+    array.fill(0)
+  }
+  getFloatTimeDomainData(array: Float32Array): void {
+    array.fill(0)
+  }
+} as any
+
+// Mock AudioContext
+global.AudioContext = class AudioContext {
+  constructor() {}
+  createMediaStreamSource() {
+    return {
+      connect: vi.fn(),
+      disconnect: vi.fn()
+    }
+  }
+  createScriptProcessor() {
+    return {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      onaudioprocess: null
+    }
+  }
+  createAnalyser() {
+    return new global.AnalyserNode()
+  }
+  createGain() {
+    return {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      gain: { value: 1 }
+    }
+  }
+  state = 'running'
+  destination = {
+    channelCount: 2
+  }
+  sampleRate = 44100
+  close() {}
+  suspend() {}
+  resume() {}
+} as any
+
 // Cleanup after each test
 afterEach(() => {
   cleanup()

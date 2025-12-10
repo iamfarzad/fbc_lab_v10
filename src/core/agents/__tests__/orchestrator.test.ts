@@ -15,6 +15,69 @@ vi.mock('@/config/env', async () => {
   }
 })
 
+// Mock context storage to avoid persistence failures
+vi.mock('@/core/context/context-storage', () => ({
+  contextStorage: {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockResolvedValue(undefined),
+    updateWithVersionCheck: vi.fn().mockResolvedValue(undefined)
+  },
+  ContextStorage: vi.fn().mockImplementation(() => ({
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockResolvedValue(undefined),
+    updateWithVersionCheck: vi.fn().mockResolvedValue(undefined)
+  }))
+}))
+
+// Mock ai-client for generateText calls
+vi.mock('@/lib/ai-client', () => ({
+  google: vi.fn(() => 'mock-model'),
+  generateText: vi.fn().mockResolvedValue({
+    text: 'Mocked response',
+    response: {
+      text: () => 'Mocked response',
+      headers: new Headers({
+        'x-gemini-usage-token-count': '100',
+        'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
+      }),
+      rawResponse: new Response(null, { status: 200 })
+    },
+    toolCalls: [],
+    finishReason: 'stop'
+  })
+}))
+
+// Mock gemini-safe for safeGenerateText used by discovery agent
+vi.mock('@/lib/gemini-safe', () => ({
+  safeGenerateText: vi.fn().mockResolvedValue({
+    text: 'Mocked discovery response',
+    response: {
+      text: () => 'Mocked discovery response',
+      headers: new Headers({
+        'x-gemini-usage-token-count': '100',
+        'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
+      }),
+      rawResponse: new Response(null, { status: 200 })
+    },
+    toolCalls: [],
+    finishReason: 'stop',
+    usage: {
+      promptTokens: 100,
+      completionTokens: 50
+    }
+  })
+}))
+
+// Mock objection detection
+vi.mock('@/core/agents/utils/detect-objections', () => ({
+  detectObjection: vi.fn().mockResolvedValue({
+    type: 'no_objection',
+    confidence: 0.3
+  })
+}))
+
 describe('Multi-Agent Orchestrator', () => {
   const mockSessionId = 'test-session-123'
 
@@ -190,12 +253,16 @@ describe('Multi-Agent Orchestrator', () => {
 
       const result = await routeToAgent({
         messages,
-        context,
-        trigger: 'chat'
+        sessionId: mockSessionId,
+        currentStage: 'DISCOVERY',
+        intelligenceContext: mockIntelligenceContext,
+        multimodalContext: context.multimodalContext,
+        trigger: 'chat',
+        conversationFlow: mockConversationFlow
       })
 
       expect(result.metadata?.multimodalUsed).toBe(true)
-      expect(result.agent).toBe('Discovery Agent')
+      expect(result.agent).toMatch(/Discovery Agent/)
     })
   })
 

@@ -1,5 +1,6 @@
 import type { ConversationFlowState } from '../../types/conversation-flow-types.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
+import type { LeadProfile, AgentStrategicContext } from '../intelligence/types.js'
 
 export interface AgentContext {
   sessionId: string
@@ -15,6 +16,8 @@ export interface AgentContext {
   streaming?: boolean
   onChunk?: (chunk: string) => void
   onMetadata?: ((metadata: any) => void) | undefined
+  // System prompt supplement from context briefing
+  systemPromptSupplement?: string
 }
 
 export type CompanySize = '1-10' | '11-50' | '51-200' | '201-1000' | '1000+' | 'unknown'
@@ -76,6 +79,13 @@ export interface IntelligenceContext {
     city?: string
     country?: string
   }
+  // Freshness tracking (optional)
+  lastUpdated?: string // ISO timestamp
+  sessionId?: string // Session ID this context belongs to
+  // Lead Profile for Discovery Agent personalization
+  profile?: LeadProfile
+  // Strategic Context for agent communication adaptation
+  strategicContext?: AgentStrategicContext
 }
 
 export interface MultimodalContextData {

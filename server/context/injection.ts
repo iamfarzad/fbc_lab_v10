@@ -1,5 +1,6 @@
 import { serverLogger } from '../utils/env-setup'
 import { VOICE_CONFIG } from 'src/config/constants'
+import { handleContextUpdate, type ContextUpdateClient } from '../handlers/context-update-handler.js'
 
 const INJECT_ON_CONTEXT_UPDATE = VOICE_CONFIG.INJECT_ON_CONTEXT_UPDATE
 const CONTEXT_INJECT_DEBOUNCE_MS = VOICE_CONFIG.CONTEXT_INJECT_DEBOUNCE_MS
@@ -14,6 +15,7 @@ interface Snapshot {
 }
 
 interface InjectionClient {
+  ws?: any // WebSocket - optional for compatibility
   latestContext: {
     screen?: Snapshot
     webcam?: Snapshot
@@ -83,6 +85,40 @@ export function scheduleDebouncedInjection(
               modality,
               analysisLength: snap.analysis.length
             })
+            
+            // After image is sent, trigger context update to inject analysis text into systemInstruction
+            if (snap.analysis && snap.analysis.length > 0) {
+              try {
+                // Create a compatible client object for handleContextUpdate
+                const contextUpdateClient = {
+                  ws: (client as any).ws,
+                  sessionId: (client as any).sessionId,
+                  latestContext: client.latestContext,
+                  intelligenceData: (client as any).intelligenceData,
+                  injectionTimers: client.injectionTimers,
+                  session: client.session,
+                  logger: client.logger
+                } as ContextUpdateClient
+                
+                await handleContextUpdate(connectionId, contextUpdateClient, {
+                  analysis: snap.analysis,
+                  modality: modality,
+                  capturedAt: snap.capturedAt,
+                  imageData: snap.imageData
+                })
+                serverLogger.info('Analysis text triggered context update for systemInstruction', {
+                  connectionId,
+                  modality,
+                  analysisLength: snap.analysis.length
+                })
+              } catch (ctxErr) {
+                serverLogger.warn('Failed to trigger context update for analysis', {
+                  connectionId,
+                  modality,
+                  error: ctxErr instanceof Error ? ctxErr.message : String(ctxErr)
+                })
+              }
+            }
           } catch (imgErr) {
             serverLogger.warn('Failed to send context image', { 
               connectionId, 

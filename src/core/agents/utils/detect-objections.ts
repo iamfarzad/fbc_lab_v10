@@ -23,7 +23,7 @@ export async function detectObjection(message: string): Promise<DetectObjectionR
     messages: [
       {
         role: 'system',
-        content: 'You are an expert at detecting sales objections. Classify the objection type: price (cost concerns), timing (not the right time), authority (can\'t make decision), need (don\'t see the value), trust (skeptical), or no_objection (no objection present). Return confidence score 0-1 based on how clear the objection is.'
+        content: 'You are an expert at detecting sales objections. Classify the objection type: price (cost concerns), timing (not the right time), authority (can\'t make decision), need (don\'t see the value), trust (skeptical), or no_objection (no objection present).\n\nIMPORTANT: Do NOT classify these as objections:\n- Corrections to factual information ("I don\'t work there", "That\'s not my role")\n- Clarifications about personal details\n- Questions asking for information\n- Statements correcting research data\n\nOnly classify as objection if it\'s a clear rejection or concern about the product/service. Return confidence score 0-1 based on how clear the objection is.'
       },
       {
         role: 'user',

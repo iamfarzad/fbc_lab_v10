@@ -8,7 +8,7 @@ describe('AppConfig', () => {
   })
 
   it('should have correct model IDs', () => {
-    expect(AppConfig.api.models.default).toBe('gemini-3-pro-preview')
+    expect(AppConfig.api.models.default).toBe('gemini-2.5-flash') // Updated from gemini-3-pro-preview
     expect(AppConfig.api.models.flash).toBe('gemini-2.5-flash')
   })
 })

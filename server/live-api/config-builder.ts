@@ -231,6 +231,10 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
     if (stageSupplement) {
       contextBlockParts.push(stageSupplement)
     }
+    
+    // ADD SALES CONSTRAINT (non-admin only - prevents giving solutions away for free)
+    const { generateSalesConstraintInstructions } = await import('../../src/core/agents/utils/context-briefing.js')
+    contextBlockParts.push(generateSalesConstraintInstructions())
   }
 
   // Add conversation flow and session identifiers to context block

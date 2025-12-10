@@ -61,6 +61,7 @@ Deep dives into specific system components.
 
 - **[Agent Coordination](./AGENT_COORDINATION.md)** - How agents interact and collaborate.
 - **[MCP Tools Guide](./MCP_TOOLS_GUIDE.md)** - Using Model Context Protocol tools.
+- **[Test Documentation](./TEST_DOCUMENTATION.md)** - **Complete guide to all test files and how to run them.**
 - **[Test Strategy](./TESTING_AND_CLEANUP_STRATEGY.md)** - Testing frameworks and procedures.
 - **[CI/CD Options](./CI_CD_OPTIONS.md)** - Continuous Integration/Deployment pipeline options.
 

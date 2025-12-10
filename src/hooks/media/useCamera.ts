@@ -86,12 +86,83 @@ export function useCamera(options: UseCameraOptions = {}) {
   })
   const lastAnalysisAtRef = useRef(0)
   const ANALYSIS_INTERVAL_MS = 4000
+
+  /**
+   * Validate frame quality (brightness, contrast, blur)
+   * Returns quality score 0-1, where 1 is perfect quality
+   */
+  const validateFrameQuality = useCallback((imageData: string): Promise<number> => {
+    return new Promise<number>((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width
+        canvas.height = img.height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(0.5) // Default quality if can't analyze
+          return
+        }
+        
+        ctx.drawImage(img, 0, 0)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const data = imageData.data
+        
+        // Calculate brightness (average of RGB values)
+        let brightnessSum = 0
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i] ?? 0
+          const g = data[i + 1] ?? 0
+          const b = data[i + 2] ?? 0
+          brightnessSum += (r + g + b) / 3
+        }
+        const avgBrightness = brightnessSum / (data.length / 4)
+        const brightnessScore = 1 - Math.abs(avgBrightness - 128) / 128 // Optimal is 128
+        
+        // Calculate contrast (standard deviation of brightness)
+        let variance = 0
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i] ?? 0
+          const g = data[i + 1] ?? 0
+          const b = data[i + 2] ?? 0
+          const brightness = (r + g + b) / 3
+          variance += Math.pow(brightness - avgBrightness, 2)
+        }
+        const stdDev = Math.sqrt(variance / (data.length / 4))
+        const contrastScore = Math.min(stdDev / 50, 1) // Higher stdDev = better contrast
+        
+        // Simple blur detection (Laplacian variance - lower variance = more blur)
+        let laplacianSum = 0
+        for (let y = 1; y < canvas.height - 1; y++) {
+          for (let x = 1; x < canvas.width - 1; x++) {
+            const idx = (y * canvas.width + x) * 4
+            const center = ((data[idx] ?? 0) + (data[idx + 1] ?? 0) + (data[idx + 2] ?? 0)) / 3
+            const right = ((data[idx + 4] ?? 0) + (data[idx + 5] ?? 0) + (data[idx + 6] ?? 0)) / 3
+            const bottomIdx = idx + canvas.width * 4
+            const bottom = ((data[bottomIdx] ?? 0) + (data[bottomIdx + 1] ?? 0) + (data[bottomIdx + 2] ?? 0)) / 3
+            laplacianSum += Math.abs(center * 2 - right - bottom)
+          }
+        }
+        const laplacianVariance = laplacianSum / ((canvas.width - 2) * (canvas.height - 2))
+        const blurScore = Math.min(laplacianVariance / 100, 1) // Higher variance = less blur
+        
+        // Combined quality score (weighted average)
+        const qualityScore = (brightnessScore * 0.3 + contrastScore * 0.4 + blurScore * 0.3)
+        resolve(qualityScore)
+      }
+      img.onerror = () => resolve(0.5) // Default if image fails to load
+      img.src = imageData
+    })
+  }, [])
   
   const frameQueueRef = useRef<Array<{ mimeType: string; data: string }>>([])
   const queueProcessTimerRef = useRef<number | null>(null)
   const currentQualityRef = useRef<number>(quality)
   const isStreamingActiveRef = useRef<boolean>(false)
   const sendRealtimeInputRef = useRef(sendRealtimeInput)
+  // Frame buffer for quality selection (last 3-5 frames)
+  const frameBufferRef = useRef<Array<{ imageData: string; quality: number; timestamp: number }>>([])
+  const MAX_BUFFER_SIZE = 5
   
   useEffect(() => {
     sendRealtimeInputRef.current = sendRealtimeInput
@@ -295,7 +366,7 @@ export function useCamera(options: UseCameraOptions = {}) {
     _imageData: string,
     sessionId: string,
     voiceConnectionId?: string
-  ): Promise<{ analysis?: string } | null> => {
+  ): Promise<{ analysis?: string; confidence?: number } | null> => {
     try {
       const imageBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
@@ -316,12 +387,13 @@ export function useCamera(options: UseCameraOptions = {}) {
 
       const data = response
       const analysis = data?.analysis
+      const confidence = typeof data?.confidence === 'number' ? data.confidence : undefined
       const normalized =
         typeof analysis === 'string'
-          ? { analysis }
+          ? { analysis, ...(confidence !== undefined && { confidence }) }
           : analysis === undefined || analysis === null
             ? {}
-            : { analysis: typeof analysis === 'object' && analysis !== null ? JSON.stringify(analysis) : (typeof analysis === 'string' || typeof analysis === 'number' || typeof analysis === 'boolean' ? String(analysis) : JSON.stringify(analysis)) }
+            : { analysis: typeof analysis === 'object' && analysis !== null ? JSON.stringify(analysis) : (typeof analysis === 'string' || typeof analysis === 'number' || typeof analysis === 'boolean' ? String(analysis) : JSON.stringify(analysis)), ...(confidence !== undefined && { confidence }) }
       return normalized
     } catch (err) {
       console.error('Router-based webcam analysis failed, falling back to direct call', err)
@@ -341,13 +413,13 @@ export function useCamera(options: UseCameraOptions = {}) {
         if (response.ok) {
           const raw = await parseJsonResponse<unknown>(response, null)
           if (raw && typeof raw === 'object') {
-            const { analysis } = raw as { analysis?: unknown }
+            const { analysis, confidence } = raw as { analysis?: unknown; confidence?: number }
             const normalized =
               typeof analysis === 'string'
-                ? { analysis }
+                ? { analysis, ...(typeof confidence === 'number' && { confidence }) }
                 : analysis === undefined || analysis === null
                   ? {}
-                  : { analysis: typeof analysis === 'object' && analysis !== null ? JSON.stringify(analysis) : (typeof analysis === 'string' || typeof analysis === 'number' || typeof analysis === 'boolean' ? String(analysis) : JSON.stringify(analysis)) }
+                  : { analysis: typeof analysis === 'object' && analysis !== null ? JSON.stringify(analysis) : (typeof analysis === 'string' || typeof analysis === 'number' || typeof analysis === 'boolean' ? String(analysis) : JSON.stringify(analysis)), ...(typeof confidence === 'number' && { confidence }) }
             return normalized
           }
           return {}
@@ -418,6 +490,22 @@ export function useCamera(options: UseCameraOptions = {}) {
 
       const imageData = canvas.toDataURL('image/jpeg', currentQualityRef.current)
 
+      // Validate frame quality (async)
+      const qualityScore = await validateFrameQuality(imageData)
+      const QUALITY_THRESHOLD = 0.4 // Minimum quality score to send frame
+      
+      // Add to frame buffer
+      frameBufferRef.current.push({
+        imageData,
+        quality: qualityScore,
+        timestamp: Date.now()
+      })
+      
+      // Keep only last MAX_BUFFER_SIZE frames
+      if (frameBufferRef.current.length > MAX_BUFFER_SIZE) {
+        frameBufferRef.current.shift()
+      }
+
       const captureTime = performance.now() - startTime
       const metrics = metricsRef.current
       metrics.captureCount++
@@ -437,6 +525,12 @@ export function useCamera(options: UseCameraOptions = {}) {
       }
 
       onCapture?.(blob, imageData)
+      
+      // Skip low-quality frames
+      if (qualityScore < QUALITY_THRESHOLD) {
+        logger.debug('📷 Frame quality too low, skipping', { qualityScore, threshold: QUALITY_THRESHOLD })
+        return capture // Return capture but don't send it
+      }
 
       let analysisText: string | null = null
       const now = Date.now()
@@ -444,7 +538,32 @@ export function useCamera(options: UseCameraOptions = {}) {
 
       if (sendRealtimeInputRef.current) {
         try {
-          const base64Data = await blobToBase64(blob)
+          // Select best quality frame from buffer when gesture/question detected
+          // For now, use current frame if quality is good, otherwise use best from buffer
+          let frameToSend = imageData
+          let frameBlob = blob
+          
+          if (frameBufferRef.current.length > 1) {
+            // Find best quality frame in buffer
+            const bestFrame = frameBufferRef.current.reduce((best, current) => 
+              current.quality > best.quality ? current : best
+            )
+            
+            // Use best frame if it's significantly better (10% threshold)
+            if (bestFrame.quality > qualityScore + 0.1) {
+              frameToSend = bestFrame.imageData
+              // Convert imageData back to blob for sending
+              const response = await fetch(frameToSend)
+              frameBlob = await response.blob()
+              logger.debug('📹 Using best quality frame from buffer', {
+                bufferSize: frameBufferRef.current.length,
+                bestQuality: bestFrame.quality,
+                currentQuality: qualityScore
+              })
+            }
+          }
+          
+          const base64Data = await blobToBase64(frameBlob)
           
           const client = getLiveClientSingleton() as unknown as LiveClient
           const socket = client.socket
@@ -469,6 +588,7 @@ export function useCamera(options: UseCameraOptions = {}) {
           logger.debug('📹 Webcam frame streamed to Live API', {
               bufferedAmount,
               quality: currentQualityRef.current,
+              qualityScore,
               size: base64Data.length
           })
 
@@ -482,25 +602,36 @@ export function useCamera(options: UseCameraOptions = {}) {
         if (result?.analysis) {
           lastAnalysisAtRef.current = now
           analysisText = result.analysis
+          const confidence = result.confidence ?? 0.9 // Use confidence from analysis or default
           onAnalysis?.(result.analysis, imageData, capture.timestamp)
-        }
-      }
-
-      if (analysisText && typeof sendContextUpdate === 'function') {
-        try {
-          sendContextUpdate({
-            sessionId: sessionId ?? null,
-            modality: 'webcam',
-            analysis: analysisText,
-            imageData,
-            capturedAt: capture.timestamp,
-            metadata: {
-              source: sendRealtimeInputRef.current ? 'webcam_stream' : 'webcam_capture',
-              ...(voiceConnectionId ? { connectionId: voiceConnectionId } : {}),
-            },
+          
+          // Log confidence for debugging
+          logger.debug('📷 Vision analysis confidence', {
+            confidence,
+            analysisLength: result.analysis.length,
+            qualityScore
           })
-        } catch (contextErr) {
-          console.warn('⚠️ Failed to push webcam context update:', contextErr)
+          
+          // Send context update with confidence
+          if (typeof sendContextUpdate === 'function') {
+            try {
+              sendContextUpdate({
+                sessionId: sessionId ?? null,
+                modality: 'webcam',
+                analysis: analysisText,
+                imageData,
+                capturedAt: capture.timestamp,
+                metadata: {
+                  source: sendRealtimeInputRef.current ? 'webcam_stream' : 'webcam_capture',
+                  confidence: confidence,
+                  qualityScore: qualityScore,
+                  ...(voiceConnectionId ? { connectionId: voiceConnectionId } : {}),
+                },
+              })
+            } catch (contextErr) {
+              console.warn('⚠️ Failed to push webcam context update:', contextErr)
+            }
+          }
         }
       }
 

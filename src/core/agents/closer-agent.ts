@@ -6,6 +6,7 @@ import { getChatToolDefinitions } from '../tools/unified-tool-registry.js';
 import { z } from 'zod';
 import type { AgentContext, ChatMessage } from './types.js';
 import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js';
+import { generateSalesConstraintInstructions } from './utils/context-briefing.js';
 
 // src/core/agents/closer-agent.ts — FINAL UPGRADED VERSION
 // Uses unified tool registry + agent-specific tools
@@ -41,6 +42,9 @@ CLOSING RULES:
 - Create urgency: "Slots are filling fast"
 - Remove friction: "Free call, no commitment"
 - Use tools when appropriate (calculate_roi for ROI discussions, create_chart for visualization)
+
+${context.systemPromptSupplement || ''}
+${generateSalesConstraintInstructions()}
 
 Respond to the user's last message and close.`;
 

@@ -53,7 +53,9 @@ export function createConnectionManager(): ConnectionManager {
         messageCount: 0,
         lastMessageAt: Date.now(),
         audioCount: 0,
-        audioLastAt: Date.now()
+        audioLastAt: Date.now(),
+        mediaCount: 0,
+        mediaLastAt: Date.now()
       })
 
       // Keep ws-alive flag in sync

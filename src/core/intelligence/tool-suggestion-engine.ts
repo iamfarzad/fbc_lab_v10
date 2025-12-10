@@ -6,16 +6,19 @@ const CAPABILITY_BY_INTENT: Record<IntentResult['type'], Array<{ id: string; lab
     { id: 'doc', label: 'Analyze a document', capability: 'doc' },
     { id: 'audit', label: 'Run workflow audit', capability: 'screenShare' },
     { id: 'finish', label: 'Finish & Email Summary', capability: 'exportPdf' },
+    { id: 'memo', label: 'Write memo for your CFO', capability: 'exportPdf' },
   ],
   workshop: [
     { id: 'screen', label: 'Share screen for feedback', capability: 'screenShare' },
     { id: 'translate', label: 'Translate content', capability: 'translate' },
     { id: 'book', label: 'Schedule a workshop', capability: 'meeting' },
+    { id: 'memo', label: 'Write memo for your CFO', capability: 'exportPdf' },
   ],
   other: [
     { id: 'search', label: 'Grounded web search', capability: 'search' },
     { id: 'video2app', label: 'Turn video into app blueprint', capability: 'video2app' },
     { id: 'pdf', label: 'Generate a PDF summary', capability: 'exportPdf' },
+    { id: 'memo', label: 'Write memo for your CFO', capability: 'exportPdf' },
   ],
 }
 
@@ -47,12 +50,32 @@ export function suggestTools(context: ContextSnapshot, intent: IntentResult): Su
   const base = CAPABILITY_BY_INTENT[intent.type]
   const ranked = rankByContext(base, context)
   const suggestions: Suggestion[] = []
+  
+  // Check for budget/timing objections - suggest executive memo
+  const intelligenceContext = context.intelligenceContext as { currentObjection?: 'price' | 'timing' | 'security' | null } | undefined
+  const conversationFlow = context.conversationFlow as { covered?: { budget?: boolean } } | undefined
+  const hasBudgetObjection = intelligenceContext?.currentObjection === 'price' || 
+    (conversationFlow?.covered?.budget === true && !used.has('exportPdf'))
+  
   // Education-aware nudge: if workshop intent and ROI not used, bias ROI first
   if (intent.type === 'workshop' && !used.has('roi')) {
     suggestions.push({ id: 'roi', label: 'Estimate ROI', action: 'run_tool', capability: 'roi' })
   }
+  
+  // Budget objection detection - prioritize executive memo
+  if (hasBudgetObjection && !used.has('exportPdf')) {
+    suggestions.push({ 
+      id: 'memo', 
+      label: 'I can write a memo for your CFO explaining why this will save money', 
+      action: 'run_tool', 
+      capability: 'exportPdf' 
+    })
+  }
+  
   for (const item of ranked) {
     if (used.has(item.capability)) continue
+    // Skip memo if already added above
+    if (item.id === 'memo' && suggestions.some(s => s.id === 'memo')) continue
     suggestions.push({ id: item.id, label: item.label, action: 'run_tool', capability: item.capability })
     if (suggestions.length >= 3) break
   }

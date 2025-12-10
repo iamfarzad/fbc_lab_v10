@@ -10,6 +10,8 @@ export type ConnectionState = {
   lastMessageAt: number
   audioCount: number
   audioLastAt: number
+  mediaCount: number
+  mediaLastAt: number
 }
 
 // Rate limiting configuration
@@ -17,6 +19,7 @@ export const CLIENT_RATE_LIMIT = { windowMs: 60000, max: 100 } // 100 messages p
 export const ADMIN_RATE_LIMIT = { windowMs: 60000, max: 500 } // 500 messages per minute for admin
 // High-frequency audio messages use a separate, per-second window
 export const AUDIO_RATE_LIMIT = { windowMs: 1000, max: 200 } // 200 audio chunks/second (relaxed from 60)
+export const MEDIA_RATE_LIMIT = { windowMs: 60000, max: 300 } // 300 frames/minute (5 FPS)
 
 // Store connection states for rate limiting
 export const connectionStates = new Map<string, ConnectionState>()
@@ -46,7 +49,8 @@ export function isAdmin(sessionId?: string): boolean {
 export function checkRateLimit(
   connectionId: string,
   sessionId?: string,
-  messageType?: string
+  messageType?: string,
+  mimeType?: string
 ): { allowed: boolean; remaining?: number } {
   let st = connectionStates.get(connectionId)
   if (!st) {
@@ -70,7 +74,9 @@ export function checkRateLimit(
       messageCount: 0,
       lastMessageAt: now,
       audioCount: 0,
-      audioLastAt: now
+      audioLastAt: now,
+      mediaCount: 0,
+      mediaLastAt: now
     }
     connectionStates.set(connectionId, defaultState)
     st = defaultState
@@ -90,6 +96,23 @@ export function checkRateLimit(
     }
     st.audioCount++
     return { allowed: true }
+  }
+
+  // Media rate limiting (images/videos)
+  if (messageType === MESSAGE_TYPES.REALTIME_INPUT && mimeType) {
+    const isMedia = mimeType.startsWith('image/') || mimeType.startsWith('video/')
+    if (isMedia) {
+      // Sliding window starting timestamp is stored in mediaLastAt
+      if (now - st.mediaLastAt >= MEDIA_RATE_LIMIT.windowMs) {
+        st.mediaCount = 0
+        st.mediaLastAt = now
+      }
+      if (st.mediaCount >= MEDIA_RATE_LIMIT.max) {
+        return { allowed: false, remaining: Math.ceil((MEDIA_RATE_LIMIT.windowMs - (now - st.mediaLastAt)) / 1000) }
+      }
+      st.mediaCount++
+      return { allowed: true }
+    }
   }
 
   const limit = isAdmin(sessionId) ? ADMIN_RATE_LIMIT : CLIENT_RATE_LIMIT

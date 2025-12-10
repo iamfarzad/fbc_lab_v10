@@ -324,7 +324,7 @@ export class MultimodalContextManager {
     // Action logged
   }
 
-  async addVisualAnalysis(sessionId: string, analysis: string, type: 'webcam' | 'screen' | 'upload', imageSize?: number, imageData?: string): Promise<void> {
+  async addVisualAnalysis(sessionId: string, analysis: string, type: 'webcam' | 'screen' | 'upload', imageSize?: number, imageData?: string, confidence?: number): Promise<void> {
     const context = await this.getOrCreateContext(sessionId)
 
     // Add to conversation history
@@ -348,7 +348,7 @@ export class MultimodalContextManager {
       metadata: {
         size: imageSize || 0,
         format: type,
-        confidence: 0.9 // Assume high confidence for now
+        confidence: confidence ?? 0.9 // Use provided confidence or default to 0.9
       }
     }
 
@@ -877,6 +877,20 @@ export class MultimodalContextManager {
       multimodalContext.recentAnalyses.forEach((analysis, i) => {
         systemPrompt += `\n${i + 1}. ${analysis.substring(0, 200)}${analysis.length > 200 ? '...' : ''}`
       })
+      
+      // Add active vision investigation guidance
+      systemPrompt += `\n\n👁️ VISION CAPABILITIES ACTIVE:
+- You CAN see what the user sees, but you must look actively.
+- If user references specific data ("this number", "that error", "the chart shows"), use capture_screen_snapshot with focus_prompt to read it precisely.
+- For user emotions, physical environment, or gestures, use capture_webcam_snapshot with focus_prompt.
+- Do NOT guess what's on screen/webcam. Use the tool to ask the vision model to read it for you.
+
+ACTIVE INVESTIGATION PATTERNS:
+- Debugger: User mentions "error", "wrong" → capture_screen_snapshot({ focus_prompt: "Read the specific error message text" })
+- Empath: Long silence/frustration → capture_webcam_snapshot({ focus_prompt: "Describe user's facial expression and body language" })
+- Digitizer: "I sketched it out" → capture_webcam_snapshot({ focus_prompt: "Convert the hand-drawn flowchart into text list of steps" })
+
+Without focus_prompt: Returns cached summary. With focus_prompt: Fresh targeted analysis.`
     }
 
     if (multimodalContext.hasRecentUploads) {
@@ -1283,6 +1297,20 @@ export class MultimodalContextManager {
         return `${v.type}: ${shortAnalysis}`
       })
       parts.push(`VISUAL CONTEXT:\n${visualSummaries.join('\n')}`)
+      
+      // Add active vision investigation guidance
+      parts.push(`👁️ VISION CAPABILITIES ACTIVE:
+- You CAN see what the user sees, but you must look actively.
+- If user references specific data ("this number", "that error"), use capture_screen_snapshot with focus_prompt to read it precisely.
+- For user emotions/physical environment, use capture_webcam_snapshot with focus_prompt.
+- Do NOT guess. Use the tool to ask the vision model to read it for you.
+
+ACTIVE INVESTIGATION PATTERNS:
+- Debugger: User mentions "error", "wrong" → capture_screen_snapshot({ focus_prompt: "Read the specific error message text" })
+- Empath: Long silence/frustration → capture_webcam_snapshot({ focus_prompt: "Describe user's facial expression and body language" })
+- Digitizer: "I sketched it out" → capture_webcam_snapshot({ focus_prompt: "Convert the hand-drawn flowchart into text list of steps" })
+
+Without focus_prompt: Returns cached summary. With focus_prompt: Fresh targeted analysis.`)
     }
 
     // Recent uploads (last 2, with key insights)

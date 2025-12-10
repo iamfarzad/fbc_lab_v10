@@ -4,6 +4,7 @@
  */
 
 export interface MediaAnalysisResult {
+  confidence?: number
   analysis?: string
   summary?: string
   // Add more fields as needed based on actual API responses

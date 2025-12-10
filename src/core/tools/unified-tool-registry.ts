@@ -98,7 +98,7 @@ export const ToolSchemas = {
   // Action items extraction
   extract_action_items: z.object({}),
 
-  // ROI calculation (reused from shared-tool-registry)
+  // ROI calculation
   calculate_roi: z.object({
     currentCost: parseNumericOptional().describe('Current annual cost (optional, for simplified calculation).'),
     timeSavings: parseNumericOptional().describe('Hours saved per year (optional, for simplified calculation).'),
@@ -112,13 +112,13 @@ export const ToolSchemas = {
     retentionSavings: parseNumericOptional().describe('Savings from retention improvement (optional, for detailed calculation).')
   }),
 
-  // Summary preview (reused from shared-tool-registry)
+  // Summary preview
   generate_summary_preview: z.object({
     includeRecommendations: parseBooleanOptional().describe('Include recommendations section in preview.'),
     includeNextSteps: parseBooleanOptional().describe('Include next steps section in preview.')
   }),
 
-  // Follow-up email (reused from shared-tool-registry)
+  // Follow-up email
   draft_follow_up_email: z.object({
     recipient: z.enum(['client', 'team', 'farzad']).describe('Who the email is for.'),
     tone: z.enum(['professional', 'casual', 'technical']).describe('Tone of the email.'),
@@ -130,11 +130,15 @@ export const ToolSchemas = {
 
   // Screen snapshot
   capture_screen_snapshot: z.object({
+    focus_prompt: z.string().optional()
+      .describe("Specific question about what to look for on the screen. E.g., 'What is the error message?' or 'Read the numbers in the Q3 column'."),
     summaryOnly: parseBooleanOptional().describe('Omit raw image data when true.')
   }),
 
   // Webcam snapshot
   capture_webcam_snapshot: z.object({
+    focus_prompt: z.string().optional()
+      .describe("Specific question about user's environment or emotion. E.g., 'What object are they holding?' or 'Are they smiling?'."),
     summaryOnly: parseBooleanOptional().describe('Omit raw image data when true.')
   }),
 
@@ -146,6 +150,60 @@ export const ToolSchemas = {
   // Booking link
   get_booking_link: z.object({
     meetingType: z.enum(['consultation', 'workshop', 'strategy-call']).optional().describe('Type of meeting (all redirect to same Cal.com link)')
+  }),
+
+  // Location tool - get user's current location
+  get_location: z.object({}),
+
+  // Stock price tool - get current stock price
+  get_stock_price: z.object({
+    symbol: z.string().min(1, 'Stock symbol cannot be empty').describe('Stock ticker symbol (e.g., "TSLA", "AAPL")')
+  }),
+
+  // Instant Audit Tool - Analyze website tech stack
+  analyze_website_tech_stack: z.object({
+    url: z.string().url().describe("The prospective client's website URL"),
+    focus: z.enum(['ai_opportunities', 'marketing_stack']).optional()
+      .describe("What to focus on: AI integration opportunities or marketing tech stack")
+  }),
+
+  // Visualizer Tool - Generate architecture diagrams
+  generate_architecture_diagram: z.object({
+    diagram_type: z.enum(['flowchart', 'sequence', 'gantt', 'mindmap']).describe('Type of diagram to generate'),
+    content_description: z.string().describe("What to draw? e.g., 'Workflow for video automation pipeline'")
+  }),
+
+  // Social Proof Tool - Search internal case studies
+  search_internal_case_studies: z.object({
+    query: z.string().describe("Search query for use case or industry (e.g., 'customer support', 'video generation', 'data entry')"),
+    industry: z.string().optional().describe("Optional industry filter")
+  }),
+
+  // Curriculum Architect - Custom syllabus generator (Teaser Tool)
+  generate_custom_syllabus: z.object({
+    team_roles: z.string().describe("Who is in the workshop? e.g. '3 devs, 1 PM'"),
+    pain_points: z.array(z.string()).describe("What do they want to solve?"),
+    tech_stack: z.string().describe("Their current tools")
+  }),
+
+  // FOMO Radar - Competitor gap analysis (Teaser Tool)
+  analyze_competitor_gap: z.object({
+    industry: z.string().describe("Industry to analyze"),
+    client_current_state: z.string().describe("What the user told us they are doing")
+  }),
+
+  // ROI Simulator - Cost of inaction calculator (Teaser Tool)
+  simulate_cost_of_inaction: z.object({
+    inefficient_process: z.string().describe("The manual task they complained about"),
+    hours_wasted_per_week: z.number().describe("Hours wasted per week"),
+    team_size: z.number().describe("Number of people affected")
+  }),
+
+  // Executive Briefing Generator - C-level memo for decision makers
+  generate_executive_memo: z.object({
+    target_audience: z.enum(['CFO', 'CEO', 'CTO']).describe("Who are we trying to convince?"),
+    key_blocker: z.enum(['budget', 'timing', 'security']).describe("What is the main objection we expect?"),
+    proposed_solution: z.string().describe("e.g. '2-Day In-House Workshop'")
   })
 } as const
 
@@ -207,7 +265,8 @@ export async function executeUnifiedTool(
     executeCaptureWebcamSnapshot,
     executeCaptureScreenSnapshotBySession,
     executeCaptureWebcamSnapshotBySession,
-    executeGetDashboardStats
+    executeGetDashboardStats,
+    executeGenerateExecutiveMemo
   } = await import('../../../server/utils/tool-implementations.js')
 
   const { sessionId, connectionId, activeSessions } = context
@@ -279,6 +338,72 @@ export async function executeUnifiedTool(
         }
       }
     }
+
+    case 'get_location': {
+      // Get user's current location from unifiedContext
+      const { unifiedContext } = await import('../../../services/unifiedContext.js')
+      const location = await unifiedContext.ensureLocation()
+      if (location) {
+        // Get snapshot to check for city/country in intelligence context
+        const snapshot = unifiedContext.getSnapshot()
+        const intelLocation = snapshot.intelligenceContext?.location
+        return {
+          success: true,
+          data: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            ...(intelLocation?.city && { city: intelLocation.city }),
+            ...(intelLocation?.country && { country: intelLocation.country }),
+            message: intelLocation?.city && intelLocation?.country
+              ? `User is located in ${intelLocation.city}, ${intelLocation.country} (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`
+              : `User location: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
+          }
+        }
+      }
+      return {
+        success: false,
+        error: 'Location not available. User may need to grant location permissions.'
+      }
+    }
+
+    case 'get_stock_price': {
+      // Get stock price using search_web
+      const symbol = (args as { symbol: string }).symbol.toUpperCase()
+      return await executeSearchWeb({ query: `current stock price ${symbol} real-time quote` })
+    }
+
+    case 'analyze_website_tech_stack': {
+      const { executeAnalyzeWebsiteTechStack } = await import('../../../server/utils/tool-implementations.js')
+      return await executeAnalyzeWebsiteTechStack(args as { url: string; focus?: 'ai_opportunities' | 'marketing_stack' })
+    }
+
+    case 'generate_architecture_diagram': {
+      const { executeGenerateArchitectureDiagram } = await import('../../../server/utils/tool-implementations.js')
+      return await executeGenerateArchitectureDiagram(args as { diagram_type: 'flowchart' | 'sequence' | 'gantt' | 'mindmap'; content_description: string }, sessionId)
+    }
+
+    case 'search_internal_case_studies': {
+      const { executeSearchInternalCaseStudies } = await import('../../../server/utils/tool-implementations.js')
+      return await executeSearchInternalCaseStudies(args as { query: string; industry?: string })
+    }
+
+    case 'generate_custom_syllabus': {
+      const { executeGenerateCustomSyllabus } = await import('../../../server/utils/tool-implementations.js')
+      return await executeGenerateCustomSyllabus(args as { team_roles: string; pain_points: string[]; tech_stack: string }, sessionId)
+    }
+
+    case 'analyze_competitor_gap': {
+      const { executeAnalyzeCompetitorGap } = await import('../../../server/utils/tool-implementations.js')
+      return await executeAnalyzeCompetitorGap(args as { industry: string; client_current_state: string })
+    }
+
+    case 'simulate_cost_of_inaction': {
+      const { executeSimulateCostOfInaction } = await import('../../../server/utils/tool-implementations.js')
+      return await executeSimulateCostOfInaction(args as { inefficient_process: string; hours_wasted_per_week: number; team_size: number })
+    }
+
+    case 'generate_executive_memo':
+      return await executeGenerateExecutiveMemo(args as { target_audience: 'CFO' | 'CEO' | 'CTO'; key_blocker: 'budget' | 'timing' | 'security'; proposed_solution: string }, sessionId)
 
     default:
       return {
@@ -370,14 +495,49 @@ export function getChatToolDefinitions(sessionId: string, agentName: string = 'C
       execute: createToolExecute('generate_proposal_draft')
     },
     capture_webcam_snapshot: {
-      description: 'Retrieve the latest analyzed webcam context for this session.',
+      description: 'Retrieve the latest analyzed webcam context for this session. If focus_prompt is provided, performs fresh targeted analysis (e.g., "What object are they holding?" or "Describe their facial expression"). Without focus_prompt, returns cached analysis.',
       parameters: ToolSchemas.capture_webcam_snapshot,
       execute: createToolExecute('capture_webcam_snapshot')
     },
     capture_screen_snapshot: {
-      description: 'Retrieve the latest analyzed screen-share context for this session.',
+      description: 'Retrieve the latest analyzed screen-share context for this session. If focus_prompt is provided, performs fresh targeted analysis (e.g., "What is the error message?" or "Read the numbers in column Q3"). Without focus_prompt, returns cached analysis.',
       parameters: ToolSchemas.capture_screen_snapshot,
       execute: createToolExecute('capture_screen_snapshot')
+    },
+    analyze_website_tech_stack: {
+      description: 'Analyze a website\'s technology stack to identify technologies used and where AI could fit. Use this when a client shares their website URL to establish immediate technical authority.',
+      parameters: ToolSchemas.analyze_website_tech_stack,
+      execute: createToolExecute('analyze_website_tech_stack')
+    },
+    generate_architecture_diagram: {
+      description: 'Generate a visual architecture diagram (flowchart, sequence, Gantt, or mindmap) to help visualize complex workflows and solutions. Returns Mermaid.js code that can be rendered in the UI.',
+      parameters: ToolSchemas.generate_architecture_diagram,
+      execute: createToolExecute('generate_architecture_diagram')
+    },
+    search_internal_case_studies: {
+      description: 'Search internal case studies and past project wins to provide social proof. Use this when a client is skeptical or needs specific examples of similar solutions in their industry or use case.',
+      parameters: ToolSchemas.search_internal_case_studies,
+      execute: createToolExecute('search_internal_case_studies')
+    },
+    generate_custom_syllabus: {
+      description: 'Generate a custom workshop syllabus tailored to the client\'s team, pain points, and tech stack. Use this INSTEAD of giving away solutions for free - show them that their questions are covered in specific workshop modules. This demonstrates your expertise while driving them to book.',
+      parameters: ToolSchemas.generate_custom_syllabus,
+      execute: createToolExecute('generate_custom_syllabus')
+    },
+    analyze_competitor_gap: {
+      description: 'Analyze what competitors in the client\'s industry are doing with AI to show the competitive gap. Use this to create urgency (FOMO) by demonstrating they are falling behind market leaders. Perfect for C-level/VP discussions.',
+      parameters: ToolSchemas.analyze_competitor_gap,
+      execute: createToolExecute('analyze_competitor_gap')
+    },
+    simulate_cost_of_inaction: {
+      description: 'Calculate how much money the client is losing every month by not solving their inefficiency problem. This turns your workshop/consulting fee from a "cost" into a "savings" by showing they\'re already paying that amount in wasted time. Perfect for finance/procurement discussions.',
+      parameters: ToolSchemas.simulate_cost_of_inaction,
+      execute: createToolExecute('simulate_cost_of_inaction')
+    },
+    generate_executive_memo: {
+      description: 'Generate a 1-page executive memo for CFO/CEO/CTO explaining why the proposed solution will save money and overcome their specific objections. This helps the champion sell to the decision maker. Use when budget, timing, or security concerns are raised.',
+      parameters: ToolSchemas.generate_executive_memo,
+      execute: createToolExecute('generate_executive_memo')
     }
     // Note: get_dashboard_stats is admin-only and not included in chat tool definitions
   }

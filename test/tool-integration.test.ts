@@ -133,6 +133,38 @@ describe('Unified Tool Registry', () => {
         summaryOnly: false
       })
       expect(validWithSummary.valid).toBe(true)
+
+      // Valid - with focus_prompt
+      const validWithFocus = validateToolArgs('capture_webcam_snapshot', {
+        focus_prompt: 'What object are they holding?'
+      })
+      expect(validWithFocus.valid).toBe(true)
+
+      // Valid - with both focus_prompt and summaryOnly
+      const validWithBoth = validateToolArgs('capture_webcam_snapshot', {
+        focus_prompt: 'Describe their facial expression',
+        summaryOnly: true
+      })
+      expect(validWithBoth.valid).toBe(true)
+    })
+
+    it('should validate capture_screen_snapshot with focus_prompt correctly', () => {
+      // Valid - empty object
+      const validEmpty = validateToolArgs('capture_screen_snapshot', {})
+      expect(validEmpty.valid).toBe(true)
+
+      // Valid - with focus_prompt
+      const validWithFocus = validateToolArgs('capture_screen_snapshot', {
+        focus_prompt: 'Read the error message in the red box'
+      })
+      expect(validWithFocus.valid).toBe(true)
+
+      // Valid - with both
+      const validWithBoth = validateToolArgs('capture_screen_snapshot', {
+        focus_prompt: 'What is the Q3 number?',
+        summaryOnly: false
+      })
+      expect(validWithBoth.valid).toBe(true)
     })
 
     it('should validate get_dashboard_stats args correctly', () => {
@@ -158,6 +190,209 @@ describe('Unified Tool Registry', () => {
         period: 'invalid'
       })
       expect(invalidPeriod.valid).toBe(false)
+    })
+
+    it('should validate analyze_website_tech_stack args correctly', () => {
+      // Valid - with url
+      const validResult = validateToolArgs('analyze_website_tech_stack', {
+        url: 'https://example.com'
+      })
+      expect(validResult.valid).toBe(true)
+
+      // Valid - with url and focus
+      const validWithFocus = validateToolArgs('analyze_website_tech_stack', {
+        url: 'https://example.com',
+        focus: 'ai_opportunities'
+      })
+      expect(validWithFocus.valid).toBe(true)
+
+      // Valid - with marketing_stack focus
+      const validMarketing = validateToolArgs('analyze_website_tech_stack', {
+        url: 'https://example.com',
+        focus: 'marketing_stack'
+      })
+      expect(validMarketing.valid).toBe(true)
+
+      // Invalid - missing url
+      const invalidMissing = validateToolArgs('analyze_website_tech_stack', {})
+      expect(invalidMissing.valid).toBe(false)
+
+      // Invalid - invalid url
+      const invalidUrl = validateToolArgs('analyze_website_tech_stack', {
+        url: 'not-a-url'
+      })
+      expect(invalidUrl.valid).toBe(false)
+
+      // Invalid - wrong focus enum
+      const invalidFocus = validateToolArgs('analyze_website_tech_stack', {
+        url: 'https://example.com',
+        focus: 'invalid'
+      })
+      expect(invalidFocus.valid).toBe(false)
+    })
+
+    it('should validate generate_architecture_diagram args correctly', () => {
+      // Valid - with required fields
+      const validResult = validateToolArgs('generate_architecture_diagram', {
+        diagram_type: 'flowchart',
+        content_description: 'Workflow for video automation'
+      })
+      expect(validResult.valid).toBe(true)
+
+      // Valid - all diagram types
+      const diagramTypes = ['flowchart', 'sequence', 'gantt', 'mindmap']
+      for (const type of diagramTypes) {
+        const result = validateToolArgs('generate_architecture_diagram', {
+          diagram_type: type,
+          content_description: 'Test description'
+        })
+        expect(result.valid).toBe(true)
+      }
+
+      // Invalid - missing diagram_type
+      const invalidMissing = validateToolArgs('generate_architecture_diagram', {
+        content_description: 'Test'
+      })
+      expect(invalidMissing.valid).toBe(false)
+
+      // Invalid - missing content_description
+      const invalidMissingDesc = validateToolArgs('generate_architecture_diagram', {
+        diagram_type: 'flowchart'
+      })
+      expect(invalidMissingDesc.valid).toBe(false)
+
+      // Invalid - wrong diagram_type enum
+      const invalidType = validateToolArgs('generate_architecture_diagram', {
+        diagram_type: 'invalid',
+        content_description: 'Test'
+      })
+      expect(invalidType.valid).toBe(false)
+    })
+
+    it('should validate search_internal_case_studies args correctly', () => {
+      // Valid - with query
+      const validResult = validateToolArgs('search_internal_case_studies', {
+        query: 'customer support'
+      })
+      expect(validResult.valid).toBe(true)
+
+      // Valid - with query and industry
+      const validWithIndustry = validateToolArgs('search_internal_case_studies', {
+        query: 'video generation',
+        industry: 'media'
+      })
+      expect(validWithIndustry.valid).toBe(true)
+
+      // Invalid - missing query
+      const invalidMissing = validateToolArgs('search_internal_case_studies', {})
+      expect(invalidMissing.valid).toBe(false)
+    })
+
+    it('should validate generate_custom_syllabus args correctly', () => {
+      // Valid - with all required fields
+      const validResult = validateToolArgs('generate_custom_syllabus', {
+        team_roles: '3 devs, 1 PM',
+        pain_points: ['manual data entry', 'inefficient workflows'],
+        tech_stack: 'React/Node.js'
+      })
+      expect(validResult.valid).toBe(true)
+
+      // Valid - with empty pain_points array
+      const validEmptyArray = validateToolArgs('generate_custom_syllabus', {
+        team_roles: '5 engineers',
+        pain_points: [],
+        tech_stack: 'Python'
+      })
+      expect(validEmptyArray.valid).toBe(true)
+
+      // Invalid - missing team_roles
+      const invalidMissing = validateToolArgs('generate_custom_syllabus', {
+        pain_points: ['test'],
+        tech_stack: 'Test'
+      })
+      expect(invalidMissing.valid).toBe(false)
+
+      // Invalid - missing pain_points
+      const invalidMissingPain = validateToolArgs('generate_custom_syllabus', {
+        team_roles: '5 engineers',
+        tech_stack: 'Test'
+      })
+      expect(invalidMissingPain.valid).toBe(false)
+
+      // Invalid - missing tech_stack
+      const invalidMissingTech = validateToolArgs('generate_custom_syllabus', {
+        team_roles: '5 engineers',
+        pain_points: ['test']
+      })
+      expect(invalidMissingTech.valid).toBe(false)
+    })
+
+    it('should validate analyze_competitor_gap args correctly', () => {
+      // Valid - with all required fields
+      const validResult = validateToolArgs('analyze_competitor_gap', {
+        industry: 'e-commerce',
+        client_current_state: 'exploring AI options'
+      })
+      expect(validResult.valid).toBe(true)
+
+      // Invalid - missing industry
+      const invalidMissing = validateToolArgs('analyze_competitor_gap', {
+        client_current_state: 'test'
+      })
+      expect(invalidMissing.valid).toBe(false)
+
+      // Invalid - missing client_current_state
+      const invalidMissingState = validateToolArgs('analyze_competitor_gap', {
+        industry: 'test'
+      })
+      expect(invalidMissingState.valid).toBe(false)
+    })
+
+    it('should validate simulate_cost_of_inaction args correctly', () => {
+      // Valid - with all required fields
+      const validResult = validateToolArgs('simulate_cost_of_inaction', {
+        inefficient_process: 'manual data entry',
+        hours_wasted_per_week: 10,
+        team_size: 5
+      })
+      expect(validResult.valid).toBe(true)
+
+      // Invalid - missing inefficient_process
+      const invalidMissing = validateToolArgs('simulate_cost_of_inaction', {
+        hours_wasted_per_week: 10,
+        team_size: 5
+      })
+      expect(invalidMissing.valid).toBe(false)
+
+      // Invalid - missing hours_wasted_per_week
+      const invalidMissingHours = validateToolArgs('simulate_cost_of_inaction', {
+        inefficient_process: 'test',
+        team_size: 5
+      })
+      expect(invalidMissingHours.valid).toBe(false)
+
+      // Invalid - missing team_size
+      const invalidMissingSize = validateToolArgs('simulate_cost_of_inaction', {
+        inefficient_process: 'test',
+        hours_wasted_per_week: 10
+      })
+      expect(invalidMissingSize.valid).toBe(false)
+
+      // Invalid - non-numeric hours_wasted_per_week
+      const invalidHoursType = validateToolArgs('simulate_cost_of_inaction', {
+        inefficient_process: 'test',
+        hours_wasted_per_week: 'not-a-number',
+        team_size: 5
+      })
+      expect(invalidHoursType.valid).toBe(false)
+
+      // Invalid - non-numeric team_size
+      const invalidSizeType = validateToolArgs('simulate_cost_of_inaction', {
+        inefficient_process: 'test',
+        hours_wasted_per_week: 10,
+        team_size: 'not-a-number'
+      })
+      expect(invalidSizeType.valid).toBe(false)
     })
 
     it('should validate extract_action_items args correctly', () => {
@@ -292,8 +527,9 @@ describe('Unified Tool Registry', () => {
   })
 
   describe('UNIFIED_TOOL_NAMES', () => {
-    it('should contain all 11 tools', () => {
-      expect(UNIFIED_TOOL_NAMES).toHaveLength(11)
+    it('should contain all tools', () => {
+      expect(UNIFIED_TOOL_NAMES.length).toBeGreaterThanOrEqual(11)
+      expect(UNIFIED_TOOL_NAMES.length).toBe(Object.keys(ToolSchemas).length)
     })
 
     it('should contain core business tools', () => {
@@ -320,12 +556,19 @@ describe('Unified Tool Registry', () => {
 
     it('should contain admin tools', () => {
       expect(UNIFIED_TOOL_NAMES).toContain('get_dashboard_stats')
+      expect(UNIFIED_TOOL_NAMES).toContain('analyze_website_tech_stack')
+      expect(UNIFIED_TOOL_NAMES).toContain('generate_architecture_diagram')
+      expect(UNIFIED_TOOL_NAMES).toContain('search_internal_case_studies')
+      expect(UNIFIED_TOOL_NAMES).toContain('generate_custom_syllabus')
+      expect(UNIFIED_TOOL_NAMES).toContain('analyze_competitor_gap')
+      expect(UNIFIED_TOOL_NAMES).toContain('simulate_cost_of_inaction')
     })
   })
 
   describe('ToolSchemas', () => {
     it('should export schemas for all tools', () => {
-      expect(Object.keys(ToolSchemas)).toHaveLength(11)
+      expect(Object.keys(ToolSchemas).length).toBeGreaterThanOrEqual(11)
+      expect(Object.keys(ToolSchemas).length).toBe(UNIFIED_TOOL_NAMES.length)
     })
 
     it('should have schema for each unified tool', () => {

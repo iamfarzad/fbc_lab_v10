@@ -77,14 +77,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
 
     const analysis = result.text || '';
+    
+    // Estimate confidence based on response quality
+    // Longer, more detailed responses typically indicate higher confidence
+    const analysisLength = analysis.length
+    const hasDetails = analysis.split('.').length > 2 // Multiple sentences
+    const hasSpecifics = /(see|showing|displaying|contains|shows)/i.test(analysis) // Specific observations
+    const confidence = Math.min(
+      0.3 + // Base confidence
+      (analysisLength > 100 ? 0.3 : analysisLength / 500) + // Length factor
+      (hasDetails ? 0.2 : 0) + // Detail factor
+      (hasSpecifics ? 0.2 : 0), // Specificity factor
+      1.0 // Cap at 1.0
+    )
 
     return res.status(200).json({
       success: true,
       analysis: analysis,
+      confidence: confidence,
       metadata: {
         timestamp: new Date().toISOString(),
         fileSize: base64Image.length,
-        processedAt: new Date().toISOString()
+        processedAt: new Date().toISOString(),
+        confidence: confidence,
+        analysisLength: analysisLength
       }
     });
 

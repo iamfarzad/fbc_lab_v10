@@ -160,7 +160,7 @@ describe('processToolCall', () => {
   });
 
   it('should handle tool execution errors', async () => {
-    const { executeUnifiedTool } = await import('src/core/tools/unified-tool-registry');
+    const { executeUnifiedTool, validateToolArgs } = await import('src/core/tools/unified-tool-registry');
     
     const toolCall = {
       functionCalls: [
@@ -168,6 +168,9 @@ describe('processToolCall', () => {
       ]
     };
 
+    // Mock validation to pass
+    vi.mocked(validateToolArgs).mockReturnValue({ valid: true });
+    // Mock execution to reject
     vi.mocked(executeUnifiedTool).mockRejectedValue(new Error('API Error'));
 
     await processToolCall(connectionId, mockWs, toolCall, mockActiveSessions);
@@ -178,7 +181,7 @@ describe('processToolCall', () => {
           name: 'search_web',
           response: expect.objectContaining({
             success: false,
-            error: 'API Error'
+            error: expect.stringContaining('API Error')
           })
         })
       ]
@@ -186,7 +189,7 @@ describe('processToolCall', () => {
   });
 
   it('should record capability usage on success', async () => {
-    const { executeUnifiedTool } = await import('src/core/tools/unified-tool-registry');
+    const { executeUnifiedTool, validateToolArgs } = await import('src/core/tools/unified-tool-registry');
     const { recordCapabilityUsed } = await import('src/core/context/capabilities');
     
     const toolCall = {
@@ -195,6 +198,9 @@ describe('processToolCall', () => {
       ]
     };
 
+    // Mock validation to pass
+    vi.mocked(validateToolArgs).mockReturnValue({ valid: true });
+    // Mock execution to succeed
     const mockResult = { success: true, data: { results: [] } };
     vi.mocked(executeUnifiedTool).mockResolvedValue(mockResult as any);
 

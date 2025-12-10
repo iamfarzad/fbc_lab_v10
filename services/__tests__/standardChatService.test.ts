@@ -23,7 +23,16 @@ describe('StandardChatService', () => {
 
   beforeEach(() => {
     mockChat = {
-      sendMessage: vi.fn()
+      sendMessage: vi.fn().mockResolvedValue({
+        text: 'Test response',
+        candidates: [
+          {
+            content: {
+              parts: [{ text: 'Test response' }]
+            }
+          }
+        ]
+      })
     }
 
     mockModels = {

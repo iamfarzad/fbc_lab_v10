@@ -122,12 +122,17 @@ export function useLeadResearch({
                 services.liveServiceRef.current.setResearchContext(result);
             }
 
+            // Build profile from research result for Discovery Agent personalization
+            const { buildLeadProfile } = await import('../../core/intelligence/profile-builder.js')
+            const profile = buildLeadProfile(result, email, name)
+
             intelligenceContextRef.current = {
                 ...intelligenceContextRef.current,
                 ...(result.company ? { company: result.company } : {}),
                 ...(result.person ? { person: result.person } : {}),
                 ...(result.strategic ? { strategic: result.strategic } : {}),
-                research: result
+                research: result,
+                profile // Store profile for Discovery Agent
             };
             unifiedContext.setResearchContext(result);
             unifiedContext.setIntelligenceContext(intelligenceContextRef.current);

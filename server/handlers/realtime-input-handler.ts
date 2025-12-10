@@ -41,7 +41,8 @@ export async function handleRealtimeInput(
   const rateLimit = checkRateLimit(
     connectionId, 
     client.sessionId, 
-    isAudioChunk ? MESSAGE_TYPES.USER_AUDIO : MESSAGE_TYPES.REALTIME_INPUT
+    isAudioChunk ? MESSAGE_TYPES.USER_AUDIO : MESSAGE_TYPES.REALTIME_INPUT,
+    mimeType
   )
   if (!rateLimit.allowed) {
     serverLogger.warn('Rate limit exceeded for REALTIME_INPUT', { connectionId, isAudioChunk, mimeType })

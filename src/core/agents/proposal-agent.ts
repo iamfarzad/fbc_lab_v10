@@ -207,7 +207,8 @@ OUTPUT: Valid JSON only, no explanation.`
 
   const systemPrompt = `${contextSection}
 
-${instructionSection}`
+${instructionSection}
+${context.systemPromptSupplement || ''}`
 
   // Step 4: Calculating timeline
   steps.push({

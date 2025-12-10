@@ -2,6 +2,7 @@ import { google, generateText } from '../../lib/ai-client.js'
 import type { AgentContext, ChatMessage, AgentResult } from './types.js'
 import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
+import { generateSalesConstraintInstructions } from './utils/context-briefing.js'
 
 /**
  * Workshop Sales Agent - Pitches in-person AI workshops
@@ -69,7 +70,9 @@ CRITICAL PERSONALIZATION RULES:
 1. ALWAYS use their company name: ${intelligenceContext?.company?.name || 'your company'}
 2. ALWAYS reference their role: ${intelligenceContext?.person?.role || 'your position'}
 3. ALWAYS tie back to their specific pain points from discovery
-4. NEVER give generic responses - every response must be specific to THIS lead`
+4. NEVER give generic responses - every response must be specific to THIS lead
+
+${generateSalesConstraintInstructions()}`
 
   const recentMessages = messages.slice(-10)
 

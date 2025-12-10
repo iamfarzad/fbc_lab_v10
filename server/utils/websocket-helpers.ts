@@ -96,7 +96,9 @@ export function ensureConnectionState(
     messageCount: 0,
     lastMessageAt: now,
     audioCount: 0,
-    audioLastAt: now
+    audioLastAt: now,
+    mediaCount: 0,
+    mediaLastAt: now
   }
 
   // Log as ERROR with full context

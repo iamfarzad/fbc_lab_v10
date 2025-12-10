@@ -3,6 +3,7 @@ import { GEMINI_MODELS } from '../../config/constants.js'
 import { calculateRoi } from './utils/calculate-roi.js'
 import type { AgentContext, ChatMessage, AgentResult, FunnelStage } from './types.js'
 import { extractGeminiMetadata } from '../../lib/extract-gemini-metadata.js'
+import { generateSalesConstraintInstructions } from './utils/context-briefing.js'
 
 /**
  * Unified Pitch Agent - Replaces workshop-sales-agent and consulting-sales-agent
@@ -111,6 +112,9 @@ PITCH RULES:
 - Keep responses concise (2-3 sentences max for voice mode)
 
 Price guidance: ${productInfo.priceRange} — only reveal if they show high interest (>0.75) or ask directly.
+
+${context.systemPromptSupplement || ''}
+${generateSalesConstraintInstructions()}
 
 Respond now to: "${lastUserMessage}"`
 

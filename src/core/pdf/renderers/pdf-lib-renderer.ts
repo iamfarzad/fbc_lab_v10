@@ -573,11 +573,163 @@ export async function generatePdfWithPdfLib(
     }
   }
 
+  // Artifacts Section (High-Value Artifacts)
+  const artifacts = summaryData.artifacts
+
+  // Cost of Inaction (warning box)
+  if (artifacts?.costOfInaction) {
+    cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt
+    ensureRoom()
+    
+    const coi = artifacts.costOfInaction
+    const boxHeight = 80
+    const boxStartY = cursorY
+    
+    // Warning box background (light red)
+    page.drawRectangle({
+      x: marginX,
+      y: cursorY - boxHeight,
+      width: 595.28 - marginX * 2,
+      height: boxHeight,
+      borderColor: rgb(0.86, 0.15, 0.15), // Red border
+      borderWidth: 2,
+      color: rgb(1, 0.96, 0.96) // Light red background
+    })
+    
+    cursorY -= 8
+    writeLine('⚠️ Operational Waste Detected', bodySize + 1, true, false, marginX + 8)
+    cursorY -= 12
+    
+    const wasteText = `Based on our analysis of ${coi.inefficiencySource}, your current process is costing you:`
+    writeParagraph(wasteText, bodySize - 1)
+    cursorY -= 8
+    
+    // Big number for annual waste
+    const wasteAmount = `$${coi.annualWaste.toLocaleString()} / Year`
+    page.drawText(wasteAmount, {
+      x: marginX + 8,
+      y: cursorY,
+      size: bodySize + 4,
+      font: boldFont,
+      color: rgb(0.86, 0.15, 0.15) // Red
+    })
+    cursorY -= 20
+    
+    const paybackText = 'This waste covers the cost of the workshop in < 3 months.'
+    writeLine(paybackText, bodySize - 2, false, false, marginX + 8)
+    
+    cursorY = boxStartY - boxHeight - 15
+    ensureRoom()
+  }
+
+  // Executive Memo (new page)
+  if (artifacts?.executiveMemo) {
+    // Add new page for memo
+    page = pdfDoc.addPage([595.28, 841.89])
+    cursorY = 750
+    
+    const memo = artifacts.executiveMemo
+    
+    // CONFIDENTIAL watermark (rotated) - pdf-lib doesn't support rotation, use opacity instead
+    page.drawText('CONFIDENTIAL', {
+      x: 400,
+      y: 600,
+      size: 60,
+      font: regularFont,
+      color: rgb(0.8, 0.8, 0.8),
+      opacity: 0.3
+    })
+    
+    writeLine('EXECUTIVE BRIEFING', sectionTitleSize, true, true)
+    cursorY -= 10
+    
+    // Memo content (preserve line breaks)
+    const memoLines = memo.content.split('\n')
+    for (const line of memoLines) {
+      if (line.trim()) {
+        writeLine(line.trim(), bodySize, false, false, marginX)
+        cursorY -= 4
+      } else {
+        cursorY -= 8
+      }
+      ensureRoom()
+    }
+    
+    cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt
+    ensureRoom()
+  }
+
+  // Custom Syllabus
+  if (artifacts?.customSyllabus) {
+    cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt
+    ensureRoom()
+    
+    const syllabus = artifacts.customSyllabus
+    writeLine(syllabus.title.toUpperCase(), sectionTitleSize, true, true)
+    cursorY -= 10
+    
+    for (const module of syllabus.modules) {
+      writeLine(module.title, bodySize + 1, true, false, marginX)
+      cursorY -= 8
+      
+      for (const topic of module.topics) {
+        page.drawText('•', {
+          x: marginX,
+          y: cursorY,
+          size: bodySize,
+          font: boldFont,
+          color: orangeColor
+        })
+        writeLine(topic, bodySize, false, false, marginX + 18)
+        cursorY -= 4
+      }
+      
+      cursorY -= 8
+      ensureRoom()
+    }
+  }
+
+  // Competitor Gap
+  if (artifacts?.competitorGap) {
+    cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt
+    ensureRoom()
+    
+    const gap = artifacts.competitorGap
+    writeLine('COMPETITIVE GAP ANALYSIS', sectionTitleSize, true, true)
+    cursorY -= 10
+    
+    writeLine(`Your Current State: ${gap.clientState}`, bodySize, false, false, marginX)
+    cursorY -= 12
+    
+    writeLine(`Competitors: ${gap.competitors.join(', ')}`, bodySize, false, false, marginX)
+    cursorY -= 12
+    
+    // Gap analysis box
+    const gapBoxHeight = 60
+    page.drawRectangle({
+      x: marginX,
+      y: cursorY - gapBoxHeight,
+      width: 595.28 - marginX * 2,
+      height: gapBoxHeight,
+      borderColor: orangeColor,
+      borderWidth: 1,
+      color: rgb(0.98, 0.98, 0.99) // Light gray
+    })
+    
+    cursorY -= 8
+    writeLine('Gap Analysis:', bodySize, true, false, marginX + 8)
+    cursorY -= 8
+    writeParagraph(gap.gapAnalysis, bodySize - 1)
+    
+    cursorY -= gapBoxHeight - 40
+    ensureRoom()
+  }
+
   // Proposal Section
   const proposal = summaryData.proposal
   cursorY -= PDF_DESIGN_TOKENS.spacing.lg.pt
   ensureRoom()
-  
+
   writeLine('PROPOSAL & NEXT STEPS', sectionTitleSize, true, true)
   cursorY -= 10
   ensureRoom()

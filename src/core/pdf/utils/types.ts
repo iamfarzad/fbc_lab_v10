@@ -78,6 +78,27 @@ export interface SummaryData {
     expectedROI?: string
     nextSteps?: string
   }
+  artifacts?: {
+    executiveMemo?: {
+      targetAudience: 'CFO' | 'CEO' | 'CTO'
+      content: string // Full memo text
+      subject?: string // Email subject line
+    }
+    customSyllabus?: {
+      title: string
+      modules: Array<{ title: string; topics: string[] }>
+    }
+    costOfInaction?: {
+      monthlyWaste: number
+      annualWaste: number
+      inefficiencySource: string
+    }
+    competitorGap?: {
+      clientState: string
+      competitors: string[]
+      gapAnalysis: string
+    }
+  }
 }
 
 export type Mode = 'client' | 'internal'

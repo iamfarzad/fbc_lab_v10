@@ -1,7 +1,7 @@
 # Agents Documentation
 
 **Date:** 2025-12-07  
-**Last Updated:** 2025-12-07  
+**Last Updated:** 2025-01-27  
 **Purpose:** Complete reference for all agents in the F.B/c sales funnel system  
 **Status:** ✅ **SINGLE SOURCE OF TRUTH** - All agent information consolidated here
 
@@ -1204,6 +1204,12 @@ All agents share these common instruction patterns:
    - Ask ONE focused question at a time
    - Mirror user's language style
 
+5. **System Prompt Supplements:**
+   - All agents automatically receive a `systemPromptSupplement` from the Context Translator
+   - This supplement contains strategic context (privacy sensitivity, technical level, authority level)
+   - Agents should adapt their communication style based on this supplement
+   - The supplement is appended to each agent's system prompt automatically by the orchestrator
+
 ---
 
 ### Discovery Agent Prompt
@@ -2037,6 +2043,208 @@ New endpoint that:
 ```
 
 **Impact:** Eliminates "two voices" issue in voice mode. Voice sessions now properly sync with orchestrator stage tracking.
+
+---
+
+## Context Translator System
+
+The Context Translator is a centralized system that automatically injects intelligence briefings into all agent system prompts. This ensures consistent, context-aware communication across all pipeline agents without requiring manual edits to individual agent files.
+
+### Overview
+
+The Context Translator converts raw JSON intelligence data from the Lead Intelligence Agent into natural language instructions that agents can use effectively. It operates as a "translation layer" between the intelligence gathering phase and agent execution.
+
+### Components
+
+#### 1. AgentStrategicContext
+
+**Location:** `src/core/intelligence/types.ts`
+
+Defines strategic communication parameters:
+
+```typescript
+export interface AgentStrategicContext {
+  privacySensitivity: 'HIGH' | 'MEDIUM' | 'LOW'  // Triggers "Safe Environment" talk
+  technicalLevel: 'HIGH' | 'LOW'                  // Triggers "Jargon" vs "Business Value"
+  authorityLevel: 'DECISION_MAKER' | 'INFLUENCER' | 'RESEARCHER'  // Adjusts deference
+}
+```
+
+#### 2. Context Briefing Utility
+
+**Location:** `src/core/agents/utils/context-briefing.ts`
+
+Two main functions:
+
+- **`generateAgentBriefing(ctx: IntelligenceContext): string`**
+  - Creates general persona/company context briefing
+  - Includes: WHO YOU ARE TALKING TO, COMPANY CONTEXT, STRATEGIC ANGLES, KEY HOOKS
+  - Used for general context awareness
+
+- **`generateSystemPromptSupplement(ctx: IntelligenceContext): string`**
+  - Creates specific strategic instructions based on `AgentStrategicContext`
+  - Handles privacy sensitivity (HIGH/MEDIUM/LOW)
+  - Handles technical level (HIGH/LOW)
+  - Handles authority level (DECISION_MAKER/INFLUENCER/RESEARCHER)
+  - Returns formatted briefing string for injection into system prompts
+
+#### 3. Strategic Context Analysis
+
+**Location:** `src/core/agents/lead-intelligence-agent.ts`
+
+The `analyzeStrategicContext` function determines strategic parameters:
+
+- **Privacy Sensitivity:**
+  - HIGH: finance/bank/health/medical/legal/defense/gov industries
+  - MEDIUM: enterprise/insurance/telecom industries
+  - LOW: all other industries
+
+- **Technical Level:**
+  - HIGH: CTO/CIO/Developer/Engineer/Architect/Data/Scientist/Product roles
+  - LOW: all other roles
+
+- **Authority Level:**
+  - DECISION_MAKER: Founder/CEO/VP/Director/Head of or C-Level seniority
+  - INFLUENCER: Manager/Lead roles
+  - RESEARCHER: all other roles
+
+### How It Works
+
+1. **Lead Intelligence Agent** calculates `strategicContext` during research
+2. **Orchestrator** calls `generateSystemPromptSupplement(intelligenceContext)` once per request
+3. **All agents** receive `systemPromptSupplement` in their `AgentContext`
+4. **Each agent** appends `${context.systemPromptSupplement || ''}` to their system prompt
+
+### Benefits
+
+- **Consistency:** All agents see the same strategic context
+- **No Manual Edits:** Single source of truth in orchestrator
+- **Context-Aware:** Agents adapt communication style automatically
+- **Privacy-Safe:** HIGH privacy sensitivity triggers appropriate security messaging
+- **Technical Adaptation:** HIGH technical level skips basic definitions
+- **Authority Respect:** Authority level adjusts deference and closing strategy
+
+### Example Output
+
+For a user from a finance company (HIGH privacy, HIGH technical, DECISION_MAKER):
+
+```
+=== 🎯 LIVE STRATEGIC CONTEXT ===
+User Authority: DECISION_MAKER (Adjust deference accordingly).
+Company: Bank Corp (Unknown size).
+
+⚠️ CRITICAL CONTEXT: High Privacy Risk Industry (Finance).
+- Anticipate objections about data security.
+- Proactively mention "Local LLMs" and "GDPR/Enterprise Governance" if asked about tools.
+- Do NOT suggest sending sensitive data to public APIs.
+
+🧠 USER IS TECHNICAL.
+- Skip basic definitions of AI.
+- It is okay to use terms like "Context Window", "RAG", or "Fine-tuning".
+- Focus on implementation details and architecture.
+
+👔 USER IS A DECISION MAKER.
+- You can discuss budget, timelines, and strategic decisions directly.
+- Be confident and direct in your recommendations.
+- Focus on high-level impact and business outcomes.
+=================================
+```
+
+### Integration Points
+
+- **Orchestrator:** Generates briefing and injects into all agent contexts
+- **AgentContext:** Includes `systemPromptSupplement?: string` field
+- **All Agents:** Append supplement to system prompts
+- **Context Manager:** Maps `strategicContext` from intelligence context
+
+## Sales Constraint Rules
+
+### Overview
+
+All sales and consulting agents include **sales constraint instructions** that prevent agents from giving away solutions for free. Instead, agents use "teaser tools" to demonstrate expertise while driving bookings.
+
+### The Problem
+
+AI agents can be too helpful. If the agent solves the client's problem in chat, they have no reason to hire you. To sell consulting and workshops, agents must demonstrate **insight** (diagnosing the problem) but withhold the **implementation** (the solution).
+
+### Sales Constraint Instructions
+
+All sales/consulting agents receive these instructions:
+
+```
+🚫 CONSULTANT RULE: NEVER GIVE THE SOLUTION FREE.
+
+- If the user asks "How do I fix X?" or "How do I implement Y?", do NOT explain the code, prompts, or detailed steps.
+- INSTEAD: Use 'generate_custom_syllabus' to show that "Fixing X" is the main topic of "Module 2" in your workshop.
+- PROVE you know the answer by briefly describing the *outcome* ("Yes, we can automate that using RAG pipelines"), but sell the *method* ("That's exactly what we cover in our Advanced Implementation module").
+- Use 'simulate_cost_of_inaction' when they mention inefficient processes to show the cost of waiting.
+- Use 'analyze_competitor_gap' when discussing industry context to create urgency.
+
+When to break this rule: Only if explicitly asked "How does this work technically?" AND they've already booked a call or shown strong buying intent.
+```
+
+### Agents Affected
+
+- **Discovery Agent** - Uses constraint to drive workshop bookings
+- **Pitch Agent** - Uses constraint during product pitch
+- **Closer Agent** - Uses constraint in closing conversations
+- **Workshop Sales Agent** - Uses constraint to protect workshop value
+- **Consulting Sales Agent** - Uses constraint to protect consulting value
+- **Voice Mode** - Constraint included in system instructions for non-admin sessions
+
+### Tool Usage Guidelines
+
+**When to use teaser tools:**
+
+1. **`generate_custom_syllabus`** - Use when:
+   - User asks "How do I implement X?"
+   - User asks technical questions that should be covered in workshop
+   - Team leads/managers need to justify budget to boss
+   - Best for: Team leads, managers
+
+2. **`analyze_competitor_gap`** - Use when:
+   - User asks about industry trends
+   - User mentions competitors
+   - C-level/VP discussions about market position
+   - Best for: C-level, VPs, executives
+
+3. **`simulate_cost_of_inaction`** - Use when:
+   - User complains about inefficient processes
+   - User mentions wasted time/costs
+   - Finance/procurement discussions
+   - Best for: Finance, procurement, budget discussions
+
+### Example Scenarios
+
+**Scenario 1: User asks "How do I fine-tune Llama?"**
+
+❌ **BAD (Gives solution away):**
+"I'll explain fine-tuning. First, you need to prepare your dataset..."
+
+✅ **GOOD (Uses syllabus tool):**
+"That's exactly what we cover in Module 3 of our Advanced AI Workshop. Based on your React/Node stack, here's the custom 2-day agenda I'd run for your team... [generates syllabus showing fine-tuning as Module 3 topic]"
+
+**Scenario 2: User complains about manual data entry**
+
+❌ **BAD (Just sympathizes):**
+"Yeah, that's frustrating. Have you tried automation?"
+
+✅ **GOOD (Uses cost simulator):**
+"You mentioned 5 people spend 10 hours/week on manual data entry. Let me calculate the cost... [shows $10K/month waste] My 2-day Workshop costs $10,000. Essentially, you're paying for a workshop every month, but without getting the solution."
+
+**Scenario 3: User asks about industry trends**
+
+❌ **BAD (Generic response):**
+"Many companies are adopting AI."
+
+✅ **GOOD (Uses competitor gap):**
+"I looked at the landscape in your industry. Competitor A just launched an AI customer service portal. Competitor B is hiring for 'Prompt Engineers'. You're currently at the 'Exploration' stage. The Gap: You're about 6-12 months behind market leaders."
+
+### Integration
+
+- **Chat Agents:** Sales constraint added to system prompts via `generateSalesConstraintInstructions()` in `context-briefing.ts`
+- **Voice Mode:** Sales constraint added to system instructions in `config-builder.ts` for non-admin sessions
+- **Location:** All constraint logic in `src/core/agents/utils/context-briefing.ts`
 
 ---
 

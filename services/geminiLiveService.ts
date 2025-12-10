@@ -4,6 +4,7 @@ import { LiveServiceConfig, TranscriptItem, ResearchResult } from 'types';
 import { AppConfig } from '../config';
 import { unifiedContext } from './unifiedContext';
 import { logger } from 'src/lib/logger'
+import { detectAndAnalyzeUrls } from '../src/core/utils/url-analysis.js';
 
 // Audio Constants
 const INPUT_SAMPLE_RATE = AppConfig.api.audio.inputSampleRate;
@@ -499,14 +500,14 @@ export class GeminiLiveService {
   }
 
   // Send Context from Standard Chat History + optional metadata
-  public sendContext(
+  public async sendContext(
     history: TranscriptItem[],
     opts?: {
       location?: { latitude: number; longitude: number };
       research?: ResearchResult | null;
       intelligenceContext?: any;
     }
-  ): void {
+  ): Promise<void> {
     if (!this.liveClient || !this.isConnected) {
       console.warn('[GeminiLiveService] Cannot send context: not connected');
       return;
@@ -534,20 +535,31 @@ export class GeminiLiveService {
         timestamp: item.timestamp.toISOString(),
       }));
 
+    // Detect and analyze URLs in transcript messages
+    const allText = contextMessages.map(m => m.content).join('\n');
+    const intelligenceContext = opts?.intelligenceContext || unifiedContext.getSnapshot().intelligenceContext;
+    const urlContext = await detectAndAnalyzeUrls(allText, intelligenceContext);
+
     // Send via intelligence modality context update
     const location = opts?.location || this.location;
     const research = opts?.research || this.researchContext;
 
+    let analysisText = `Conversation history: ${contextMessages.length} messages`;
+    if (urlContext) {
+      analysisText += `\n\n${urlContext}`;
+    }
+
     this.liveClient.sendContextUpdate({
       sessionId: this.sessionId,
       modality: 'intelligence',
-      analysis: `Conversation history: ${contextMessages.length} messages`,
+      analysis: analysisText,
       capturedAt: Date.now(),
       metadata: {
         transcript: contextMessages,
         ...(location ? { location } : {}),
         ...(research ? { research } : {}),
-        ...(opts?.intelligenceContext ? { intelligenceContext: opts.intelligenceContext } : {})
+        ...(opts?.intelligenceContext ? { intelligenceContext: opts.intelligenceContext } : {}),
+        ...(urlContext ? { urlAnalysis: urlContext } : {})
       }
     });
   }

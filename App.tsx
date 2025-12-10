@@ -411,17 +411,38 @@ export const App: React.FC = () => {
             });
             if (file) {
                  liveServiceRef.current?.sendRealtimeMedia(file);
-                 // CRITICAL FIX: Removed sendText() calls - Live API's sendRealtimeInput() only accepts audio/video
-                 // Sending text via sendRealtimeInput causes error 1007 "Request contains an invalid argument"
-                 // Text should be included in systemInstruction during session setup, not sent as realtime input
-                 // if (!text.trim()) {
-                 //     liveServiceRef.current?.sendText("Analyze this image.");  // ❌ DISABLED - causes 1007
-                 // }
             }
-            // CRITICAL FIX: Removed sendText() - text cannot be sent via sendRealtimeInput
-            // if (text.trim()) {
-            //     liveServiceRef.current?.sendText(text);  // ❌ DISABLED - causes 1007
-            // }
+            // Text during voice mode - route to standardChatService instead of Live API
+            // Live API's sendRealtimeInput() only accepts audio/video, not text (causes error 1007)
+            if (text.trim() && standardChatRef.current) {
+                try {
+                    const currentHistory = [...transcriptRef.current, userItem];
+                    const response = await standardChatRef.current.sendMessage(
+                        currentHistory,
+                        text,
+                        file ? { mimeType: file.mimeType, data: file.data } : undefined
+                    );
+                    
+                    // Add response to transcript
+                    const responseItem: TranscriptItem = {
+                        id: (Date.now() + 1).toString(),
+                        role: 'model',
+                        text: response.text,
+                        timestamp: new Date(),
+                        isFinal: true,
+                        status: 'complete',
+                        ...(response.reasoning && { reasoning: response.reasoning })
+                    };
+                    setTranscript(prev => [...prev, responseItem]);
+                    
+                    if (sessionId) {
+                        await persistMessageToServer(sessionId, 'model', response.text, responseItem.timestamp);
+                    }
+                } catch (err) {
+                    console.error('Failed to send text via standardChatService during voice mode:', err);
+                    showToast('Failed to send text message. Please try again.', 'error');
+                }
+            }
         } else if (aiBrainRef.current) {
             const storedKey = localStorage.getItem('fbc_api_key');
             const apiKey = storedKey || process.env.API_KEY;

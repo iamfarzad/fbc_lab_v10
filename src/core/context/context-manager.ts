@@ -189,7 +189,15 @@ export async function prepareAgentContext(params: {
       fitScore: ('fitScore' in intelligenceContextRaw) ? intelligenceContextRaw.fitScore as { workshop: number; consulting: number } : undefined,
       leadScore: ('leadScore' in intelligenceContextRaw && typeof intelligenceContextRaw.leadScore === 'number') ? intelligenceContextRaw.leadScore : undefined,
       pitchDelivered: ('pitchDelivered' in intelligenceContextRaw && typeof intelligenceContextRaw.pitchDelivered === 'boolean') ? intelligenceContextRaw.pitchDelivered : undefined,
-      calendarBooked: ('calendarBooked' in intelligenceContextRaw && typeof intelligenceContextRaw.calendarBooked === 'boolean') ? intelligenceContextRaw.calendarBooked : undefined
+      calendarBooked: ('calendarBooked' in intelligenceContextRaw && typeof intelligenceContextRaw.calendarBooked === 'boolean') ? intelligenceContextRaw.calendarBooked : undefined,
+      // Map profile if present (from Lead Intelligence Agent)
+      profile: ('profile' in intelligenceContextRaw && intelligenceContextRaw.profile && typeof intelligenceContextRaw.profile === 'object') 
+        ? intelligenceContextRaw.profile as AgentIntelligenceContext['profile']
+        : undefined,
+      // Map strategicContext if present (from Lead Intelligence Agent)
+      strategicContext: ('strategicContext' in intelligenceContextRaw && intelligenceContextRaw.strategicContext && typeof intelligenceContextRaw.strategicContext === 'object')
+        ? intelligenceContextRaw.strategicContext as AgentIntelligenceContext['strategicContext']
+        : undefined
     } as AgentIntelligenceContext
     : undefined
 

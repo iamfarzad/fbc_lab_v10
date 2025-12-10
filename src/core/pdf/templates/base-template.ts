@@ -94,21 +94,130 @@ export async function generateHtmlContent(summaryData: SummaryData, _mode: Mode,
     </div>`
     : ''
 
-  const artifactsSection = (summaryData.artifactInsights && summaryData.artifactInsights.length > 0)
-    ? `<div class="section">
-      <h2 class="section-title">Generated Artifacts</h2>
-      <div class="section-content">
-        ${summaryData.artifactInsights.map((artifact) => {
-          const status = artifact.status ? `<p><strong>Status:</strong> ${escapeHtml(artifact.status)}</p>` : ''
-          const error = artifact.error ? `<p><strong>Error:</strong> ${escapeHtml(artifact.error)}</p>` : ''
-          return `
-            <p><strong>${escapeHtml(artifact.type || 'Artifact')}</strong></p>
-            ${status}
-            ${error}
-          `
-        }).join('')}
+  // Get design token values for HTML (needed for artifacts section)
+  const accentColor = getHslColor('accent')
+  const foregroundColor = getHslColor('foreground')
+  const mutedForegroundColor = getHslColor('mutedForeground')
+  const textColor = getHslColor('text')
+  const lightGrayColor = getHslColor('lightGray')
+
+  // Build high-value artifacts section
+  const highValueArtifacts: string[] = []
+
+  // Cost of Inaction (warning callout)
+  if (summaryData.artifacts?.costOfInaction) {
+    const coi = summaryData.artifacts.costOfInaction
+    const paybackMonths = (summaryData.proposal?.pricingBallpark && coi.monthlyWaste !== undefined && coi.monthlyWaste > 0)
+      ? (() => {
+          const pricingBallpark = summaryData.proposal?.pricingBallpark
+          if (!pricingBallpark) return '3'
+          const priceMatch = pricingBallpark.match(/\$?([\d,]+)/)
+          const price = priceMatch && priceMatch[1] ? parseInt(priceMatch[1].replace(/,/g, '')) : 10000
+          const monthlyWaste = coi.monthlyWaste
+          if (monthlyWaste === undefined || monthlyWaste === 0) return '3'
+          return (price / monthlyWaste).toFixed(1)
+        })()
+      : '3'
+    const accentColorValue = accentColor // Use already declared variable
+    const mutedForegroundColorValue = mutedForegroundColor // Use already declared variable
+    highValueArtifacts.push(`
+      <div class="section" style="background: #fff5f5; border-left: 4px solid ${accentColorValue}; padding: ${PDF_DESIGN_TOKENS.spacing.md.px}px; margin-bottom: ${PDF_DESIGN_TOKENS.spacing.lg.px}px;">
+        <h2 class="section-title" style="color: #dc2626;">⚠️ Operational Waste Detected</h2>
+        <div class="section-content">
+          <p>Based on our analysis of <strong>${escapeHtml(coi.inefficiencySource)}</strong>, your current process is costing you:</p>
+          <div style="font-size: ${PDF_DESIGN_TOKENS.typography.title.px}px; font-weight: ${PDF_DESIGN_TOKENS.typography.title.weight}; color: #dc2626; margin: ${PDF_DESIGN_TOKENS.spacing.md.px}px 0;">
+            $${coi.annualWaste.toLocaleString()} / Year
+          </div>
+          <p style="color: ${mutedForegroundColorValue}; font-size: ${PDF_DESIGN_TOKENS.typography.small.px}px;">
+            This waste covers the cost of the workshop in < ${paybackMonths} months.
+          </p>
+        </div>
       </div>
-    </div>`
+    `)
+  }
+
+  // Executive Memo (separate page)
+  if (summaryData.artifacts?.executiveMemo) {
+    const memo = summaryData.artifacts.executiveMemo
+    const memoContent = memo.content.replace(/\n/g, '<br/>')
+    highValueArtifacts.push(`
+      <div style="page-break-before: always; margin-top: ${PDF_DESIGN_TOKENS.spacing.xxl.px}px;">
+        <div class="section" style="position: relative;">
+          <div style="position: absolute; top: 0; right: 0; color: ${mutedForegroundColor}; font-size: ${PDF_DESIGN_TOKENS.typography.small.px}px; opacity: 0.3; transform: rotate(45deg);">
+            CONFIDENTIAL
+          </div>
+          <h2 class="section-title">Executive Briefing</h2>
+          <div class="section-content" style="font-family: 'Times New Roman', serif;">
+            ${memoContent}
+          </div>
+        </div>
+      </div>
+    `)
+  }
+
+  // Custom Syllabus
+  if (summaryData.artifacts?.customSyllabus) {
+    const syllabus = summaryData.artifacts.customSyllabus
+    highValueArtifacts.push(`
+      <div class="section">
+        <h2 class="section-title">${escapeHtml(syllabus.title)}</h2>
+        <div class="section-content">
+          ${syllabus.modules.map(module => `
+            <div style="margin-bottom: ${PDF_DESIGN_TOKENS.spacing.lg.px}px;">
+              <h3 style="font-size: ${PDF_DESIGN_TOKENS.typography.sectionTitle.px * 0.9}px; color: ${foregroundColor}; margin-bottom: ${PDF_DESIGN_TOKENS.spacing.sm.px}px;">
+                ${escapeHtml(module.title)}
+              </h3>
+              <ul>
+                ${module.topics.map(topic => `<li>${escapeHtml(topic)}</li>`).join('')}
+              </ul>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `)
+  }
+
+  // Competitor Gap
+  if (summaryData.artifacts?.competitorGap) {
+    const gap = summaryData.artifacts.competitorGap
+    highValueArtifacts.push(`
+      <div class="section">
+        <h2 class="section-title">Competitive Gap Analysis</h2>
+        <div class="section-content">
+          <p><strong>Your Current State:</strong> ${escapeHtml(gap.clientState)}</p>
+          <p><strong>Competitors:</strong> ${gap.competitors.map(c => escapeHtml(c)).join(', ')}</p>
+          <div style="margin-top: ${PDF_DESIGN_TOKENS.spacing.md.px}px; padding: ${PDF_DESIGN_TOKENS.spacing.md.px}px; background: #f9fafb; border-radius: 4px;">
+            <p><strong>Gap Analysis:</strong></p>
+            <p>${escapeHtml(gap.gapAnalysis)}</p>
+          </div>
+        </div>
+      </div>
+    `)
+  }
+
+  // Legacy artifactInsights (keep for backward compatibility)
+  const legacyArtifacts = (summaryData.artifactInsights && summaryData.artifactInsights.length > 0)
+    ? summaryData.artifactInsights.map((artifact) => {
+        const status = artifact.status ? `<p><strong>Status:</strong> ${escapeHtml(artifact.status)}</p>` : ''
+        const error = artifact.error ? `<p><strong>Error:</strong> ${escapeHtml(artifact.error)}</p>` : ''
+        return `
+          <p><strong>${escapeHtml(artifact.type || 'Artifact')}</strong></p>
+          ${status}
+          ${error}
+        `
+      }).join('')
+    : ''
+
+  const artifactsSection = (highValueArtifacts.length > 0 || legacyArtifacts)
+    ? `<div class="section">
+        ${highValueArtifacts.length > 0 ? highValueArtifacts.join('') : ''}
+        ${legacyArtifacts ? `
+          <h2 class="section-title">Generated Artifacts</h2>
+          <div class="section-content">
+            ${legacyArtifacts}
+          </div>
+        ` : ''}
+      </div>`
     : ''
 
   // Detect and generate ROI charts section
@@ -174,13 +283,7 @@ export async function generateHtmlContent(summaryData: SummaryData, _mode: Mode,
       </div>`
     : ''
 
-  // Get design token values for HTML
-  const accentColor = getHslColor('accent')
-  const foregroundColor = getHslColor('foreground')
-  const mutedForegroundColor = getHslColor('mutedForeground')
-  const textColor = getHslColor('text')
-  const lightGrayColor = getHslColor('lightGray')
-
+  // Design token values are already declared above for artifacts section
   const summarySections = generateSummarySections({
     translatedSummary,
     translatedBrief,

@@ -29,6 +29,8 @@ export interface ContextUpdatePayload {
     research?: any;
     intelligenceContext?: any;
     transcript?: Array<{ role: string; content: string; timestamp: string }>;
+    confidence?: number;
+    qualityScore?: number;
   };
 }
 

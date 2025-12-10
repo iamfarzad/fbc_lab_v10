@@ -19,13 +19,15 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       '**/test/helpers/**',
+      '**/__tests__/test-helpers/**',
       '**/stubs/**',
       '**/*.stub.ts',
       '**/e2e/**',
       '**/*.spec.ts'
     ],
-    testTimeout: 10000,
+    testTimeout: 30000, // 30 seconds for API tests
     hookTimeout: 10000,
+    // Separate timeout for API tests (can be set per test with test.setTimeout)
     coverage: {
       include: ['src/**/*.ts', 'services/**/*.ts', 'server/**/*.ts'],
       exclude: ['**/__tests__/**', '**/*.test.ts', '**/*.spec.ts', '**/node_modules/**']

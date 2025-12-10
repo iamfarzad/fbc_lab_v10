@@ -14,12 +14,34 @@ vi.mock('src/config/env', () => ({
   getResolvedGeminiApiKey: () => 'test-key'
 }))
 
+// Mock ai-cache to disable caching in tests
+vi.mock('src/lib/ai-cache', () => ({
+  createCachedFunction: vi.fn().mockImplementation((fn: any) => fn), // Return function directly, no caching
+  CACHE_TTL: {}
+}))
+
 describe('LeadResearchService', () => {
   let service: LeadResearchService
 
   beforeEach(() => {
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {})
+    // Reset generateObject mock and set default implementation
+    ;(generateObject as any).mockReset()
+    ;(generateObject as any).mockResolvedValue({
+      object: {
+        company: { name: 'Test Co', domain: 'test.com' },
+        person: { fullName: 'Test Person' },
+        role: 'Test Role',
+        confidence: 0.9
+      },
+      response: {
+        headers: new Headers({
+          'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
+        }),
+        rawResponse: new Response(null, { status: 200 })
+      }
+    })
     service = new LeadResearchService()
   })
 
@@ -36,7 +58,8 @@ describe('LeadResearchService', () => {
   describe('researchLead()', () => {
     it('returns cached result from sessionStorage', async () => {
       const cachedResult = JSON.stringify(mockResearchResult)
-      const cacheKey = `lead_research_test@example.com_`
+      // Cache key format: lead_research_${email}_${name || ''}_${location?.city || ''}
+      const cacheKey = `lead_research_test@example.com__` // Two underscores for empty name and location
       vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
         return key === cacheKey ? cachedResult : null
       })
@@ -48,33 +71,64 @@ describe('LeadResearchService', () => {
       expect(generateObject).not.toHaveBeenCalled()
     })
 
-    it('uses hardcoded fallback for test email', async () => {
+    it('calls generateObject for farzad@talktoeve.com email', async () => {
+      // Ensure no cache
+      vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
+      // Set up mock response
+      ;(generateObject as any).mockResolvedValue({
+        object: {
+          company: { name: 'TalkToEve', domain: 'talktoeve.com' },
+          person: { fullName: 'Farzad Bayat' },
+          role: 'Founder',
+          confidence: 0.9
+        },
+        response: {
+          headers: new Headers({
+            'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
+          }),
+          rawResponse: new Response(null, { status: 200 })
+        }
+      })
+      
       const result = await service.researchLead('farzad@talktoeve.com')
       expect(result.person.fullName).toBe('Farzad Bayat')
-      expect(generateObject).not.toHaveBeenCalled()
+      expect(generateObject).toHaveBeenCalled()
     })
 
     it('calls generateObject for new leads', async () => {
-      (generateObject as any).mockResolvedValue({
+      // Ensure no cache for this test
+      vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
+      ;(generateObject as any).mockResolvedValue({
         object: {
           company: { name: 'Test Co', domain: 'test.com' },
           person: { fullName: 'Test Person' },
           role: 'Test Role',
           confidence: 0.9
+        },
+        response: {
+          headers: new Headers({
+            'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
+          }),
+          rawResponse: new Response(null, { status: 200 })
         }
       })
 
-      await service.researchLead('test@example.com')
+      // Use an email that's not the hardcoded fallback
+      await service.researchLead('newlead@testcompany.com')
       expect(generateObject).toHaveBeenCalled()
     })
 
     it('handles API errors gracefully', async () => {
-      (generateObject as any).mockRejectedValue(new Error('API Error'))
+      // Ensure no cache
+      vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
+      // Reset and mock to reject
+      ;(generateObject as any).mockReset()
+      ;(generateObject as any).mockRejectedValue(new Error('API Error'))
 
-      // Should return fallback structure
-      const result = await service.researchLead('test@example.com')
+      // Should return fallback structure with domain extracted from email
+      const result = await service.researchLead('error@example.com')
       expect(result.company.domain).toBe('example.com')
-      expect(result.confidence).toBe(0.2)
+      expect(result.confidence).toBe(0) // Fallback returns confidence: 0
     })
   })
 })

@@ -68,15 +68,47 @@ vi.mock('../server/utils/tool-implementations.js', () => ({
   }),
   executeCaptureScreenSnapshot: vi.fn().mockResolvedValue({
     success: true,
-    data: { analysis: 'Mock screen analysis' },
+    data: { analysis: 'Mock screen analysis', hasImage: true, imageData: 'base64Image' },
+  }),
+  executeCaptureScreenSnapshotBySession: vi.fn().mockResolvedValue({
+    success: true,
+    data: { analysis: 'Mock screen analysis', hasImage: true, imageData: 'base64Image' },
   }),
   executeCaptureWebcamSnapshot: vi.fn().mockResolvedValue({
     success: true,
-    data: { analysis: 'Mock webcam analysis' },
+    data: { analysis: 'Mock webcam analysis', hasImage: true, imageData: 'base64Image' },
+  }),
+  executeCaptureWebcamSnapshotBySession: vi.fn().mockResolvedValue({
+    success: true,
+    data: { analysis: 'Mock webcam analysis', hasImage: true, imageData: 'base64Image' },
   }),
   executeGetDashboardStats: vi.fn().mockResolvedValue({
     success: true,
     data: { totalLeads: 100 },
+  }),
+  executeAnalyzeWebsiteTechStack: vi.fn().mockResolvedValue({
+    success: true,
+    data: { stack: ['WordPress', 'React'], message: 'Tech stack analyzed' },
+  }),
+  executeGenerateArchitectureDiagram: vi.fn().mockResolvedValue({
+    success: true,
+    data: { mermaidCode: 'graph TD\nA --> B', diagram_type: 'flowchart' },
+  }),
+  executeSearchInternalCaseStudies: vi.fn().mockResolvedValue({
+    success: true,
+    data: { results: [], count: 0, message: 'No case studies found' },
+  }),
+  executeGenerateCustomSyllabus: vi.fn().mockResolvedValue({
+    success: true,
+    data: { syllabus: '# Workshop Syllabus', format: 'markdown' },
+  }),
+  executeAnalyzeCompetitorGap: vi.fn().mockResolvedValue({
+    success: true,
+    data: { gap: { timeline: '6-12 months' }, message: 'Gap analysis complete' },
+  }),
+  executeSimulateCostOfInaction: vi.fn().mockResolvedValue({
+    success: true,
+    data: { monthlyCost: 10000, annualCost: 120000, message: 'Cost calculated' },
   }),
 }))
 
@@ -508,6 +540,189 @@ describeE2E('E2E Tool Integration Tests', () => {
 
       expect(verifyToolResult(result)).toBe(true)
       // May succeed or fail depending on session context
+    })
+  })
+
+  // ============================================================================
+  // Test Suite 5: Active Vision Investigation (focus_prompt)
+  // ============================================================================
+
+  describe('Active Vision Investigation', () => {
+    it('should execute screen snapshot with focus_prompt (chat mode)', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      const { analyzeImageWithPrompt } = await import('../src/core/intelligence/vision-analysis')
+      
+      // Mock vision analysis for focus_prompt
+      vi.mocked(analyzeImageWithPrompt).mockResolvedValue({
+        analysis: 'Error code 503 Service Unavailable',
+        confidence: 0.9
+      })
+
+      const sessionId = 'test-session-id'
+      const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+      
+      // Mock context with image data
+      vi.mocked(multimodalContextManager.getContext).mockResolvedValue({
+        visualContext: [{
+          type: 'screen',
+          imageData: 'base64ImageData',
+          analysis: 'Previous cached analysis',
+          timestamp: new Date().toISOString()
+        }]
+      } as any)
+
+      const args = { focus_prompt: 'Read the error message text' }
+      const result = await executeUnifiedTool('capture_screen_snapshot', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      if (result.success) {
+        expect(result.data?.answered_prompt).toBe('Read the error message text')
+        expect(result.data?.analysis).toContain('Error code 503')
+      }
+    })
+
+    it('should execute webcam snapshot with focus_prompt (chat mode)', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      const { analyzeImageWithPrompt } = await import('../src/core/intelligence/vision-analysis')
+      
+      vi.mocked(analyzeImageWithPrompt).mockResolvedValue({
+        analysis: 'User appears stressed, rubbing temples',
+        confidence: 0.85
+      })
+
+      const sessionId = 'test-session-id'
+      const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+      
+      vi.mocked(multimodalContextManager.getContext).mockResolvedValue({
+        visualContext: [{
+          type: 'webcam',
+          imageData: 'base64ImageData',
+          analysis: 'Previous cached analysis',
+          timestamp: new Date().toISOString()
+        }]
+      } as any)
+
+      const args = { focus_prompt: 'Describe user\'s facial expression' }
+      const result = await executeUnifiedTool('capture_webcam_snapshot', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      if (result.success) {
+        expect(result.data?.answered_prompt).toBe('Describe user\'s facial expression')
+      }
+    })
+
+    it('should fallback to cached analysis when no focus_prompt', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      
+      const sessionId = 'test-session-id'
+      const args = {} // No focus_prompt
+      
+      const result = await executeUnifiedTool('capture_screen_snapshot', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      // Should return cached analysis, not call vision analysis service
+    })
+  })
+
+  // ============================================================================
+  // Test Suite 6: New Consulting Tools
+  // ============================================================================
+
+  describe('New Consulting Tools', () => {
+    it('should execute analyze_website_tech_stack', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      
+      const sessionId = 'test-session-id'
+      const args = { url: 'https://example.com', focus: 'ai_opportunities' }
+      
+      const result = await executeUnifiedTool('analyze_website_tech_stack', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      expect(result.success).toBe(true)
+    })
+
+    it('should execute generate_architecture_diagram', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      
+      const sessionId = 'test-session-id'
+      const args = {
+        diagram_type: 'flowchart',
+        content_description: 'Customer onboarding workflow'
+      }
+      
+      const result = await executeUnifiedTool('generate_architecture_diagram', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      expect(result.success).toBe(true)
+    })
+
+    it('should execute search_internal_case_studies', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      
+      const sessionId = 'test-session-id'
+      const args = { query: 'video generation', industry: 'media' }
+      
+      const result = await executeUnifiedTool('search_internal_case_studies', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      expect(result.success).toBe(true)
+    })
+  })
+
+  // ============================================================================
+  // Test Suite 7: Teaser Tools
+  // ============================================================================
+
+  describe('Teaser Tools', () => {
+    it('should execute generate_custom_syllabus', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      
+      const sessionId = 'test-session-id'
+      const args = {
+        team_roles: '3 devs, 1 PM',
+        pain_points: ['manual data entry', 'inefficient workflows'],
+        tech_stack: 'React/Node.js'
+      }
+      
+      const result = await executeUnifiedTool('generate_custom_syllabus', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      expect(result.success).toBe(true)
+    })
+
+    it('should execute analyze_competitor_gap', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      
+      const sessionId = 'test-session-id'
+      const args = {
+        industry: 'e-commerce',
+        client_current_state: 'exploring AI options'
+      }
+      
+      const result = await executeUnifiedTool('analyze_competitor_gap', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      expect(result.success).toBe(true)
+    })
+
+    it('should execute simulate_cost_of_inaction', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      
+      const sessionId = 'test-session-id'
+      const args = {
+        inefficient_process: 'manual data entry',
+        hours_wasted_per_week: 10,
+        team_size: 5
+      }
+      
+      const result = await executeUnifiedTool('simulate_cost_of_inaction', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data?.monthlyCost).toBeDefined()
+        expect(result.data?.annualCost).toBeDefined()
+      }
     })
   })
 })

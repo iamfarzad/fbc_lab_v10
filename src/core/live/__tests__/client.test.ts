@@ -113,13 +113,17 @@ describe('LiveClientWS', () => {
     it('should send text message', () => {
       client.connect();
       vi.advanceTimersByTime(10);
-      
+
       const mockWsInstance = mockWebSocketInstances[0];
       if (!mockWsInstance) throw new Error('Mock WebSocket instance not found');
-      client.sendText('Hello');
       
-      expect(mockWsInstance.send).toHaveBeenCalledWith(expect.stringContaining('REALTIME_INPUT'));
-      expect(mockWsInstance.send).toHaveBeenCalledWith(expect.stringContaining('Hello'));
+      // Note: sendText is disabled in implementation (Live API doesn't accept text via sendRealtimeInput)
+      // This test verifies the method exists and handles the call gracefully
+      client.sendText('Hello');
+
+      // sendText is disabled, so it should NOT send via WebSocket
+      // The implementation logs a warning and does nothing
+      expect(mockWsInstance.send).not.toHaveBeenCalledWith(expect.stringContaining('REALTIME_INPUT'));
     });
 
     it('should route received events', () => {

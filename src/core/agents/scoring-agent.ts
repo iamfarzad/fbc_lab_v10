@@ -136,7 +136,8 @@ OUTPUT REQUIRED (JSON only, no explanation):
     "consulting": <number 0.0-1.0>
   },
   "reasoning": "<one sentence explanation>"
-}`
+}
+${context.systemPromptSupplement || ''}`
 
   // Step 6: Computing final scores
   steps.push({

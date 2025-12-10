@@ -8,9 +8,10 @@ import type { ConversationFlowState, ConversationCategory } from '../../types/co
 import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js'
 import { PHRASE_BANK } from '../chat/conversation-phrases.js'
 import { extractCompanySize, extractBudgetSignals, extractTimelineUrgency } from './utils/index.js'
-import { analyzeUrl } from '../intelligence/url-context-tool.js'
+// analyzeUrl no longer used - using shared detectAndAnalyzeUrls utility instead
 import { extractGeminiMetadata } from '../../lib/extract-gemini-metadata.js'
 import { logger } from '../../lib/logger.js'
+import type { LeadProfile } from '../intelligence/types.js'
 
 /**
  * Discovery Agent - Systematically qualifies leads through conversation
@@ -68,39 +69,48 @@ export async function discoveryAgent(
     .filter((m): m is ChatMessage & { content: string } => typeof m.content === 'string')
     .map(m => m.content)
     .join('\n')
-  const lastMessage = messages[messages.length - 1]?.content || ''
-  const urlRegex = /https?:\/\/[^\s]+/g
-  const urls = lastMessage.match(urlRegex) || []
-  let urlContext = ''
-
-  if (urls.length > 0 && intelligenceContext) {
+  
+  // Validate intelligence context before using it
+  let validatedIntelligenceContext = intelligenceContext
+  if (intelligenceContext) {
     try {
-      const primaryUrl = urls[0]
-      if (!primaryUrl) {
-        throw new Error('No URL found')
-      }
-      const primaryUrlStr = String(primaryUrl)
-      const analysis = await analyzeUrl(primaryUrlStr)
-      urlContext = `
-URL ANALYSIS (${primaryUrlStr}):
-- Summary: ${analysis.pageSummary}
-- Key initiatives: ${analysis.keyInitiatives.join(', ')}
-- Tech stack hints: ${analysis.techStackHints?.join(', ') || 'none detected'}
-- Hiring: ${analysis.hiringSignals?.join(', ') || 'none'}
-- Pain points mentioned: ${analysis.painPointsMentioned?.join(', ') || 'none'}
-`.trim()
-
-      // Auto-fill company website if missing
-      const companyDomain = (intelligenceContext.company)?.domain || ''
-      if (companyDomain && primaryUrlStr.includes(companyDomain)) {
-        if (!intelligenceContext.company) {
-          (intelligenceContext).company = { domain: companyDomain }
-        }
-        intelligenceContext.company.website = primaryUrlStr
+      const { validateIntelligenceContext } = await import('../../../server/utils/validate-intelligence-context.js')
+      const validation = validateIntelligenceContext(intelligenceContext, context.sessionId)
+      if (!validation.valid) {
+        logger.warn('[Discovery Agent] Invalid intelligence context', {
+          errors: validation.errors,
+          sessionId: context.sessionId
+        })
+        // Don't use invalid context
+        validatedIntelligenceContext = undefined
       }
     } catch (err) {
-      console.warn('URL analysis failed', err)
-      urlContext = `I tried to review the page you shared but couldn't load it.`
+      logger.warn('[Discovery Agent] Failed to validate intelligence context', {
+        error: err instanceof Error ? err.message : String(err),
+        sessionId: context.sessionId
+      })
+      // Continue with context but log warning
+    }
+  }
+  
+  // Use shared URL analysis utility
+  const { detectAndAnalyzeUrls } = await import('../utils/url-analysis.js')
+  const urlContext = await detectAndAnalyzeUrls(conversationText, validatedIntelligenceContext)
+  
+  // Extract URLs for later use
+  const urlRegex = /https?:\/\/[^\s]+/g
+  const urls = conversationText.match(urlRegex) || []
+  
+  // Auto-fill company website if URL matches company domain
+  if (validatedIntelligenceContext && urlContext && urls.length > 0) {
+    if (validatedIntelligenceContext.company?.domain) {
+      const primaryUrl = urls[0]
+      const companyDomain = validatedIntelligenceContext.company.domain
+      if (primaryUrl?.includes(companyDomain)) {
+        if (!validatedIntelligenceContext.company.website) {
+          validatedIntelligenceContext.company.website = primaryUrl
+        }
+      }
     }
   }
 
@@ -142,6 +152,9 @@ URL ANALYSIS (${primaryUrlStr}):
     timestamp: Date.now()
   })
 
+  // Extract profile for subtle personalization
+  const profile: LeadProfile | undefined = intelligenceContext?.profile
+
   // Build context-first prompt, then anchor instructions at the end
   let contextSection = `CONTEXT:
 ${conversationFlow ? formatConversationStatus(conversationFlow) : 'Starting discovery'}
@@ -157,6 +170,20 @@ ${(intelligenceContext)?.timeline?.urgency ? `Timeline urgency: ${((intelligence
 ${intelligenceContext?.leadScore ? `Lead Score: ${intelligenceContext.leadScore}` : ''}
 ${intelligenceContext?.location ? `Location: ${typeof intelligenceContext.location === 'object' && 'city' in intelligenceContext.location ? (intelligenceContext.location as {city?: string}).city : 'Unknown'}` : ''}
 ${urlContext ? `${urlContext}\nReference this naturally in your response.` : ''}`
+
+  // Inject profile subtly if available (for Turn 2+ or when research completes)
+  if (profile) {
+    const technicalLevel = profile.digitalFootprint.hasGitHub || profile.digitalFootprint.hasPublications
+      ? 'High (Has GitHub/Publications)'
+      : 'Business/Creative'
+    
+    contextSection += `\n\n### DETECTED USER CONTEXT (Verified: ${profile.identity.verified ? 'Yes' : 'No'}, Confidence: ${profile.identity.confidenceScore}%):
+- Name: ${profile.identity.name}
+- Role: ${profile.professional.currentRole} at ${profile.professional.company}
+- Technical: ${technicalLevel}
+${profile.professional.yearsExperience ? `- Experience: ~${profile.professional.yearsExperience} years` : ''}
+${profile.contexthooks.length > 0 ? `- Key Context: ${profile.contexthooks.join(', ')}` : ''}`
+  }
 
   if (multimodalContext?.hasRecentImages) {
     contextSection += `\n- Screen/webcam active: Reference specific elements naturally`
@@ -174,23 +201,61 @@ ${urlContext ? `${urlContext}\nReference this naturally in your response.` : ''}
   }
 
   const instructionSection = `INSTRUCTIONS:
-You are F.B/c Discovery AI - a lead qualification specialist.
+You are F.B/c Discovery AI - a laidback, sharp consultant who builds rapport naturally.
+
+PERSONALITY & TONE:
+- Be conversational, friendly, and relaxed - like talking to a colleague
+- Don't be pushy or salesy - you're genuinely curious about their situation
+- If they ask off-topic questions or test you, handle it gracefully:
+  ✅ GOOD: "Haha, fair question! I'm an AI assistant helping with AI consulting. But yeah, I can chat about [their topic] too. What were you curious about?"
+  ❌ BAD: "That's not relevant to our conversation. Let's get back to your goals."
+- Show personality - you can be slightly witty, acknowledge when they're testing you, stay cool
+- If they're being playful or testing your intelligence, match their energy but stay professional
+- Remember: Building trust > Getting answers immediately
 
 CRITICAL PERSONALIZATION RULES:
 - ALWAYS use the company name and person's role in your responses when available
 - NEVER give generic responses - every response should reference specific context
-- If research shows company info, USE IT in your response (e.g., "Since [Company] is in [Industry]...")
+- If research shows company info, USE IT naturally (e.g., "Since [Company] is in [Industry]...")
 - Avoid generic phrases like "many leaders feel that way" - instead, personalize based on their role/industry
+
+${profile ? `PERSONALIZATION INSTRUCTIONS (Profile Available):
+1. **The "Warm" Start:** Use the user's name naturally in the first greeting (${profile.identity.name}).
+
+2. **Context, don't Dox:** Do NOT list everything you know. Instead, use the knowledge to *frame* your questions.
+   - ❌ BAD: "I see you work at ${profile.professional.company}."
+   - ✅ GOOD: "Given your background in ${profile.professional.industry} at ${profile.professional.company}, are you looking to use AI for [specific use case] or more for [alternative use case]?"
+
+3. **Maturity Assumption:**
+   - If 'Technical' is High: Skip basic "What is AI?" definitions. Talk implementation, APIs, technical architecture.
+   - If 'Technical' is Low: Focus on business value, strategy, ROI, and outcomes.
+
+4. **Context Hooks:** Use the provided context hooks naturally to frame questions, but don't list them explicitly.
+   - Example: If context hook mentions "recent funding", frame a question like: "With ${profile.professional.company} recently raising capital, are you looking to scale operations with AI?"
+   - Don't say: "I noticed you recently raised funding" (too explicit)
+   - Do say: "Given ${profile.professional.company}'s growth trajectory, what's your biggest operational challenge right now?"
+
+5. **Verification Status:** If profile shows verified=true, you can be more confident in using the information. If verified=false, be more cautious and let the user confirm details.` : ''}
 
 USER CORRECTION DETECTION (CRITICAL):
 - If the user corrects any information about themselves:
-  1. IMMEDIATELY acknowledge the correction apologetically
-  2. Ask them to clarify their actual role/information
+  1. IMMEDIATELY acknowledge: "Got it, thanks for the correction!"
+  2. Ask them to clarify their actual role/information naturally
   3. NEVER use the incorrect information again in this conversation
   4. Do NOT reference the old incorrect data in any future responses
 - If you used wrong information, apologize briefly and move on - don't dwell on the mistake
+- Example: "Ah, my mistake - I had outdated info. So what's your current role?"
 
-MISSION (DISCOVERY CATEGORIES):
+HANDLING OFF-TOPIC QUESTIONS:
+- If they ask something unrelated (testing you, random questions, etc.):
+  - Answer briefly and naturally if it's quick
+  - Then gently steer back: "But hey, I'm curious - what brought you here today?"
+- If they're clearly testing your intelligence:
+  - Show you can handle it: "Nice try! 😄 I'm here to help with AI consulting, but I can chat about [topic] too. What's on your mind?"
+- Don't be rigid - if they want to chat, chat. But keep the goal in mind.
+- Balance: Be helpful and conversational, but don't lose sight of discovery
+
+MISSION (DISCOVERY CATEGORIES - guide naturally, don't force):
 1. GOALS - What are they trying to achieve?
 2. PAIN - What's broken/frustrating?
 3. DATA - Where is their data? How organized?
@@ -205,14 +270,15 @@ LANGUAGE RULES:
 - Maintain consistent language throughout the conversation
 
 STYLE:
-- Sound like a sharp, friendly consultant (no fluff)
+- Sound like a sharp, friendly consultant who's easy to talk to
 ${voiceActive ? '- Two sentences max per turn (voice mode)' : ''}
-- Ask ONE focused question at a time
+- Ask ONE focused question at a time (unless they're being conversational, then match their energy)
 - Mirror user's language style (not language) and build on latest turn
 - If they shared a URL, act like you deeply read it
 - Natural integration of multimodal context:
   ✅ GOOD: "I noticed your dashboard shows revenue declining..."
   ❌ BAD: "Based on the screen share tool output..."
+- Be flexible - if they want to chat, chat. If they're direct, be direct.
 
 NEXT QUESTION:
 ${conversationFlow?.recommendedNext ? `Focus on: ${conversationFlow.recommendedNext}` : 'Start with goals'}
@@ -223,9 +289,13 @@ ${conversationFlow?.shouldOfferRecap
       ? 'Deliver a two-sentence recap of what you learned, then ask your next question.'
       : ''}`
 
+  const { generateSalesConstraintInstructions } = await import('./utils/context-briefing.js')
+  
   const systemPrompt = `${contextSection}
 
-${instructionSection}`
+${instructionSection}
+${context.systemPromptSupplement || ''}
+${generateSalesConstraintInstructions()}`
 
   // Step 2: Check for question fatigue
   const consecutiveQuestions = countConsecutiveQuestions(messages);
@@ -265,10 +335,13 @@ ${instructionSection}`
     timestamp: Date.now()
   })
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type StreamPart = any
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let result: any
   let generatedText = ''
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let extractedMetadata: { groundingMetadata?: any; reasoning?: string } = {}
   const isStreaming = context.streaming === true && context.onChunk
 
@@ -324,11 +397,10 @@ ${instructionSection}`
       // streamResult.text is a Promise<string>, so we use the accumulated text
       // Try to extract metadata (streamText result may have different structure)
       try {
-        // Create a mock result object for metadata extraction
-        const textValue = await streamResult.text
-        const { text: _, ...rest } = streamResult as any
-        const mockResult = { text: textValue || generatedText, ...rest } as any
-        extractedMetadata = extractGeminiMetadata(mockResult)
+        // Extract metadata from stream result
+        // Note: streamResult may not have the exact same structure as GenerateTextResult
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        extractedMetadata = extractGeminiMetadata(streamResult as any)
         
         // Stream tool calls if they occurred (from final result)
         if (context.onMetadata) {

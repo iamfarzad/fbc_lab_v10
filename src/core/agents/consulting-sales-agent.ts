@@ -2,6 +2,7 @@ import { google, generateText } from '../../lib/ai-client.js'
 import type { AgentContext, ChatMessage, AgentResult } from './types.js'
 import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
+import { generateSalesConstraintInstructions } from './utils/context-briefing.js'
 
 /**
  * Consulting Sales Agent - Pitches custom AI consulting
@@ -79,7 +80,9 @@ CRITICAL PERSONALIZATION RULES:
 3. ALWAYS tie back to their specific pain points from discovery
 4. NEVER give generic responses - every response must be specific to THIS lead
 5. For C-level: Focus on strategic impact, market advantage, board-level metrics
-6. For VPs/Directors: Focus on operational efficiency, team productivity, budget justification`
+6. For VPs/Directors: Focus on operational efficiency, team productivity, budget justification
+
+${generateSalesConstraintInstructions()}`
 
   const recentMessages = messages.slice(-10)
 

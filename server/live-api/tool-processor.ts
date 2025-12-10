@@ -47,6 +47,7 @@ const CAPABILITY_MAP: Record<string, string> = {
   'search_web': 'search',
   'get_weather': 'search', // Weather uses search internally
   'search_companies_by_location': 'search', // Location search uses search internally
+  'get_stock_price': 'search', // Stock price uses search internally
   'calculate_roi': 'roi',
   'extract_action_items': 'doc',
   'generate_summary_preview': 'exportPdf',
@@ -54,6 +55,12 @@ const CAPABILITY_MAP: Record<string, string> = {
   'generate_proposal_draft': 'exportPdf',
   'capture_screen_snapshot': 'screenShare',
   'capture_webcam_snapshot': 'webcam',
+  'analyze_website_tech_stack': 'search', // Technical audit capability
+  'generate_architecture_diagram': 'doc', // Visualization capability
+  'search_internal_case_studies': 'doc', // Social proof capability
+  'generate_custom_syllabus': 'doc', // Teaser tool - curriculum architect
+  'analyze_competitor_gap': 'search', // Teaser tool - FOMO radar
+  'simulate_cost_of_inaction': 'roi', // Teaser tool - ROI simulator
   'get_dashboard_stats': 'doc' // Admin tool
 }
 

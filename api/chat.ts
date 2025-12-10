@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { ChatMessage, IntelligenceContext, MultimodalContextData, AgentMetadata, AgentResult } from '../src/core/agents/types.js';
 import type { FunnelStage } from '../src/core/types/funnel-stage.js';
 import type { ConversationFlowState } from '../src/types/conversation-flow-types.js';
-import { routeToAgent } from '../src/core/agents/orchestrator.js';
+// routeToAgent imported dynamically when needed
 import { logger } from '../src/lib/logger.js';
 import { multimodalContextManager } from '../src/core/context/multimodal-context.js';
 import { rateLimit } from '../src/lib/rate-limiter.js';
@@ -115,6 +115,152 @@ export default async function handler(
         const body = req.body as ChatRequestBody;
         const { messages, sessionId, intelligenceContext, trigger, multimodalContext, stream } = body;
 
+        // Check if streaming is requested - extract early for SSE setup
+        const shouldStream = stream === true;
+
+        // Start SSE streaming immediately (before blocking operations)
+        if (shouldStream) {
+            logger.info('[API /chat] Starting SSE streaming', { sessionId });
+            
+            // Return SSE stream
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            
+            // Send initial status message immediately
+            res.write('data: {"type":"status","message":"Loading context..."}\n\n');
+        }
+
+        // Validate and load contexts in parallel for better performance
+        // For streaming: Start with provided context immediately, load fresh in background
+        // For non-streaming: Wait for full context before processing
+        let finalIntelligenceContext = intelligenceContext as IntelligenceContext | undefined
+        let finalMultimodalContext = multimodalContext
+        
+        // Context loading function (reusable for both streaming and non-streaming)
+        const loadContexts = async (): Promise<void> => {
+            if (!sessionId || sessionId === 'anonymous') return
+            
+            const contextPromises: Promise<unknown>[] = []
+            
+            // Intelligence context loading (with cache)
+            contextPromises.push(
+                (async () => {
+                    try {
+                        // Send status update if streaming
+                        if (shouldStream) {
+                            res.write('data: {"type":"status","message":"Loading intelligence context..."}\n\n');
+                        }
+                        
+                        const { loadIntelligenceContextFromDB } = await import('../server/utils/intelligence-context-loader.js')
+                        const { validateIntelligenceContext } = await import('../server/utils/validate-intelligence-context.js')
+                        const { getCachedIntelligenceContext } = await import('../server/cache/intelligence-context-cache.js')
+                        
+                        // Load fresh context from database (with cache)
+                        const freshContext = await getCachedIntelligenceContext(
+                            sessionId,
+                            loadIntelligenceContextFromDB
+                        )
+                        
+                        if (finalIntelligenceContext) {
+                            // Validate provided context
+                            const validation = validateIntelligenceContext(finalIntelligenceContext, sessionId)
+                            if (!validation.valid) {
+                                logger.warn('[API /chat] Invalid intelligence context provided', {
+                                    sessionId,
+                                    errors: validation.errors
+                                })
+                                // Use fresh context instead
+                                finalIntelligenceContext = freshContext || undefined
+                            } else if (freshContext) {
+                                // Compare provided context with fresh context
+                                // Use JSON.stringify for deep comparison (simple but effective)
+                                const providedStr = JSON.stringify(finalIntelligenceContext)
+                                const freshStr = JSON.stringify(freshContext)
+                                if (providedStr !== freshStr) {
+                                    logger.warn('[API /chat] Intelligence context mismatch, using fresh context', { 
+                                        sessionId,
+                                        providedEmail: finalIntelligenceContext?.email,
+                                        freshEmail: freshContext?.email
+                                    })
+                                    finalIntelligenceContext = freshContext
+                                }
+                            }
+                        } else {
+                            // No context provided - use fresh
+                            finalIntelligenceContext = freshContext || undefined
+                        }
+                        
+                        // Send status update when intelligence context is loaded
+                        if (shouldStream && finalIntelligenceContext) {
+                            res.write('data: {"type":"status","message":"Intelligence context loaded"}\n\n');
+                        }
+                    } catch (error) {
+                        logger.warn('[API /chat] Failed to validate/load intelligence context', {
+                            sessionId,
+                            error: error instanceof Error ? error.message : String(error)
+                        })
+                        // Continue with provided context if validation fails
+                    }
+                })()
+            )
+            
+            // Multimodal context loading
+            if (!finalMultimodalContext) {
+                contextPromises.push(
+                    (async () => {
+                        try {
+                            // Send status update if streaming
+                            if (shouldStream) {
+                                res.write('data: {"type":"status","message":"Loading multimodal context..."}\n\n');
+                            }
+                            
+                            const contextData = await multimodalContextManager.prepareChatContext(
+                                sessionId,
+                                true, // include visual
+                                true  // include audio
+                            )
+                            finalMultimodalContext = contextData.multimodalContext
+                            
+                            // Send status update when multimodal context is loaded
+                            if (shouldStream && finalMultimodalContext) {
+                                res.write('data: {"type":"status","message":"Multimodal context loaded"}\n\n');
+                            }
+                        } catch (err) {
+                            logger.debug('Failed to load multimodal context, using empty', { error: err })
+                            finalMultimodalContext = {
+                                hasRecentImages: false,
+                                hasRecentAudio: false,
+                                hasRecentUploads: false,
+                                recentAnalyses: [],
+                                recentUploads: []
+                            }
+                        }
+                    })()
+                )
+            }
+            
+            // Wait for all context loading to complete
+            await Promise.all(contextPromises)
+        }
+        
+        // For streaming: Start agent immediately with provided context, load fresh in background
+        // For non-streaming: Wait for full context before processing
+        if (shouldStream) {
+            // Start context loading in background (non-blocking)
+            void loadContexts().catch((error) => {
+                logger.warn('[API /chat] Background context loading failed', {
+                    sessionId,
+                    error: error instanceof Error ? error.message : String(error)
+                })
+            })
+            // Continue immediately with provided context
+        } else {
+            // Non-streaming: Wait for full context
+            await loadContexts()
+        }
+
         // Rate limiting - check before processing
         const effectiveSessionId = sessionId || `session-${Date.now()}`
         if (!rateLimit(effectiveSessionId, 'message')) {
@@ -178,76 +324,70 @@ export default async function handler(
             console.warn(`[API /chat] Filtered out ${messages.length - validMessages.length} invalid messages`)
         }
 
+        // Extract conversationFlow if provided (crucial for Discovery Agent)
+        const conversationFlow = body.conversationFlow;
+
         // Determine current stage (single source of truth in API layer)
+        // For streaming: Use provided context immediately (may be updated by background loading)
+        // For non-streaming: Use final context after loading completes
         const currentStage = determineCurrentStage(
-            intelligenceContext,
+            finalIntelligenceContext || intelligenceContext as IntelligenceContext | undefined,
             trigger
         )
 
-        // Persist stage so reloads don't reset (safe fallback if table/column missing)
+        // Persist stage so reloads don't reset (safe fallback if table/column missing) - fire and forget
         if (sessionId && supabaseService && typeof (supabaseService as { from?: (table: string) => unknown })?.from === 'function') {
-          try {
-            const { error } = await supabaseService
-              .from('conversations')
-              .update({ stage: currentStage })
-              .eq('session_id', sessionId)
-            
-            if (error) throw error
-          } catch (err) {
-            // Non-blocking — survives if column/table missing (pre-deploy safety)
-            logger.debug('Stage persistence failed (safe):', { 
-              error: err instanceof Error ? err.message : String(err), 
-              sessionId 
-            })
-          }
-        }
-
-        // Load multimodal context if not provided and sessionId exists
-        let finalMultimodalContext = multimodalContext
-        if (!finalMultimodalContext && sessionId) {
+          // Fire and forget - don't await
+          void (async () => {
             try {
-                const contextData = await multimodalContextManager.prepareChatContext(
-                    sessionId,
-                    true, // include visual
-                    true  // include audio
-                )
-                finalMultimodalContext = contextData.multimodalContext
-            } catch (err) {
-                logger.debug('Failed to load multimodal context, using empty', { error: err })
-                finalMultimodalContext = {
-                    hasRecentImages: false,
-                    hasRecentAudio: false,
-                    hasRecentUploads: false,
-                    recentAnalyses: [],
-                    recentUploads: []
-                }
+              await (supabaseService as any)
+                .from('conversations')
+                .update({ stage: currentStage })
+                .eq('session_id', sessionId)
+            } catch (err: unknown) {
+              // Non-blocking — survives if column/table missing (pre-deploy safety)
+              logger.debug('Stage persistence failed (safe):', { 
+                error: err instanceof Error ? err.message : String(err), 
+                sessionId 
+              })
             }
+          })()
         }
 
+        // Multimodal context is now loaded in parallel above (if needed)
+
+        // Import streaming orchestrator
+        const { routeToAgentStream } = await import('../src/core/agents/orchestrator.js');
+        
         try {
-            // Extract conversationFlow if provided (crucial for Discovery Agent)
-            const conversationFlow = body.conversationFlow;
-
-            // Check if streaming is requested
-            const shouldStream = stream === true;
-
             if (shouldStream) {
-                logger.info('[API /chat] Starting SSE streaming', { sessionId, messageCount: validMessages.length });
-                
-                // Return SSE stream
-                res.setHeader('Content-Type', 'text/event-stream');
-                res.setHeader('Cache-Control', 'no-cache');
-                res.setHeader('Connection', 'keep-alive');
-                res.setHeader('Access-Control-Allow-Origin', '*');
-                
-                // Import streaming orchestrator
-                const { routeToAgentStream } = await import('../src/core/agents/orchestrator.js');
-                
                 let accumulatedText = '';
                 let chunkCount = 0;
                 let metadataCount = 0;
                 
                 try {
+                    // For streaming: Use provided context immediately (may be updated by background loading)
+                    // For non-streaming: Use final context after loading completes
+                    const agentIntelligenceContext = shouldStream 
+                        ? (finalIntelligenceContext || intelligenceContext as IntelligenceContext | undefined || {})
+                        : (finalIntelligenceContext || {})
+                    
+                    const agentMultimodalContext = shouldStream
+                        ? (finalMultimodalContext || multimodalContext || {
+                            hasRecentImages: false,
+                            hasRecentAudio: false,
+                            hasRecentUploads: false,
+                            recentAnalyses: [],
+                            recentUploads: []
+                        })
+                        : (finalMultimodalContext || {
+                            hasRecentImages: false,
+                            hasRecentAudio: false,
+                            hasRecentUploads: false,
+                            recentAnalyses: [],
+                            recentUploads: []
+                        })
+                    
                     await routeToAgentStream({
                         messages: validMessages.map(msg => ({
                             role: msg.role,
@@ -256,14 +396,8 @@ export default async function handler(
                         })) as ChatMessage[],
                         sessionId: sessionId || `session-${Date.now()}`,
                         currentStage,
-                        intelligenceContext: (intelligenceContext as IntelligenceContext | undefined) || {},
-                        multimodalContext: finalMultimodalContext || {
-                            hasRecentImages: false,
-                            hasRecentAudio: false,
-                            hasRecentUploads: false,
-                            recentAnalyses: [],
-                            recentUploads: []
-                        },
+                        intelligenceContext: agentIntelligenceContext,
+                        multimodalContext: agentMultimodalContext,
                         trigger: trigger || 'chat',
                         conversationFlow
                     }, {
@@ -331,11 +465,12 @@ export default async function handler(
                     res.write('data: [DONE]\n\n');
                     res.end();
                 }
-                return;
+                return
             }
 
             // Non-streaming path (existing behavior)
             // Route to appropriate agent with validated messages
+            const { routeToAgent } = await import('../src/core/agents/orchestrator.js')
             const result = await routeToAgent({
                 messages: validMessages.map(msg => ({
                     role: msg.role,
@@ -344,7 +479,7 @@ export default async function handler(
                 })) as ChatMessage[],
                 sessionId: sessionId || `session-${Date.now()}`,
                 currentStage,
-                intelligenceContext: (intelligenceContext as IntelligenceContext | undefined) || {},
+                intelligenceContext: finalIntelligenceContext || {},
                 multimodalContext: finalMultimodalContext || {
                     hasRecentImages: false,
                     hasRecentAudio: false,

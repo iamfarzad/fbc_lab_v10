@@ -46,7 +46,8 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
         }
     
         let stream: MediaStream | null = null;
-        let intervalId: any;
+        let intervalId: any = null;
+        let activeInteractionCheckInterval: any = null;
         let isMounted = true;
     
         const startCamera = async () => {
@@ -133,45 +134,47 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                 void processFrame();
     
                 if (isMounted) {
-                    intervalId = setInterval(() => {
+                    // Dynamic capture interval: 2 FPS (500ms) normally, 4 FPS (250ms) during active interaction
+                    let currentInterval = 500 // Default: 2 FPS
+                    
+                    const captureFrame = () => {
                         if (videoRef.current && canvasRef.current && videoRef.current.srcObject) {
                             if (videoRef.current.readyState >= 2 && 
                                 videoRef.current.videoWidth > 0 && 
                                 videoRef.current.videoHeight > 0 && 
                                 !videoRef.current.paused) { 
                                 
-                                const context = canvasRef.current.getContext('2d', { alpha: false }); // Optimize for no alpha
+                                const context = canvasRef.current.getContext('2d', { alpha: false })
                                 if (context) {
-                                    canvasRef.current.width = videoRef.current.videoWidth;
-                                    canvasRef.current.height = videoRef.current.videoHeight;
+                                    canvasRef.current.width = videoRef.current.videoWidth
+                                    canvasRef.current.height = videoRef.current.videoHeight
                                     
                                     if (facingMode === 'user') {
-                                        context.translate(canvasRef.current.width, 0);
-                                        context.scale(-1, 1);
+                                        context.translate(canvasRef.current.width, 0)
+                                        context.scale(-1, 1)
                                     }
                                     
-                                    context.drawImage(videoRef.current, 0, 0);
+                                    context.drawImage(videoRef.current, 0, 0)
                                     
                                     if (facingMode === 'user') {
-                                        context.setTransform(1, 0, 0, 1, 0, 0);
+                                        context.setTransform(1, 0, 0, 1, 0, 0)
                                     }
                                     
-                                    const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.8);
-                                    const base64 = dataUrl.split(',')[1];
+                                    const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.8)
+                                    const base64 = dataUrl.split(',')[1]
                                     
-                                    // Send frame to parent - will be sent to Live API if connected
                                     if (base64) {
-                                        // Log every 10th frame to avoid spam (every ~5 seconds at 500ms interval)
-                                        if (!(window as any).webcamFrameCount) (window as any).webcamFrameCount = 0;
-                                        (window as any).webcamFrameCount++;
+                                        // Log every 10th frame to avoid spam
+                                        if (!(window as any).webcamFrameCount) (window as any).webcamFrameCount = 0
+                                        ;(window as any).webcamFrameCount++
                                         if ((window as any).webcamFrameCount % 10 === 0) {
-                                            console.log('📹 [WebcamPreview] Sending frame to onSendFrame callback', {
+                                            console.log('📹 [WebcamPreview] Sending frame', {
                                                 frameNumber: (window as any).webcamFrameCount,
-                                                size: base64.length,
-                                                hasCallback: typeof onSendFrame === 'function'
-                                            });
+                                                interval: currentInterval,
+                                                fps: Math.round(1000 / currentInterval)
+                                            })
                                         }
-                                        onSendFrame(base64);
+                                        onSendFrame(base64)
                                     }
     
                                     if (frameIndicatorRef.current) {
@@ -182,12 +185,44 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                                         ], {
                                             duration: 400,
                                             easing: 'ease-out'
-                                        });
+                                        })
                                     }
                                 }
                             }
                         }
-                    }, 500); 
+                    }
+                    
+                    // Start with default interval
+                    intervalId = setInterval(captureFrame, currentInterval)
+                    
+                    // Check for active interaction and adjust interval
+                    const checkActiveInteraction = () => {
+                        if (!isMounted) return
+                        
+                        // Detect active interaction: voice activity, recent user input, or face detection
+                        const hasVoiceActivity = (window as any).__voiceActivityDetected || false
+                        const lastUserActivity = (window as any).__lastUserActivity || 0
+                        const timeSinceActivity = Date.now() - lastUserActivity
+                        const hasRecentActivity = timeSinceActivity < 5000 // 5 seconds
+                        const hasFaceDetection = faceMeshRef.current !== null
+                        
+                        const isActive = hasVoiceActivity || hasRecentActivity || hasFaceDetection
+                        
+                        if (isActive && currentInterval === 500) {
+                            // Increase to 4 FPS (250ms) during active interaction
+                            clearInterval(intervalId)
+                            currentInterval = 250
+                            intervalId = setInterval(captureFrame, currentInterval)
+                        } else if (!isActive && currentInterval === 250) {
+                            // Return to normal rate (2 FPS)
+                            clearInterval(intervalId)
+                            currentInterval = 500
+                            intervalId = setInterval(captureFrame, currentInterval)
+                        }
+                    }
+                    
+                    // Check every 2 seconds for active interaction
+                    activeInteractionCheckInterval = setInterval(checkActiveInteraction, 2000)
                 }
             } catch (err: any) {
                 if (!isMounted) return;
@@ -202,6 +237,7 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
             isMounted = false;
             if (stream) stream.getTracks().forEach(t => t.stop());
             if (intervalId) clearInterval(intervalId as NodeJS.Timeout);
+            if (activeInteractionCheckInterval) clearInterval(activeInteractionCheckInterval as NodeJS.Timeout);
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
             if (videoRef.current) {
                 videoRef.current.srcObject = null;

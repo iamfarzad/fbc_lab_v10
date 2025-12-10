@@ -30,6 +30,7 @@ export interface IntelligenceContextData {
   research?: any
   intelligenceContext?: any
   transcript?: Array<{ role: string; content: string; timestamp: string }>
+  confidence?: number
 }
 
 export interface ContextUpdateClient {
@@ -193,12 +194,15 @@ export function handleContextUpdate(
               client.logger?.log('context_persisted', { modality, analysisLength: analysis.length })
             } else {
               const imageBytes = typeof imageData === 'string' ? Math.floor(imageData.length * 0.75) : undefined
+              // Extract confidence from payload metadata if available
+              const confidence = typeof payload.metadata?.confidence === 'number' ? payload.metadata.confidence : undefined
               await multimodalContextManager.addVisualAnalysis(
                 client.sessionId!,
                 analysis,
                 modalityKey,
                 imageBytes,
-                imageData
+                imageData,
+                confidence
               )
               client.logger?.log('context_persisted', { modality, imageBytes, analysisLength: analysis.length, ownerSessionId: client.sessionId })
             }

@@ -6,6 +6,7 @@ import type { Content, Part, Tool } from '@google/genai';
 import { TranscriptItem, ResearchResult } from 'types';
 import { GEMINI_MODELS } from 'src/config/constants';
 import { unifiedContext } from './unifiedContext';
+import { detectAndAnalyzeUrls } from '../src/core/utils/url-analysis.js';
 
 export class StandardChatService {
     private ai: GoogleGenAI;
@@ -150,7 +151,7 @@ export class StandardChatService {
             if (currentContent) historyContent.push(currentContent);
 
             // 2. Get Context from UnifiedContext
-            const snapshot = unifiedContext.getSnapshot();
+            const unifiedSnapshot = unifiedContext.getSnapshot();
             const location = await this.getLocation();
 
             const now = new Date();
@@ -162,7 +163,7 @@ export class StandardChatService {
             ];
 
             // INJECT RESEARCH CONTEXT (from instance or snapshot)
-            const activeResearch = this.researchContext || snapshot.researchContext;
+            const activeResearch = this.researchContext || unifiedSnapshot.researchContext;
             if (activeResearch) {
                 const rc = activeResearch;
                 contextBlockParts.push(
@@ -255,6 +256,13 @@ export class StandardChatService {
                 const lat = activeLocation.latitude.toFixed(4);
                 const lng = activeLocation.longitude.toFixed(4);
                 contextBlockParts.push(`User location: Lat ${lat}, Long ${lng} (use for local queries).`);
+            }
+
+            // Add URL analysis if URLs are detected in the message
+            const intelligenceContext = unifiedSnapshot.intelligenceContext;
+            const urlContext = await detectAndAnalyzeUrls(message, intelligenceContext);
+            if (urlContext) {
+                contextBlockParts.push(`URL ANALYSIS:\n${urlContext}`);
             }
 
             const contextBlock = contextBlockParts.join('\n');

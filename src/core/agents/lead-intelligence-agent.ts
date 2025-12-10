@@ -1,6 +1,9 @@
 import { LeadResearchService } from '../intelligence/lead-research.js'
 import type { ChainOfThoughtStep } from './types.js'
 import { logger } from '../../lib/logger.js'
+import { buildLeadProfile } from '../intelligence/profile-builder.js'
+import type { AgentStrategicContext } from '../intelligence/types.js'
+import type { ResearchResult } from '../intelligence/lead-research.js'
 
 /**
  * Lead Intelligence Agent - Background research worker
@@ -79,6 +82,21 @@ export async function leadIntelligenceAgent({
       steps[3].description = `Workshop: ${(fitScore.workshop * 100).toFixed(0)}%, Consulting: ${(fitScore.consulting * 100).toFixed(0)}%`
     }
 
+    // Step 4.5: Analyze Strategic Context
+    steps.push({
+      label: 'Analyzing Strategic Context',
+      description: 'Determining privacy risks and technical maturity',
+      status: 'active',
+      timestamp: Date.now()
+    })
+
+    const strategicContext = analyzeStrategicContext(research)
+
+    if (steps[4]) {
+      steps[4].status = 'complete'
+      steps[4].description = `Risk: ${strategicContext.privacySensitivity} | Tech: ${strategicContext.technicalLevel} | Authority: ${strategicContext.authorityLevel}`
+    }
+
     // Step 5: Finalize intelligence context
     steps.push({
       label: 'Finalizing intelligence context',
@@ -87,11 +105,17 @@ export async function leadIntelligenceAgent({
       timestamp: Date.now()
     })
 
+    // Build LeadProfile for Discovery Agent personalization
+    const leadProfile = buildLeadProfile(research, email, name)
+
     logger.debug('✅ [Lead Intelligence Agent] Research complete:', {
       company: research.company.name,
       role: research.role,
       confidence: research.confidence,
-      fitScore
+      fitScore,
+      profileVerified: leadProfile.identity.verified,
+      profileConfidence: leadProfile.identity.confidenceScore,
+      strategicContext
     })
 
     return {
@@ -101,7 +125,9 @@ export async function leadIntelligenceAgent({
         stage: 'INTELLIGENCE_GATHERING' as const,
         chainOfThought: { steps },
         research,
+        profile: leadProfile, // New: structured profile for Discovery Agent
         fitScore,
+        strategicContext, // Strategic context for agent communication adaptation
         confidence: research.confidence
       }
     }
@@ -123,7 +149,13 @@ export async function leadIntelligenceAgent({
         stage: 'INTELLIGENCE_GATHERING' as const,
         chainOfThought: { steps },
         error: error instanceof Error ? error.message : 'Unknown error',
-        fitScore: { workshop: 0.5, consulting: 0.5 }
+        fitScore: { workshop: 0.5, consulting: 0.5 },
+        // Fallback strategic context
+        strategicContext: {
+          privacySensitivity: 'MEDIUM',
+          technicalLevel: 'LOW',
+          authorityLevel: 'INFLUENCER'
+        }
       }
     }
   }
@@ -133,6 +165,47 @@ interface ResearchData {
   role?: string
   person?: { seniority?: string }
   company?: { size?: string; industry?: string }
+}
+
+/**
+ * Determine how we should speak to this person based on their role, industry, and seniority
+ * 
+ * Analyzes:
+ * - Privacy Sensitivity: Based on industry (finance/health/legal = HIGH)
+ * - Technical Level: Based on role (CTO/Developer = HIGH)
+ * - Authority Level: Based on role and seniority (CEO/Founder = DECISION_MAKER)
+ */
+function analyzeStrategicContext(research: ResearchResult | ResearchData): AgentStrategicContext {
+  const role = (research.role || '').toLowerCase()
+  const industry = (research.company?.industry || '').toLowerCase()
+  const seniority = (research.person?.seniority || '').toLowerCase()
+
+  // 1. Privacy Sensitivity (For Objection Handling)
+  let privacySensitivity: AgentStrategicContext['privacySensitivity'] = 'LOW'
+
+  if (industry.match(/finance|bank|health|medical|legal|defense|gov/i)) {
+    privacySensitivity = 'HIGH' // Critical: Objection Agent will prioritize "Local LLMs"
+  } else if (industry.match(/enterprise|insurance|telecom/i)) {
+    privacySensitivity = 'MEDIUM'
+  }
+
+  // 2. Technical Level (For Tone)
+  let technicalLevel: AgentStrategicContext['technicalLevel'] = 'LOW'
+
+  if (role.match(/cto|cio|developer|engineer|architect|data|scientist|product/i)) {
+    technicalLevel = 'HIGH' // Critical: Discovery Agent will skip basic definitions
+  }
+
+  // 3. Authority Level (For Closing Strategy)
+  let authorityLevel: AgentStrategicContext['authorityLevel'] = 'RESEARCHER'
+
+  if (role.match(/founder|ceo|vp|director|head of/i) || seniority === 'c-level') {
+    authorityLevel = 'DECISION_MAKER'
+  } else if (role.match(/manager|lead/i)) {
+    authorityLevel = 'INFLUENCER'
+  }
+
+  return { privacySensitivity, technicalLevel, authorityLevel }
 }
 
 /**
