@@ -54,21 +54,66 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    logger.debug('[TermsOverlay] Submit attempt:', { agreed, name, email, isValid: isValidEmail(email) });
     
-    if (!agreed || !name || !isValidEmail(email)) {
-        console.warn('[TermsOverlay] Validation failed');
+    // Log all form state values BEFORE validation
+    logger.debug('[TermsOverlay] Submit attempt - FULL STATE:', { 
+        agreed, 
+        name, 
+        nameLength: name.length,
+        nameTrimmed: name.trim().length,
+        email, 
+        emailLength: email.length,
+        isValidEmail: isValidEmail(email),
+        companyUrl,
+        permissions,
+        isSubmitting
+    });
+    
+    // Check each validation condition separately with detailed logging
+    const checks = {
+        agreed: !!agreed,
+        hasName: !!name && name.trim().length > 0,
+        hasValidEmail: isValidEmail(email)
+    };
+    
+    logger.debug('[TermsOverlay] Validation checks:', checks);
+    
+    if (!checks.agreed || !checks.hasName || !checks.hasValidEmail) {
+        logger.debug('[TermsOverlay] Validation FAILED', { 
+            missingAgreed: !checks.agreed,
+            missingName: !checks.hasName,
+            invalidEmail: !checks.hasValidEmail,
+            rawValues: { 
+                agreed, 
+                name, 
+                nameTrimmed: name.trim(),
+                email,
+                emailValid: isValidEmail(email)
+            }
+        });
+        console.warn('[TermsOverlay] Validation failed - check console for details', checks);
         return;
     }
 
+    logger.debug('[TermsOverlay] ✅ Validation passed, submitting form...');
     setIsSubmitting(true);
     
-    // Simulate brief initialization delay for effect
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    logger.debug('[TermsOverlay] Completing with:', { name, email, companyUrl, permissions });
-    onComplete(name, email, companyUrl, permissions);
-    setIsSubmitting(false);
+    try {
+        // CRITICAL: Call onComplete immediately (don't wait for delay)
+        // The delay was just for visual effect, but it was blocking submission
+        logger.debug('[TermsOverlay] Calling onComplete immediately:', { name, email, companyUrl, permissions });
+        onComplete(name, email, companyUrl, permissions);
+        logger.debug('[TermsOverlay] ✅ onComplete callback executed');
+        
+        // Small delay for visual feedback only (non-blocking)
+        setTimeout(() => {
+            setIsSubmitting(false);
+        }, 300);
+    } catch (error) {
+        logger.debug('[TermsOverlay] ❌ Error in form submission', { error });
+        console.error('[TermsOverlay] Form submission error:', error);
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -96,7 +141,14 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
             </p>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); void handleSubmit(e); }} className="flex flex-col gap-4">
+        <form 
+            onSubmit={(e) => { 
+                logger.debug('[TermsOverlay] Form onSubmit event fired');
+                e.preventDefault(); 
+                void handleSubmit(e); 
+            }} 
+            className="flex flex-col gap-4"
+        >
             <div className="space-y-4">
                 {/* Full Name */}
                 <div className="space-y-1.5">
@@ -106,7 +158,11 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
                     <input
                         type="text"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => {
+                            const newValue = e.target.value;
+                            logger.debug('[TermsOverlay] Name field changed', { oldValue: name, newValue, length: newValue.length });
+                            setName(newValue);
+                        }}
                         placeholder="e.g. Sarah Connor"
                         className={`w-full px-4 py-2.5 text-sm rounded-lg outline-none border transition-all backdrop-blur-sm ${
                             isDarkMode 
@@ -125,7 +181,11 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
                     <input
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                            const newValue = e.target.value;
+                            logger.debug('[TermsOverlay] Email field changed', { oldValue: email, newValue, isValid: isValidEmail(newValue) });
+                            setEmail(newValue);
+                        }}
                         placeholder="name@company.com"
                         className={`w-full px-4 py-2.5 text-sm rounded-lg outline-none border transition-all backdrop-blur-sm ${
                             isDarkMode 
@@ -240,7 +300,11 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
                             type="checkbox"
                             id="terms-agree"
                             checked={agreed}
-                            onChange={(e) => setAgreed(e.target.checked)}
+                            onChange={(e) => {
+                                const newValue = e.target.checked;
+                                logger.debug('[TermsOverlay] Terms checkbox changed', { oldValue: agreed, newValue });
+                                setAgreed(newValue);
+                            }}
                             className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-slate-300 dark:border-white/20 bg-white dark:bg-white/5 transition-all checked:border-orange-500 checked:bg-orange-500 hover:border-orange-500 dark:hover:border-orange-400"
                         />
                         <svg className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 transition-opacity" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -256,6 +320,20 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
                 <button
                     type="submit"
                     disabled={!agreed || !name || !isValidEmail(email) || isSubmitting}
+                    onClick={() => {
+                        logger.debug('[TermsOverlay] Submit button clicked', {
+                            disabled: !agreed || !name || !isValidEmail(email) || isSubmitting,
+                            formState: { 
+                                agreed, 
+                                name, 
+                                nameLength: name.length,
+                                email, 
+                                isValidEmail: isValidEmail(email),
+                                isSubmitting
+                            }
+                        });
+                        // Let form onSubmit handle it, but log for debugging
+                    }}
                     className={`w-full py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 ${
                         !agreed || !name || !isValidEmail(email) || isSubmitting
                             ? (isDarkMode ? 'bg-white/5 text-slate-500 cursor-not-allowed' : 'bg-slate-100 text-slate-400 cursor-not-allowed')
