@@ -289,38 +289,59 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
     ? [...LIVE_FUNCTION_DECLARATIONS, ...ADMIN_LIVE_FUNCTION_DECLARATIONS]
     : LIVE_FUNCTION_DECLARATIONS
 
-  // Validate and build tools array with fallback for 1007 error
+  // Re-enabled tools: According to official Live API docs, tools are valid
+  // The 1007 error was likely from text/plain chunks (now fixed) or malformed function declarations
+  // Validate function declarations match Live API schema: name and description are REQUIRED
   let toolsConfig: any[] = []
   try {
-    // Check if function declarations are valid (not empty and well-formed)
     if (allFunctionDeclarations.length > 0) {
-      // Validate each function declaration has required fields
-      const validFunctions = allFunctionDeclarations.filter((fn: any) => 
-        fn && fn.name && typeof fn.name === 'string'
-      )
+      // Validate each function declaration has required fields per Live API spec
+      // Required: name (string), description (string)
+      // Optional: parameters (object)
+      const validFunctions = allFunctionDeclarations.filter((fn: any) => {
+        if (!fn || typeof fn !== 'object') return false
+        if (!fn.name || typeof fn.name !== 'string') return false
+        if (!fn.description || typeof fn.description !== 'string') return false
+        // Validate name format: alphanumeric, underscores, colons, dots, dashes, max 64 chars
+        if (!/^[a-zA-Z0-9_:.\-]+$/.test(fn.name)) {
+          serverLogger.warn('[config-builder] Invalid function name format', { name: fn.name })
+          return false
+        }
+        if (fn.name.length > 64) {
+          serverLogger.warn('[config-builder] Function name too long', { name: fn.name, length: fn.name.length })
+          return false
+        }
+        return true
+      })
       
       if (validFunctions.length > 0) {
         toolsConfig = [
           { googleSearch: {} },
           { functionDeclarations: validFunctions }
         ]
+        serverLogger.debug('[config-builder] Tools config built', {
+          googleSearch: true,
+          functionCount: validFunctions.length,
+          functionNames: validFunctions.map((f: any) => f.name)
+        })
       } else {
-        serverLogger.warn('[config-builder] No valid function declarations, using googleSearch only')
+        serverLogger.warn('[config-builder] No valid function declarations after validation, using googleSearch only')
         toolsConfig = [{ googleSearch: {} }]
       }
     } else {
       toolsConfig = [{ googleSearch: {} }]
     }
   } catch (toolError) {
-    console.error('[config-builder] Error building tools config, falling back to no-tools mode:', toolError)
+    serverLogger.error('[config-builder] Error building tools config, falling back to googleSearch only', toolError instanceof Error ? toolError : undefined)
     toolsConfig = [{ googleSearch: {} }]
   }
 
   const liveConfig: any = {
     responseModalities: [Modality.AUDIO],
-    // CRITICAL: Explicitly enable transcription (not enabled by default)
-    inputAudioTranscription: {},  // Enable input transcription (empty object = use default model)
-    outputAudioTranscription: {}, // Enable output transcription (empty object = use default model)
+    // Re-enabled: According to official Live API docs, empty transcription objects are valid
+    // The 1007 error was likely from text/plain chunks or malformed function declarations, not these
+    inputAudioTranscription: {},  // Valid per Live API docs
+    outputAudioTranscription: {}, // Valid per Live API docs
     speechConfig: {
       voiceConfig: {
         prebuiltVoiceConfig: {
@@ -335,14 +356,13 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
         }
       ]
     },
-    tools: toolsConfig,
-    // Gemini 3 Best Practices (per https://ai.google.dev/gemini-api/docs/gemini-3)
-    // Live API supports generationConfig with temperature (confirmed via docs)
-    generationConfig: {
-      temperature: 1.0  // Gemini 3 optimized default - keep at 1.0 per best practices
-      // Note: thinkingConfig may not be supported in Live API (only in standard Gemini 3 API)
-      // Note: media_resolution may not be supported in Live API (only in standard Gemini 3 API)
-    }
+    // Tools: According to official Live API docs, tools are valid
+    // Only include if we have valid tools (googleSearch is always valid)
+    ...(toolsConfig.length > 0 ? { tools: toolsConfig } : {})
+    // CRITICAL FIX: Removed temperature - December 6 working config didn't have it
+    // The deprecation warning about generationConfig doesn't mean we should set temperature on top level
+    // Live API may not accept temperature directly - removing to match December 6 working config
+    // temperature: 1.0  // ❌ REMOVED - may cause 1007 error
   }
 
   if (DEBUG_MODE) {

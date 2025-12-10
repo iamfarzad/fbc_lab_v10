@@ -1,4 +1,6 @@
-# Parallel Agent Coordination Guide
+# Parallel Cursor Agent Coordination Guide
+
+> ⚠️ **NOTE:** This document is about coordinating multiple Cursor AI agents in parallel (development workflow), NOT about the F.B/c agent system.
 
 ## How Parallel Agents Work in Cursor
 

@@ -118,16 +118,45 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 
                 {/* 1a. File/Image Attachments */}
                 {item.attachment && (item.attachment.type === 'image' || item.attachment.type === 'file') && (
-                    <div className="mb-2 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-1">
-                          <button 
-                             onClick={() => onPreview(item.attachment)}
-                             className="flex items-center gap-3 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors w-full text-left"
-                          >
-                             <div className="p-2 bg-white dark:bg-black rounded-lg border border-zinc-100 dark:border-zinc-800 text-zinc-500">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
-                             </div>
-                             <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{item.attachment.name}</span>
-                          </button>
+                    <div className={`mb-2 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-1 ${item.attachment.type === 'image' ? 'max-w-[85%] md:max-w-[60%]' : ''}`}>
+                        {item.attachment.type === 'image' ? (
+                            <div 
+                                className="relative cursor-zoom-in group/img"
+                                onClick={() => onPreview(item.attachment)}
+                            >
+                                <img 
+                                    src={item.attachment.url || (item.attachment.data ? `data:${item.attachment.mimeType || 'image/jpeg'};base64,${item.attachment.data}` : '')}
+                                    alt="Attachment" 
+                                    className="w-full h-auto max-h-60 object-cover rounded-xl" 
+                                    onError={(e) => {
+                                        // Fallback to button if image fails to load
+                                        const target = e.currentTarget;
+                                        const parent = target.parentElement;
+                                        if (parent) {
+                                            parent.innerHTML = `
+                                                <button class="flex items-center gap-3 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors w-full text-left">
+                                                    <div class="p-2 bg-white dark:bg-black rounded-lg border border-zinc-100 dark:border-zinc-800 text-zinc-500">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+                                                    </div>
+                                                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">${item.attachment.name || 'Image'}</span>
+                                                </button>
+                                            `;
+                                        }
+                                    }}
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors rounded-xl" />
+                            </div>
+                        ) : (
+                            <button 
+                                onClick={() => onPreview(item.attachment)}
+                                className="flex items-center gap-3 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors w-full text-left"
+                            >
+                                <div className="p-2 bg-white dark:bg-black rounded-lg border border-zinc-100 dark:border-zinc-800 text-zinc-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+                                </div>
+                                <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{item.attachment.name}</span>
+                            </button>
+                        )}
                     </div>
                 )}
 

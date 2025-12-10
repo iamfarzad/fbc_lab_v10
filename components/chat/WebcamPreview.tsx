@@ -207,7 +207,7 @@ const WebcamPreview: React.FC<WebcamPreviewProps> = ({
                 videoRef.current.srcObject = null;
             }
         };
-    }, [isWebcamActive, facingMode, onSendFrame]); 
+    }, [isWebcamActive, facingMode]); // Removed onSendFrame from deps - it's stable via useCallback 
 
     if (!isWebcamActive) return null;
 

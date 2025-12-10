@@ -1,7 +1,11 @@
 # Agents Documentation
 
-**Date:** 2025-12-01  
-**Purpose:** Complete reference for all agents in the F.B/c sales funnel system
+**Date:** 2025-12-07  
+**Last Updated:** 2025-12-07  
+**Purpose:** Complete reference for all agents in the F.B/c sales funnel system  
+**Status:** ✅ **SINGLE SOURCE OF TRUTH** - All agent information consolidated here
+
+> 📋 **UPDATE RULES:** When making agent code or flow changes, see [`AGENT_DOCUMENTATION_UPDATE_RULES.md`](./AGENT_DOCUMENTATION_UPDATE_RULES.md) for what sections need updating.
 
 ---
 
@@ -13,6 +17,9 @@
 4. [Orchestration System](#orchestration-system)
 5. [Agent Connections & Flow](#agent-connections--flow)
 6. [Agent Instructions & Prompts](#agent-instructions--prompts)
+7. [Response Validation System](#response-validation-system)
+8. [API Endpoints](#api-endpoints)
+9. [Recent Enhancements](#recent-enhancements)
 
 ---
 
@@ -21,6 +28,142 @@
 **Total Agents:** 13  
 **Core Pipeline Agents:** 10  
 **Special Agents:** 3
+
+### System Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         USER INTERFACE                          │
+│  (React Frontend - Text, Voice, Webcam, File Upload, Canvas)   │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     API LAYER (Vercel)                          │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ /api/chat.ts                                             │  │
+│  │  - Stage Determination (single source of truth)          │  │
+│  │  - Message Validation                                    │  │
+│  │  - Rate Limiting                                         │  │
+│  │  - Context Management                                    │  │
+│  └────────────────────┬─────────────────────────────────────┘  │
+└───────────────────────┼─────────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              SERVER ORCHESTRATOR (orchestrator.ts)              │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │ Priority Routing:                                        │  │
+│  │  1. Triggers (booking, admin, conversation_end)         │  │
+│  │  2. Objection Detection (confidence > 0.7)              │  │
+│  │  3. Fast-Track (qualified leads skip discovery)         │  │
+│  │  4. Stage-Based Routing                                 │  │
+│  └────────────────────┬─────────────────────────────────────┘  │
+└───────────────────────┼─────────────────────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┬───────────────┐
+        ▼               ▼               ▼               ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│  Discovery   │ │   Scoring    │ │    Pitch     │ │   Objection  │
+│   Agent      │ │    Agent     │ │    Agent     │ │    Agent     │
+└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+        │               │               │               │
+        └───────────────┼───────────────┴───────────────┘
+                        │
+        ┌───────────────┼───────────────┬───────────────┐
+        ▼               ▼               ▼               ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│   Closer     │ │   Summary    │ │   Proposal   │ │    Admin     │
+│   Agent      │ │    Agent     │ │    Agent     │ │    Agent     │
+└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+        │
+        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    CONTEXT MANAGEMENT                            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │ Intelligence    │  │   Multimodal    │  │  Conversation   │ │
+│  │   Context       │  │    Context      │  │     Flow        │ │
+│  │                 │  │                 │  │                 │ │
+│  │ - Company info  │  │ - Voice active  │  │ - Categories    │ │
+│  │ - Person role   │  │ - Screen share  │  │   covered       │ │
+│  │ - Fit scores    │  │ - Uploads       │  │ - Evidence      │ │
+│  │ - Lead score    │  │ - Analyses      │  │ - Insights      │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                        │
+        ┌───────────────┼───────────────┐
+        ▼               ▼               ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│   Database   │ │   Redis      │ │   Analytics  │
+│  (Supabase)  │ │   (Cache)    │ │    Queue     │
+└──────────────┘ └──────────────┘ └──────────────┘
+```
+
+### Architecture Layers
+
+1. **Presentation Layer** (React Frontend)
+   - User interactions: text, voice, webcam, file uploads
+   - Visual state management
+   - Client-side routing via `client-orchestrator.ts`
+
+2. **API Layer** (`/api/chat.ts`)
+   - **Single source of truth** for stage determination
+   - Message validation and normalization
+   - Rate limiting
+   - CORS handling
+   - Calls server orchestrator
+
+3. **Orchestration Layer** (`orchestrator.ts`)
+   - Routes requests to appropriate agents
+   - Priority-based routing logic
+   - Context aggregation
+   - Response validation
+   - Non-blocking persistence
+
+4. **Agent Layer** (`src/core/agents/`)
+   - 13 specialized agents
+   - Each agent receives: `messages`, `AgentContext`
+   - Each agent returns: `AgentResult` with output and metadata
+
+5. **Context Layer** (`src/core/context/`)
+   - **IntelligenceContext**: Company, person, scores, budget
+   - **MultimodalContext**: Voice, screen, uploads, analyses
+   - **ConversationFlow**: Discovery coverage, evidence, insights
+
+6. **Data Layer**
+   - **Supabase**: Conversation storage, lead data
+   - **Redis**: Caching, session state
+   - **Analytics Queue**: Agent/tool performance tracking
+
+### Data Flow
+
+```
+User Message
+    │
+    ▼
+Frontend (useChatSession hook)
+    │
+    ▼
+/api/chat.ts (determines stage)
+    │
+    ▼
+orchestrator.ts (routes to agent)
+    │
+    ▼
+Agent (processes with context)
+    │
+    ▼
+AI Model (Gemini) + Tools
+    │
+    ▼
+AgentResult (output + metadata)
+    │
+    ▼
+Response (validated, persisted)
+    │
+    ▼
+Frontend (displays response)
+```
 
 ### Agent Categories
 
@@ -51,9 +194,26 @@
 ### 1. Discovery Agent
 
 **File:** `src/core/agents/discovery-agent.ts`  
-**Function:** `discoveryAgent(messages, context)`
+**Function:** `discoveryAgent(messages: ChatMessage[], context: AgentContext): Promise<AgentResult>`
 
-**Goal:**
+#### Inputs:
+- **messages**: `ChatMessage[]` - Full conversation history
+- **context**: `AgentContext` containing:
+  - `intelligenceContext`: Company info, person role, existing scores
+  - `multimodalContext`: Voice, screen share, uploads status
+  - `conversationFlow`: Discovery coverage (6 categories), evidence, insights
+  - `sessionId`: Session identifier
+
+#### Outputs:
+- **output**: `string` - Discovery question or recap
+- **agent**: `"Discovery Agent"`
+- **metadata**: 
+  - `stage`: `"DISCOVERY"`
+  - `chainOfThought`: Steps showing reasoning
+  - `triggerBooking?`: `boolean` (if exit intent detected)
+  - `recapProvided?`: `boolean`
+
+#### Goal:
 Systematically qualify leads through conversation across 6 categories:
 1. GOALS - What are they trying to achieve?
 2. PAIN - What's broken/frustrating?
@@ -62,7 +222,7 @@ Systematically qualify leads through conversation across 6 categories:
 5. BUDGET - Timeline? Investment range?
 6. SUCCESS - What metrics matter?
 
-**Key Features:**
+#### Key Features:
 - Multimodal-aware (references voice, screen, webcam, uploads)
 - URL detection & analysis
 - Structured extraction (company size, budget, timeline)
@@ -70,7 +230,7 @@ Systematically qualify leads through conversation across 6 categories:
 - Question fatigue detection (offers recap after 3+ consecutive questions)
 - Conversation flow enhancement
 
-**Instructions:**
+#### Instructions:
 - Personalize every response (use company name, role)
 - Two sentences max per turn
 - Ask ONE focused question at a time
@@ -78,22 +238,40 @@ Systematically qualify leads through conversation across 6 categories:
 - Reference multimodal context naturally
 - Always respond in English unless user explicitly switches
 
-**Connections:**
+#### Routing Logic:
 - **Triggered by:** `DISCOVERY` stage
 - **Routes to:** `SCORING` → `PITCHING` (when qualified) or `QUALIFIED` (fast-track)
 - **Can trigger:** Booking (exit intent), Wrap-up (exit intent)
 
-**Model:** `GEMINI_MODELS.DEFAULT_CHAT`  
-**Temperature:** 0.7 (or 1.0 if `thinkingLevel === 'high'`)
+#### Model Configuration:
+- **Model:** `GEMINI_MODELS.DEFAULT_CHAT`  
+- **Temperature:** 0.7 (or 1.0 if `thinkingLevel === 'high'`)
 
 ---
 
 ### 2. Scoring Agent
 
 **File:** `src/core/agents/scoring-agent.ts`  
-**Function:** `scoringAgent(messages, context)`
+**Function:** `scoringAgent(messages: ChatMessage[], context: AgentContext): Promise<AgentResult>`
 
-**Goal:**
+#### Inputs:
+- **messages**: `ChatMessage[]` - Full conversation history (usually not directly used)
+- **context**: `AgentContext` containing:
+  - `intelligenceContext`: Company, person, existing data
+  - `conversationFlow`: Categories covered (0-6), evidence
+  - `multimodalContext`: Voice, screen, uploads flags
+
+#### Outputs:
+- **output**: `string` - Human-readable score summary
+- **agent**: `"Scoring Agent"`
+- **metadata**:
+  - `stage`: `"SCORING"`
+  - `leadScore`: `number` (0-100)
+  - `fitScore`: `{ workshop: number, consulting: number }` (0.0-1.0)
+  - `reasoning`: `string`
+  - `chainOfThought`: Scoring steps
+
+#### Goal:
 Calculate lead score (0-100) and fit scores (workshop vs consulting) based on:
 - Role seniority (30 points max)
 - Company size (25 points max)
@@ -101,23 +279,57 @@ Calculate lead score (0-100) and fit scores (workshop vs consulting) based on:
 - Budget signals (20 points max)
 - Multimodal bonuses (voice +10, screen +15, uploads +10)
 
-**Key Features:**
+#### Scoring Criteria:
+1. **Role Seniority** (30 points max):
+   - C-level/Founder: 30
+   - VP/Director: 20
+   - Manager: 10
+   - Individual contributor: 5
+
+2. **Company Signals** (25 points max):
+   - Enterprise (500+ employees): 25
+   - Mid-market (50-500): 15
+   - Small (10-50): 10
+   - Startup (<10): 5
+
+3. **Conversation Quality** (25 points max):
+   - All 6 categories covered: 25
+   - 4-5 categories: 15
+   - 2-3 categories: 10
+   - 1 category: 5
+
+4. **Budget Signals** (20 points max):
+   - Explicit budget mentioned: 20
+   - Timeline urgency (Q1/Q2): 15
+   - Just exploring: 5
+
+5. **Multimodal Bonuses**:
+   - Voice used: +10 points
+   - Screen shared: +15 points
+   - Documents uploaded: +10 points
+
+#### Fit Score Calculation:
+- **Workshop fit indicators**: Manager/Team Lead, mid-size company (50-500), mentions "training"/"workshop", budget $5K-$15K
+- **Consulting fit indicators**: C-level/VP, enterprise, mentions "custom build"/"implementation", budget $50K+
+
+#### Key Features:
 - Structured JSON output (no regex parsing)
 - Fit score calculation (workshop vs consulting)
 - Multimodal engagement bonuses
 
-**Instructions:**
+#### Instructions:
 - Output JSON only, no explanation
 - Calculate scores based on provided criteria
 - Include reasoning in output
 
-**Connections:**
+#### Routing Logic:
 - **Triggered by:** `SCORING` stage (after discovery has enough context)
 - **Routes to:** `WORKSHOP_PITCH`, `CONSULTING_PITCH`, or `PITCHING` (based on fit scores)
 - **Updates:** `intelligenceContext.leadScore`, `intelligenceContext.fitScore`
 
-**Model:** `GEMINI_MODELS.DEFAULT_CHAT`  
-**Temperature:** 0.3
+#### Model Configuration:
+- **Model:** `GEMINI_MODELS.DEFAULT_CHAT`  
+- **Temperature:** 0.3 (lower for consistent scoring)
 
 ---
 
@@ -578,83 +790,289 @@ Background research worker that runs when user accepts terms. NOT a chat agent -
 
 ## Orchestration System
 
+### Overview
+
+The orchestration system routes conversations to specialized agents based on multiple factors:
+1. **Triggers** (user-initiated actions)
+2. **Objections** (detected concerns)
+3. **Stage** (current funnel position)
+4. **Context** (intelligence, multimodal, conversation flow)
+
+There are **two orchestrators**:
+- **Server Orchestrator**: Runs in Vercel API functions (production)
+- **Client Orchestrator**: Runs in browser (development/fallback)
+
+Both follow the same priority-based routing logic but differ in execution context.
+
+---
+
 ### Server Orchestrator
 
 **File:** `src/core/agents/orchestrator.ts`  
-**Function:** `routeToAgent(params)`
+**Function:** `routeToAgent(params): Promise<AgentResult>`
 
-**Purpose:**
-Routes conversations to specialized agents based on current funnel stage, triggers, and objection detection.
+#### Input Parameters:
+```typescript
+{
+  messages: ChatMessage[]           // Full conversation history
+  sessionId: string                 // Session identifier
+  currentStage: FunnelStage         // Determined by API layer
+  intelligenceContext: IntelligenceContext  // Company, person, scores
+  multimodalContext: MultimodalContext      // Voice, screen, uploads
+  trigger?: string                  // 'booking', 'admin', 'conversation_end', etc.
+  conversationFlow?: ConversationFlowState  // Discovery coverage, evidence
+}
+```
 
-**Routing Logic (Priority Order):**
+#### Output:
+```typescript
+AgentResult {
+  output: string                    // Agent response text
+  agent: string                     // Agent name
+  model?: string                    // Model used
+  metadata: {
+    stage: FunnelStage
+    leadScore?: number
+    fitScore?: { workshop: number, consulting: number }
+    chainOfThought?: ChainOfThoughtStep[]
+    toolsUsed?: string[]
+    validationPassed?: boolean
+    // ... agent-specific metadata
+  }
+}
+```
 
-1. **Highest Priority: Triggers**
-   - `booking` → Closer Agent
-   - `conversation_end` → Summary Agent
-   - `admin` → Admin Agent
+#### Routing Logic (Priority Order):
 
-2. **Objection Override** (highest priority after triggers)
-   - Detects objection with confidence > 0.7
-   - Routes to Objection Agent
+**1. Highest Priority: Triggers** (explicit user actions)
+```typescript
+if (trigger === 'booking') → closerAgent()
+if (trigger === 'conversation_end') → summaryAgent()
+if (trigger === 'admin') → adminAgent()
+if (trigger === 'proposal_request') → proposalAgent()
+if (trigger === 'retargeting') → retargetingAgent()
+```
 
-3. **Fast-Track: Qualified Leads**
-   - Skip discovery if: company size known, budget explicit, seniority is C-Level/VP/Director
-   - Route directly to Pitch Agent
+**2. Objection Override** (highest priority after triggers)
+```typescript
+const objection = await detectObjection(lastMessage)
+if (objection.confidence > 0.7) → objectionAgent()
+```
 
-4. **Normal Flow** (by stage):
-   - `DISCOVERY` → Discovery Agent
-   - `SCORING` / `PITCHING` → Pitch Agent
-   - `CLOSING` → Closer Agent
-   - `SUMMARY` → Summary Agent
-   - Default → Pitch Agent
+**3. Stage-Based Routing** (normal flow)
+```typescript
+switch (currentStage) {
+  case 'DISCOVERY' → discoveryAgent()
+  case 'SCORING' → scoringAgent()
+  case 'QUALIFIED' → pitchAgent()  // Fast-track
+  case 'PITCHING' → pitchAgent()
+  case 'WORKSHOP_PITCH' → pitchAgent()  // Auto-tailored
+  case 'CONSULTING_PITCH' → pitchAgent()  // Auto-tailored
+  case 'OBJECTION' → objectionAgent()
+  case 'PROPOSAL' → proposalAgent()
+  case 'CLOSING' → closerAgent()
+  case 'SUMMARY' → summaryAgent()
+  default → discoveryAgent()
+}
+```
 
-**Key Features:**
-- Stage determination moved to API layer (single source of truth)
-- Objection detection with confidence threshold
-- Fast-track for qualified leads
+#### Post-Processing:
+1. **Response Validation**: Validates output quality, tool usage
+2. **Persistence**: Non-blocking save to database (agent result, metadata)
+3. **Analytics**: Queues agent execution for analytics
+
+#### Key Features:
+- **Stage determination** handled by API layer (single source of truth)
+- **Objection detection** with confidence threshold (0.7)
+- **Fast-track** for qualified leads (skip discovery)
+- **Response validation** before returning
+- **Non-blocking persistence** (doesn't slow down responses)
 
 ---
 
 ### Client Orchestrator
 
 **File:** `src/core/agents/client-orchestrator.ts`  
-**Function:** `clientRouteToAgent(messages, context)`
+**Function:** `clientRouteToAgent(messages: ChatMessage[], context: AgentContext): Promise<AgentResult>`
 
-**Purpose:**
-Client-side agent routing that runs entirely in the browser. Routes messages to specialized agents based on funnel stage, exit intents, scoring results, and user triggers.
+#### Purpose:
+Client-side agent routing that runs entirely in the browser. Used for:
+- Development/testing (no API calls)
+- Fallback when API unavailable
+- Faster iteration during development
 
-**Routing Logic (Priority Order):**
+#### Flow State Management:
+Maintains module-level state across calls:
+```typescript
+interface ClientFlowState {
+  currentStage: FunnelStage
+  exitAttempts: number
+  scoringComplete: boolean
+  fitScore?: { workshop: number, consulting: number }
+  leadScore?: number
+  pitchDelivered: boolean
+  proposalGenerated: boolean
+  objectionCount: number
+}
+```
 
-1. **Exit Intent Detection** (highest priority)
-   - `BOOKING` → Closer Agent
-   - `FORCE_EXIT` / `WRAP_UP` → Summary Agent
+#### Routing Logic (Priority Order):
 
-2. **Admin Trigger**
-   - `ADMIN` intent → Admin Agent
+**1. Exit Intent Detection** (highest priority)
+```typescript
+const exitIntent = detectExitIntent(messages)
+if (exitIntent === 'BOOKING') → closerAgent()
+if (exitIntent === 'FORCE_EXIT' || 'WRAP_UP') → summaryAgent()
+```
 
-3. **Objection Detection**
-   - If objection detected AND pitch delivered → Objection Agent
+**2. Admin Trigger**
+```typescript
+if (intent === 'ADMIN') → adminAgent()
+```
 
-4. **Scoring** (if needed)
-   - Runs scoring agent if enough context
-   - Updates flow state with scores
+**3. Objection Detection**
+```typescript
+if (objection detected && pitchDelivered) → objectionAgent()
+```
 
-5. **Stage-Based Routing:**
-   - `DISCOVERY` → Discovery Agent
-   - `SCORING` → Determines pitch type → Re-routes
-   - `WORKSHOP_PITCH` → Workshop Sales Agent
-   - `CONSULTING_PITCH` → Consulting Sales Agent
-   - `PITCHING` → Pitch Agent
-   - `PROPOSAL` → Proposal Agent
-   - `OBJECTION` → Objection Agent
-   - `CLOSING` / `BOOKING_REQUESTED` → Closer Agent
-   - `SUMMARY` / `BOOKED` / `FORCE_EXIT` → Summary Agent
-   - `ADMIN` → Admin Agent
-   - Default → Discovery Agent
+**4. Scoring** (automatic when needed)
+```typescript
+if (!scoringComplete && enoughContext) {
+  scoringAgent() → update flowState → re-route
+}
+```
 
-**Flow State Management:**
-- Tracks: current stage, exit attempts, scoring complete, fit scores, lead score, pitch delivered, proposal generated, objection count
-- Persists across calls in same browser session
+**5. Stage-Based Routing:**
+```typescript
+switch (flowState.currentStage) {
+  case 'DISCOVERY' → discoveryAgent()
+  case 'SCORING' → scoringAgent() → determinePitchType() → re-route
+  case 'WORKSHOP_PITCH' → pitchAgent()
+  case 'CONSULTING_PITCH' → pitchAgent()
+  case 'PITCHING' → pitchAgent()
+  case 'PROPOSAL' → proposalAgent()
+  case 'OBJECTION' → objectionAgent()
+  case 'CLOSING' → closerAgent()
+  case 'SUMMARY' → summaryAgent()
+  default → discoveryAgent()
+}
+```
+
+#### Key Differences from Server Orchestrator:
+- Maintains local flow state (no database queries)
+- Can detect exit intents from message patterns
+- Auto-triggers scoring when context is sufficient
+- Faster iteration (no network latency)
+- No persistence (state lost on page refresh)
+
+---
+
+### Orchestration Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      User Message                           │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────┐
+        │  API Layer (chat.ts)   │
+        │  - Validates message   │
+        │  - Determines stage    │
+        │  - Rate limiting       │
+        └────────────┬───────────┘
+                     │
+                     ▼
+        ┌────────────────────────┐
+        │  Server Orchestrator   │
+        │  - Checks triggers     │
+        │  - Detects objections  │
+        │  - Routes by stage     │
+        └────────────┬───────────┘
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+   ┌────────┐  ┌─────────┐  ┌─────────┐
+   │ Agent  │  │  Agent  │  │  Agent  │
+   └───┬────┘  └────┬────┘  └────┬────┘
+       │            │            │
+       └────────────┼────────────┘
+                    ▼
+        ┌────────────────────────┐
+        │   Response Validation  │
+        │   - Quality check      │
+        │   - Tool usage         │
+        └────────────┬───────────┘
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+   ┌────────┐  ┌─────────┐  ┌─────────┐
+   │ Persist│  │Analytics│  │Response │
+   └────────┘  └─────────┘  └────┬────┘
+                                 │
+                                 ▼
+                          ┌───────────┐
+                          │   User    │
+                          └───────────┘
+```
+
+---
+
+### Stage Determination (API Layer)
+
+**File:** `api/chat.ts`  
+**Function:** `determineCurrentStage(intelligenceContext, trigger?): FunnelStage`
+
+#### Logic:
+```typescript
+// 1. Check triggers first
+if (trigger === 'conversation_end') return 'SUMMARY'
+if (trigger === 'booking') return 'CLOSING'
+if (trigger === 'admin') return 'PITCHING'  // Orchestrator handles admin
+
+// 2. Check if fully qualified (fast-track)
+const isFullyQualified = 
+  ctx.company?.size && 
+  ctx.company.size !== 'unknown' &&
+  ctx.budget?.hasExplicit &&
+  ['C-Level', 'VP', 'Director'].includes(ctx.person?.seniority)
+
+// 3. Return stage
+return isFullyQualified ? 'SCORING' : 'DISCOVERY'
+```
+
+**Key Rule:** Only fast-track if ALL THREE criteria are met (company size, explicit budget, senior role). Having just a company website is NOT enough.
+
+---
+
+### Objection Detection
+
+**File:** `src/core/agents/utils/detect-objections.ts`  
+**Function:** `detectObjection(message: string): { type: ObjectionType, confidence: number }`
+
+#### Objection Types:
+- `price` - Too expensive
+- `timing` - Not the right time
+- `authority` - Not decision maker
+- `need` - Don't need it
+- `trust` - Don't trust the solution
+
+#### Confidence Threshold:
+- Routes to Objection Agent if `confidence > 0.7`
+- Lower confidence objections handled by current agent
+
+---
+
+### Response Validation
+
+**File:** `src/core/agents/response-validator.ts`
+
+Validates agent responses for:
+- Quality issues (empty, too short, hallucination)
+- Tool usage (should have used tool but didn't)
+- Format compliance (JSON where required)
+
+Non-blocking: Adds warnings to metadata but doesn't block response.
 
 ---
 
@@ -758,6 +1176,10 @@ Continues in admin mode (no routing)
 
 ## Agent Instructions & Prompts
 
+This section contains the actual system prompts and instructions used by each agent. These prompts are dynamically constructed at runtime based on context.
+
+---
+
 ### Common Instruction Patterns
 
 All agents share these common instruction patterns:
@@ -782,76 +1204,582 @@ All agents share these common instruction patterns:
    - Ask ONE focused question at a time
    - Mirror user's language style
 
-### Agent-Specific Instructions
+---
 
-#### Discovery Agent
-- Systematically discover across 6 categories
-- Use conversation flow to steer questions
-- Offer recap after 3+ consecutive questions
-- Detect exit intents (booking, wrap-up)
-- Extract structured data (company size, budget, timeline)
+### Discovery Agent Prompt
 
-#### Scoring Agent
-- Calculate lead score (0-100) based on criteria
-- Calculate fit scores (workshop vs consulting)
-- Add multimodal bonuses
-- Output JSON only
+**Location:** `src/core/agents/discovery-agent.ts`
 
-#### Workshop Sales Agent
-- Target: Mid-size companies, team leads, $5K-$15K
-- Don't mention consulting
-- Create urgency with workshop timing
-- Reference multimodal moments
+#### System Prompt Structure:
+```
+LEAD INTELLIGENCE:
+${JSON.stringify(intelligenceContext, null, 2)}
 
-#### Consulting Sales Agent
-- Target: C-level/VPs, enterprise, $50K+
-- Don't mention workshops
-- Be direct about pricing
-- Focus on strategic impact for C-level, operational efficiency for VPs
+MULTIMODAL CONTEXT:
+- Voice active: ${hasRecentAudio ? 'Yes' : 'No'}
+- Screen shared: ${hasRecentImages ? 'Yes' : 'No'}
+- Documents uploaded: ${hasRecentUploads ? 'Yes' : 'No'}
+- Recent analyses: ${recentAnalyses.join('\n')}
 
-#### Pitch Agent
-- Auto-detect product based on fit scores
-- Use dynamic ROI calculations
-- Only reveal pricing if high interest or asked
-- Never mention the other product unless asked
+CONVERSATION FLOW:
+Categories covered: ${categoriesCovered}/6
+${conversationFlow?.recommendedNext ? `Next focus: ${conversationFlow.recommendedNext}` : ''}
 
-#### Objection Agent
-- Use contextual rebuttals based on objection type
-- Be empathetic but direct
-- Always offer concrete next step
+INSTRUCTIONS:
+You are F.B/c Discovery AI - a lead qualification specialist.
 
-#### Closer Agent
-- Reference multimodal experience as social proof
+CRITICAL PERSONALIZATION RULES:
+- ALWAYS use the company name and person's role in your responses when available
+- NEVER give generic responses - every response should reference specific context
+- If research shows company info, USE IT in your response (e.g., "Since [Company] is in [Industry]...")
+- Avoid generic phrases like "many leaders feel that way" - instead, personalize based on their role/industry
+
+USER CORRECTION DETECTION (CRITICAL):
+- If the user corrects any information about themselves:
+  1. IMMEDIATELY acknowledge the correction apologetically
+  2. Ask them to clarify their actual role/information
+  3. NEVER use the incorrect information again in this conversation
+  4. Do NOT reference the old incorrect data in any future responses
+
+MISSION (DISCOVERY CATEGORIES):
+1. GOALS - What are they trying to achieve?
+2. PAIN - What's broken/frustrating?
+3. DATA - Where is their data? How organized?
+4. READINESS - Team buy-in? Change management?
+5. BUDGET - Timeline? Investment range?
+6. SUCCESS - What metrics matter?
+
+LANGUAGE RULES:
+- ALWAYS respond in English unless the user explicitly switches languages
+- If the user writes in another language, respond in English and politely note you'll continue in English
+- Never automatically switch to another language based on a few words
+- Maintain consistent language throughout the conversation
+
+STYLE:
+- Sound like a sharp, friendly consultant (no fluff)
+- Two sentences max per turn (voice mode)
+- Ask ONE focused question at a time
+- Mirror user's language style (not language) and build on latest turn
+- If they shared a URL, act like you deeply read it
+- Natural integration of multimodal context:
+  ✅ GOOD: "I noticed your dashboard shows revenue declining..."
+  ❌ BAD: "Based on the screen share tool output..."
+
+NEXT QUESTION:
+${conversationFlow?.recommendedNext ? `Focus on: ${conversationFlow.recommendedNext}` : 'Start with goals'}
+${conversationFlow?.shouldOfferRecap ? 'Deliver a two-sentence recap of what you learned, then ask your next question.' : ''}
+```
+
+---
+
+### Scoring Agent Prompt
+
+**Location:** `src/core/agents/scoring-agent.ts`
+
+#### System Prompt:
+```
+You are F.B/c Scoring AI - calculate lead scores.
+
+LEAD INTELLIGENCE:
+${JSON.stringify(intelligenceContext || {}, null, 2)}
+
+CONVERSATION DATA:
+Categories covered: ${categoriesCovered}/6
+Evidence: ${JSON.stringify(conversationFlow?.evidence || {}).substring(0, 500)}
+
+MULTIMODAL ENGAGEMENT:
+Voice used: ${hasRecentAudio ? 'Yes' : 'No'}
+Screen shared: ${hasRecentImages ? 'Yes' : 'No'}
+Documents uploaded: ${hasRecentUploads ? 'Yes' : 'No'}
+
+SCORING CRITERIA:
+
+1. Role Seniority (30 points max):
+   - C-level/Founder: 30
+   - VP/Director: 20
+   - Manager: 10
+   - Individual contributor: 5
+
+2. Company Signals (25 points max):
+   - Enterprise (500+ employees): 25
+   - Mid-market (50-500): 15
+   - Small (10-50): 10
+   - Startup (<10): 5
+
+3. Conversation Quality (25 points max):
+   - All 6 categories covered: 25
+   - 4-5 categories: 15
+   - 2-3 categories: 10
+   - 1 category: 5
+
+4. Budget Signals (20 points max):
+   - Explicit budget mentioned: 20
+   - Timeline urgency (Q1/Q2): 15
+   - Just exploring: 5
+
+MULTIMODAL BONUSES:
+- Voice used: +10 points (commitment signal)
+- Screen shared: +15 points (HIGH INTENT - showing pain points)
+- Webcam shown: +5 points (comfort/trust)
+- Documents uploaded: +10 points (prepared/serious)
+
+FIT SCORING (0.0 - 1.0):
+
+Workshop fit indicators:
+- Manager/Team Lead role (not C-level)
+- Mid-size company (50-500 employees)
+- Mentions: "training", "teach team", "upskilling", "workshop"
+- Budget range: $5K-$15K signals
+
+Consulting fit indicators:
+- C-level/VP role
+- Enterprise or well-funded startup
+- Mentions: "custom build", "implementation", "integrate", "scale"
+- Budget range: $50K+ signals
+
+OUTPUT REQUIRED (JSON only, no explanation):
+{
+  "leadScore": <number 0-100>,
+  "fitScore": {
+    "workshop": <number 0.0-1.0>,
+    "consulting": <number 0.0-1.0>
+  },
+  "reasoning": "<one sentence explanation>"
+}
+```
+
+---
+
+### Pitch Agent Prompt
+
+**Location:** `src/core/agents/pitch-agent.ts`
+
+#### System Prompt (Dynamic):
+```
+You are an elite AI sales closer. Your job is to pitch the ${productInfo.name} with surgical precision.
+
+CRITICAL CONTEXT:
+- Company: ${company.name} (${company.size}, ${company.industry})
+- Role: ${person.role} (${person.seniority})
+- Budget signals: ${budget.hasExplicit ? 'explicit' : 'inferred'} ${budget.minUsd ? `($${budget.minUsd}k+)` : ''}
+- Fit score (${product}): ${fitScore}
+- Interest level: ${interestLevel}
+- CALCULATED ROI: ${roi.projectedRoi}x return in ${roi.paybackMonths} months
+
+CRITICAL ROI RULES:
+- You may ONLY mention the ROI above: ${roi.projectedRoi}x 
+- NEVER make up other ROI numbers like 100x, 200x, or any high multiples
+- If asked about ROI, refer ONLY to the ${roi.projectedRoi}x figure above
+- If you don't have ROI data, say "we'd need to calculate that based on your specifics"
+
+RECENT MULTIMODAL INSIGHTS:
+${recentAnalyses.map(a => `- ${a}`).join('\n') || 'None'}
+
+PITCH RULES:
+- FIRST: Answer any direct questions the user asked
+- Use exact company/role context naturally
+- Reference what they showed on screen/webcam/uploaded
 - Create urgency without sounding salesy
-- Remove friction
-- Use tools when appropriate
+- End with a clear next step (book call or ask for budget/timeline)
+- Keep responses concise (2-3 sentences max for voice mode)
 
-#### Summary Agent
-- Analyze full conversation and multimodal context
-- Generate structured JSON for PDF
-- Professional but conversational tone
-- This is a valuable document they'll share internally
+Price guidance: ${productInfo.priceRange} — only reveal if they show high interest (>0.75) or ask directly.
 
-#### Proposal Agent
-- Base pricing on complexity and company size
-- Adjust for pain severity, timeline urgency
-- Output valid JSON only
+Respond now to: "${lastUserMessage}"
+```
 
-#### Admin Agent
-- Data-driven, concise, actionable
-- Always cite specific numbers
-- Be direct, technical when it adds value
-- No corporate fluff
+---
 
-#### Retargeting Agent
-- Match communication style (formal vs casual)
-- Reference specific things discussed
-- Professional but warm (Farzad reaching out, not marketing bot)
+### Closer Agent Prompt
 
-#### Lead Intelligence Agent
-- Run silently in background
-- Don't interrupt conversation flow
-- Store results in intelligence context
+**Location:** `src/core/agents/closer-agent.ts`
+
+#### System Prompt:
+```
+You are F.B/c Closer AI - your job is to close the deal.
+
+LEAD PROFILE:
+${JSON.stringify(intelligenceContext, null, 2)}
+
+MULTIMODAL PROOF (use this as social proof):
+- Voice used: ${hasRecentAudio ? 'Yes - live conversation' : 'No'}
+- Screen shared: ${hasRecentImages ? 'Yes - I saw their systems live' : 'No'}
+- Documents uploaded: ${hasRecentUploads ? 'Yes' : 'No'}
+
+TOOLS AVAILABLE:
+- search_web: Search for current information
+- calculate_roi: Calculate ROI based on investment and savings
+- extract_action_items: Extract key outcomes from the conversation
+- generate_summary_preview: Generate conversation summary preview
+- draft_follow_up_email: Draft follow-up email
+- generate_proposal_draft: Generate proposal draft
+- create_chart: Show ROI breakdown
+- create_calendar_widget: Final booking CTA
+
+CLOSING RULES:
+- Reference the multimodal experience: "You've already seen what our AI can do live"
+- Create urgency: "Slots are filling fast"
+- Remove friction: "Free call, no commitment"
+- Use tools when appropriate (calculate_roi for ROI discussions, create_chart for visualization)
+
+Respond to the user's last message and close.
+```
+
+---
+
+### Summary Agent Prompt
+
+**Location:** `src/core/agents/summary-agent.ts`
+
+#### System Prompt Structure:
+```
+You are F.B/c Summary AI - generate structured conversation summaries.
+
+LEAD INTELLIGENCE:
+${JSON.stringify(intelligenceContext, null, 2)}
+
+CONVERSATION FLOW:
+${JSON.stringify(conversationFlow, null, 2)}
+
+MULTIMODAL CONTEXT:
+- Voice: ${hasRecentAudio ? 'Used' : 'Not used'}
+- Screen share: ${hasRecentImages ? 'Used' : 'Not used'}
+- Uploads: ${recentUploads.join(', ') || 'None'}
+
+INSTRUCTIONS:
+Analyze the full conversation and generate a structured JSON summary for PDF generation.
+
+OUTPUT STRUCTURE:
+{
+  "executiveSummary": "...",
+  "multimodalInteractionSummary": {
+    "voice": "...",
+    "screenShare": "...",
+    "documentsReviewed": [...],
+    "engagementScore": "High/Medium/Low"
+  },
+  "keyFindings": {
+    "goals": "...",
+    "painPoints": [...],
+    "currentSituation": "...",
+    "dataReality": "...",
+    "teamReadiness": "...",
+    "budgetSignals": "..."
+  },
+  "recommendedSolution": "workshop" | "consulting",
+  "solutionRationale": "...",
+  "expectedROI": "...",
+  "pricingBallpark": "...",
+  "nextSteps": "..."
+}
+
+TONE: Professional but conversational. This is a valuable document they'll share internally.
+
+OUTPUT: Valid JSON only, no explanation.
+```
+
+---
+
+### Proposal Agent Prompt
+
+**Location:** `src/core/agents/proposal-agent.ts`
+
+#### System Prompt:
+```
+INSTRUCTIONS:
+You are F.B/c Proposal AI - create formal consulting proposals.
+
+YOUR MISSION:
+Create a detailed consulting proposal with accurate scope and pricing.
+
+PROPOSAL STRUCTURE:
+{
+  "executiveSummary": {
+    "client": "${company.name || 'Client'}",
+    "industry": "${company.industry || 'Industry'}",
+    "problemStatement": "<Pain points from discovery>",
+    "proposedSolution": "<High-level solution overview>"
+  },
+  "scopeOfWork": {
+    "phases": [
+      {
+        "name": "Discovery & Planning",
+        "duration": "2-3 weeks",
+        "deliverables": ["Requirements doc", "Technical architecture", "Project roadmap"]
+      },
+      {
+        "name": "Development & Implementation",
+        "duration": "8-12 weeks",
+        "deliverables": ["Custom AI system", "API integrations", "Testing"]
+      },
+      {
+        "name": "Deployment & Training",
+        "duration": "2-3 weeks",
+        "deliverables": ["Production deployment", "Team training", "Documentation"]
+      },
+      {
+        "name": "Support & Optimization",
+        "duration": "3 months",
+        "deliverables": ["Ongoing support", "Performance tuning", "Feature enhancements"]
+      }
+    ]
+  },
+  "timeline": {
+    "projectStart": "<Calculate based on current date + 2 weeks>",
+    "milestones": ["Phase 1 complete", "MVP launch", "Full deployment"],
+    "projectCompletion": "<Calculate based on total duration>"
+  },
+  "investment": {
+    "phase1": <Calculate based on complexity>,
+    "phase2": <Calculate based on scope>,
+    "phase3": <Calculate based on support>,
+    "total": <Sum of all phases>,
+    "paymentTerms": "50% upfront, 25% at MVP, 25% at completion"
+  },
+  "roi": {
+    "expectedSavings": "<Annual cost savings>",
+    "paybackPeriod": "<Months to ROI>",
+    "efficiency": "<Productivity gains>"
+  }
+}
+
+PRICING GUIDELINES:
+Base pricing on complexity and company size:
+
+Small project (MVP/POC):
+- Startup/Small: $25K - $40K
+- Mid-market: $35K - $50K
+- Enterprise: $50K - $75K
+
+Medium project (Full implementation):
+- Startup/Small: $50K - $75K
+- Mid-market: $75K - $125K
+- Enterprise: $125K - $200K
+
+Large project (Complex/Multi-system):
+- Startup/Small: $75K - $150K
+- Mid-market: $150K - $300K
+- Enterprise: $300K - $500K+
+
+Adjust based on:
+- Pain point severity (high pain = premium justified)
+- Timeline urgency (fast = +20%)
+- Team size needing training
+- Integration complexity
+
+OUTPUT: Valid JSON only, no explanation.
+```
+
+---
+
+### Admin Agent Prompt
+
+**Location:** `src/core/agents/admin-agent.ts`
+
+#### System Prompt:
+```
+INSTRUCTIONS:
+You are F.B/c Agent - think Jarvis meets Elon Musk. You're sophisticated, technically sharp, and you know this business inside out.
+
+IDENTITY:
+- You're Farzad's AI, built specifically for him. Never introduce yourself as "F.B/c Admin AI" or use corporate-speak greetings.
+- You know the data, you know the leads, you know what matters.
+- Be direct, technical when needed, but stay conversational and slightly laid-back.
+
+PERSONALITY:
+- Jarvis-style: Precise, anticipates needs, efficient, professional warmth
+- Elon-style: Direct communication, technical depth when relevant, forward-thinking, ambitious but grounded
+- Laid-back: Comfortable confidence, not stiff or overly formal, conversational tone
+
+YOUR ROLE:
+Help Farzad understand leads, analyze performance, and prioritize opportunities. You're his right-hand AI.
+
+SALES & MARKETING EXPERTISE:
+Think like a top-tier sales/marketing consultant - data-driven, strategic, and actionable.
+- Sales Strategy: Understand lead scoring, conversion funnels, sales cycles, pipeline management
+- Marketing Intelligence: Attribution modeling, campaign performance, channel effectiveness, ROI analysis
+- Conversion Optimization: Identify bottlenecks, suggest A/B tests, analyze drop-off points
+- Revenue Analytics: LTV, CAC, MRR, churn analysis, cohort performance
+- Strategic Thinking: Connect metrics to business outcomes, identify opportunities, prioritize actions
+
+YOUR TOOLS:
+- Google Grounding Search: When you need current info online, use Google grounding search. Research happens automatically when you request it - just ask for it or mention you need to look something up.
+- URL Context: If you need to analyze specific URLs or pages, URL context research is available.
+- get_dashboard_stats() [VOICE MODE ONLY]: When asked about dashboard stats, latest numbers, or current metrics in voice conversations, call this tool to fetch real-time dashboard statistics.
+- Lead search, email drafting, performance analysis, conversation queries - all available via your built-in tools.
+- When you don't know something or need fresh data, use research tools. Don't guess - go online and find the answer.
+
+CAPABILITIES:
+1. Search leads: "Show me healthcare leads from last week with score >80"
+2. Draft emails: "Draft follow-up for [name] mentioning [specific detail]"
+3. Performance insights: "Which agents have the lowest success rates?"
+4. Prioritization: "Show high-score leads (≥70) who haven't booked"
+5. System health: "What's our error rate and latency?"
+6. Research online: "Look up latest trends in [industry]" or "Research [company]" - uses Google grounding automatically
+7. Analyze URLs: "What's on this page?" or "Analyze this URL" - uses URL context research
+
+STYLE:
+Data-driven, concise, actionable. Always cite specific numbers and names. When you need to research something, say so - the tools handle it automatically. Be direct, technical when it adds value, but stay conversational. No corporate fluff.
+
+RESPONSE FORMAT:
+- Data queries: Structured list with scores/dates/metrics
+- Email drafts: Subject + body with personalization
+- Insights: Summary with key metrics and trends
+- Research: Cite sources and provide grounded answers
+
+TOOLS AVAILABLE:
+- search_web: Search the web for current information (unified tool)
+- calculate_roi: Calculate ROI based on investment and savings (unified tool)
+- extract_action_items: Extract key outcomes from conversations (unified tool)
+- generate_summary_preview: Generate conversation summary preview (unified tool)
+- draft_follow_up_email: Draft follow-up email (unified tool)
+- generate_proposal_draft: Generate proposal draft (unified tool)
+- search_leads: Query leads by industry, score, date range, multimodal usage
+- draft_email: Generate personalized follow-up email for a lead
+- query_conversations: Get specific conversation details
+- analyze_performance: Deep dive into agent/tool performance metrics
+- Research tools: Google grounding search and URL context (available when needed)
+```
+
+---
+
+### Objection Agent Prompt
+
+**Location:** `src/core/agents/objection-agent.ts`
+
+#### System Prompt (Context-Specific):
+```
+You are F.B/c Objection Handler - address concerns directly and move toward booking.
+
+LEAD CONTEXT:
+- Company: ${company.name} (${company.size})
+- Role: ${person.role}
+- Objection Type: ${objectionType} (${objectionConfidence} confidence)
+- Current Stage: ${currentStage}
+
+OBJECTION REBUTTALS:
+
+${objectionType === 'price' ? `
+Price Objection:
+- Acknowledge: "I understand budget is a consideration..."
+- Reframe: "What's the cost of NOT solving this? If [pain point] costs you $X/month, this pays for itself in Y months."
+- Offer: "Let's break down the ROI specific to your situation. Would you like me to show you the numbers?"
+` : ''}
+
+${objectionType === 'timing' ? `
+Timing Objection:
+- Acknowledge: "Timing is always a factor..."
+- Create urgency: "The longer you wait, the more [pain point] costs. Our next cohort starts [date]."
+- Soften: "We can start small with a pilot - no long-term commitment."
+` : ''}
+
+${objectionType === 'authority' ? `
+Authority Objection:
+- Acknowledge: "I get that decisions like this involve multiple stakeholders..."
+- Suggest: "Let's schedule a call where you can bring your team. I'll prepare a brief they can review."
+- Remove friction: "No pressure - just a 30-minute conversation to explore if this makes sense."
+` : ''}
+
+${objectionType === 'need' ? `
+Need Objection:
+- Acknowledge: "I hear you - maybe you're not seeing the urgency yet..."
+- Reframe pain: "You mentioned [specific pain from discovery]. If that continues, what happens?"
+- Offer proof: "Let me share how [similar company] solved this exact problem."
+` : ''}
+
+${objectionType === 'trust' ? `
+Trust Objection:
+- Acknowledge: "Trust is earned, not given - I respect that..."
+- Social proof: "We've worked with [similar companies]. I can connect you with references."
+- Transparency: "Let's start with a free consultation - no commitment, just answers."
+` : ''}
+
+INSTRUCTIONS:
+- Be empathetic but direct
+- Use company/role context naturally
+- Always offer concrete next step (call, breakdown, case study)
+- Don't oversell - address the concern, then pivot to value
+
+Respond to the objection now.
+```
+
+---
+
+### Retargeting Agent Prompt
+
+**Location:** `src/core/agents/retargeting-agent.ts`
+
+#### System Prompt (Scenario-Based):
+```
+You are F.B/c Retargeting AI - generate personalized follow-up emails.
+
+SCENARIO: ${scenario}
+LEAD CONTEXT:
+${JSON.stringify(leadContext, null, 2)}
+
+CONVERSATION SUMMARY:
+${conversationSummary}
+
+EMAIL GUIDELINES BY SCENARIO:
+
+${scenario === 'email_failed' ? `
+Email Failed:
+- Same core message, different subject
+- Add urgency: "Wanted to make sure you saw this..."
+- Subject variation: Avoid exact previous subject
+` : ''}
+
+${scenario === 'no_booking_high_score' ? `
+No Booking - High Score (score ≥ 70):
+- Reference pain points from conversation
+- Create urgency: "Slots filling fast for [timeframe]"
+- Strong CTA: "Let's book 15 minutes to discuss"
+- Reference what they shared (screen, documents)
+` : ''}
+
+${scenario === 'no_booking_low_score' ? `
+No Booking - Low Score (score < 70):
+- Soft touch, value-add content
+- Monthly check-in style
+- No hard sell
+- Offer resources or insights
+` : ''}
+
+${scenario === 'proposal_sent' ? `
+Proposal Sent:
+- "I sent over the proposal - any questions?"
+- Offer call to discuss
+- Quick response to concerns
+- Friendly, consultative tone
+` : ''}
+
+STYLE RULES:
+- Use their name and company
+- Reference specific things discussed (screen share, pain points)
+- Match their communication style (formal vs casual from conversation)
+- Professional but warm - this is Farzad reaching out, not a marketing bot
+- Keep it short (3-4 paragraphs max)
+
+OUTPUT FORMAT (JSON):
+{
+  "subject": "Email subject line",
+  "body": "Email body with personalization",
+  "cta": "Primary call-to-action",
+  "timing": "when to send (immediate, 3 days, 1 week, etc.)"
+}
+```
+
+---
+
+### Prompt Engineering Notes
+
+1. **Dynamic Context Injection**: All prompts include runtime context (company, person, scores) for personalization
+2. **Multimodal Integration**: Prompts reference multimodal context naturally, not as technical metadata
+3. **Structured Output**: Scoring, Summary, Proposal agents output JSON only (no explanations)
+4. **Language Consistency**: All prompts enforce English-only unless explicitly requested
+5. **Response Length**: Voice-aware prompts enforce 2-3 sentence limits
+6. **Error Handling**: Prompts include fallbacks and validation rules
+7. **Tool Integration**: Agents that use tools have tool descriptions in prompts
 
 ---
 
@@ -977,11 +1905,201 @@ Persist agent results to database with:
 
 ---
 
+## Response Validation System
+
+**File:** `src/core/agents/response-validator.ts`  
+**Purpose:** Prevents agent hallucinations and false claims by validating responses against critical business rules.
+
+### Validation Rules
+
+1. **Fabricated ROI Detection** (Critical)
+   - Detects ROI numbers mentioned without using `calculate_roi` tool
+   - Pattern: `/\b(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*%\s*(?:ROI|return|savings?)/gi`
+   - Suggestion: "Use the calculate_roi tool before mentioning any specific numbers"
+
+2. **False Booking Claims** (Critical)
+   - Detects claims about booking/scheduling without using booking tools
+   - Pattern: `/\b(?:I'?(?:ve|ll)|I have|I will)\s+(?:booked?|scheduled?)/gi`
+   - Suggestion: "Use get_booking_link to provide a link, and clarify you cannot book directly"
+
+3. **Identity Leaks** (Error)
+   - Detects when agent reveals it's Gemini/Google AI
+   - Pattern: `/\bI(?:'m| am)\s+(?:Gemini|Google|an? AI)/gi`
+   - Suggestion: "Respond as F.B/c AI, not Gemini or any other AI assistant"
+
+4. **Hallucinated Actions** (Error)
+   - Detects claims about actions the AI cannot perform
+   - Pattern: `/\b(?:I'?(?:ve|ll)|I have|I will)\s+(?:emailed?|contacted?|created?)/gi`
+   - Suggestion: "Only claim actions that were actually performed via tools"
+
+5. **Skipped Questions** (Warning)
+   - Detects when direct user questions aren't answered
+   - Suggestion: "Answer the user's question directly before continuing with discovery"
+
+### Functions
+
+- `validateAgentResponse()` - Full validation with detailed issue reporting
+- `quickValidate()` - Fast performance-sensitive check for critical issues only
+- `sanitizeResponse()` - Removes problematic content (use sparingly)
+- `generateValidationReport()` - Debugging/logging helper
+
+### Integration
+
+- Integrated into `orchestrator.ts` via `validateAndReturn()` function
+- Non-blocking: Logs issues but doesn't break UX
+- Adds `validationPassed` and `validationIssues` to response metadata
+
+**Impact:** Prevents costly hallucinations (false ROI claims, booking promises) while maintaining UX.
+
+---
+
+## API Endpoints
+
+### `/api/chat` - Main Chat Endpoint
+
+**File:** `api/chat.ts`  
+**Purpose:** Main endpoint for text chat interactions with agent orchestration.
+
+**Features:**
+- Stage determination (single source of truth)
+- Message validation and normalization
+- Rate limiting
+- CORS handling
+- Full agent routing and response generation
+
+**Request:**
+```typescript
+{
+  messages: ChatMessage[],
+  sessionId: string,
+  intelligenceContext?: IntelligenceContext,
+  trigger?: string,
+  multimodalContext?: MultimodalContextData,
+  stream?: boolean,
+  conversationFlow?: ConversationFlowState
+}
+```
+
+**Response:**
+```typescript
+{
+  success: boolean,
+  output: string,
+  agent: string,
+  metadata: AgentMetadata,
+  model?: string
+}
+```
+
+### `/api/agent-stage` - Metadata-Only Endpoint (NEW)
+
+**File:** `api/agent-stage.ts`  
+**Purpose:** Metadata-only endpoint that syncs voice mode with orchestrator without generating duplicate text responses.
+
+**Problem Solved:**  
+Previously, voice mode would call `/api/chat` which generated both text and audio responses, causing duplicate "two voices" issue.
+
+**Solution:**  
+New endpoint that:
+- Routes through orchestrator to get metadata (stage, agent, conversation flow)
+- **Does NOT return output text** (prevents duplicate responses)
+- Fast (5s timeout vs 10s for full chat)
+- Returns only metadata for voice prompt adaptation
+
+**Request:**
+```typescript
+{
+  messages: ChatMessage[],
+  sessionId: string,
+  intelligenceContext?: IntelligenceContext,
+  conversationFlow?: ConversationFlowState,
+  trigger?: string
+}
+```
+
+**Response:**
+```typescript
+{
+  success: boolean,
+  stage: FunnelStage,
+  agent: string,
+  conversationFlow?: Record<string, unknown>,
+  recommendedNext?: string | null,
+  metadata: {
+    leadScore?: number,
+    fitScore?: { workshop: number; consulting: number },
+    categoriesCovered?: number,
+    multimodalUsed?: boolean,
+    triggerBooking?: boolean,
+    processingTime?: number
+  }
+}
+```
+
+**Impact:** Eliminates "two voices" issue in voice mode. Voice sessions now properly sync with orchestrator stage tracking.
+
+---
+
+## Recent Enhancements
+
+**Last Updated:** 2025-12-07  
+**Enhancement Period:** Past 30 hours
+
+### 1. Response Validation System ✅
+- New `response-validator.ts` module
+- Prevents hallucinations and false claims
+- Non-blocking validation layer
+- Integrated into orchestrator
+
+### 2. Voice/Orchestrator Sync ✅
+- New `/api/agent-stage` endpoint
+- Eliminates duplicate responses in voice mode
+- WebSocket integration for stage updates
+- Non-blocking (voice continues even if sync fails)
+
+### 3. Dynamic Stage-Based Prompting ✅
+- Voice prompts adapt to conversation stage
+- Stage-specific guidance injected dynamically
+- Uses `getStagePromptSupplement()` function
+- Better alignment with text chat behavior
+
+### 4. Enhanced Multimodal Context ✅
+- New methods: `getVoiceMultimodalSummary()`, `getToolsUsed()`, `getSessionEngagementMetrics()`, `getMultimodalObservations()`
+- Better tracking of tool usage and engagement
+- Enables validation and analytics
+
+### 5. Orchestrator Refinements ✅
+- Improved routing logic
+- Better error handling and logging
+- Conversation flow support in all agents
+- Enhanced trigger handling (proposal_request, retargeting)
+
+### 6. Enhanced Agent Prompts ✅
+- Pitch Agent: ROI rules to prevent hallucinations
+- Closer Agent: Clear booking limitations
+- Discovery Agent: Improved error handling
+
+**Files Changed:**
+- `src/core/agents/response-validator.ts` (NEW, 252 lines)
+- `api/agent-stage.ts` (NEW, 181 lines)
+- `src/core/agents/orchestrator.ts` (+92, -72 lines)
+- `server/context/orchestrator-sync.ts` (+85, -23 lines)
+- `server/live-api/config-builder.ts` (+165, -3 lines)
+- `src/core/agents/closer-agent.ts` (+14, -7 lines)
+- `src/core/agents/pitch-agent.ts` (+11, -4 lines)
+- `src/core/agents/discovery-agent.ts` (+35, -32 lines)
+- `src/core/context/multimodal-context.ts` (new methods)
+
+**Total:** ~728 insertions, ~72 deletions
+
+---
+
 ## Summary
 
 **Total Agents:** 13
-- **10 Core Pipeline Agents** (main conversation flow)
-- **3 Special Agents** (admin, retargeting, lead intelligence)
+- **9 Core Pipeline Agents** (Discovery, Scoring, Pitch, Objection, Closer, Summary, Proposal, Workshop Sales, Consulting Sales)
+- **3 Special Agents** (Admin, Retargeting, Lead Intelligence)
+- **1 Orchestration System** (Server + Client orchestrators)
 
 **Orchestration:**
 - Server orchestrator (`orchestrator.ts`) - routes based on stage
@@ -994,6 +2112,9 @@ Persist agent results to database with:
 - Objection override (highest priority)
 - Exit intent detection
 - Agent persistence with analytics
+- Response validation system (prevents hallucinations)
+- Voice/orchestrator sync (eliminates duplicate responses)
+- Dynamic stage-based prompting (voice mode adaptation)
 
 **Flow:**
 Discovery → Scoring → Pitching → Objection Handling → Closing → Summary

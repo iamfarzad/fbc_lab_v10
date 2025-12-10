@@ -807,9 +807,13 @@ export class LiveClientWS {
   }
 
   sendText(text: string) {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return
-    // CRITICAL: Live API requires mimeType for all chunks
-    this.send({ type: 'REALTIME_INPUT', payload: { chunks: [{ text, mimeType: 'text/plain' }] } })
+    // CRITICAL FIX: Live API's sendRealtimeInput() only accepts audio/video media, NOT text
+    // Sending text via sendRealtimeInput causes error 1007 "Request contains an invalid argument"
+    // Text should be sent via systemInstruction during session setup, not via realtime input
+    // This method is disabled to prevent 1007 errors
+    console.warn('[LiveClientWS] sendText() called but disabled - text cannot be sent via sendRealtimeInput (causes 1007 error)')
+    return
+    // DISABLED: this.send({ type: 'REALTIME_INPUT', payload: { chunks: [{ text, mimeType: 'text/plain' }] } })
   }
 
   sendAudioBase64PCM16(base64: string, mimeType = 'audio/pcm;rate=24000') {

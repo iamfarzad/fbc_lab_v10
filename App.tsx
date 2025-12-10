@@ -411,13 +411,17 @@ export const App: React.FC = () => {
             });
             if (file) {
                  liveServiceRef.current?.sendRealtimeMedia(file);
-                 if (!text.trim()) {
-                     liveServiceRef.current?.sendText("Analyze this image.");
-                 }
+                 // CRITICAL FIX: Removed sendText() calls - Live API's sendRealtimeInput() only accepts audio/video
+                 // Sending text via sendRealtimeInput causes error 1007 "Request contains an invalid argument"
+                 // Text should be included in systemInstruction during session setup, not sent as realtime input
+                 // if (!text.trim()) {
+                 //     liveServiceRef.current?.sendText("Analyze this image.");  // ❌ DISABLED - causes 1007
+                 // }
             }
-            if (text.trim()) {
-                liveServiceRef.current?.sendText(text);
-            }
+            // CRITICAL FIX: Removed sendText() - text cannot be sent via sendRealtimeInput
+            // if (text.trim()) {
+            //     liveServiceRef.current?.sendText(text);  // ❌ DISABLED - causes 1007
+            // }
         } else if (aiBrainRef.current) {
             const storedKey = localStorage.getItem('fbc_api_key');
             const apiKey = storedKey || process.env.API_KEY;
@@ -463,9 +467,21 @@ export const App: React.FC = () => {
                 const lastMsg = messages[messages.length - 1];
 
                 if (file && lastMsg) {
-                    lastMsg.attachments = [{ mimeType: file.mimeType, data: file.data }];
+                    lastMsg.attachments = [{ 
+                        type: file.type === 'image' ? 'image' : 'file',
+                        mimeType: file.mimeType, 
+                        data: file.data,
+                        url: file.url || (file.data ? `data:${file.mimeType};base64,${file.data}` : undefined),
+                        name: file.name
+                    }];
                 } else if (isWebcamActive && latestWebcamFrameRef.current && lastMsg) {
-                     lastMsg.attachments = [{ mimeType: 'image/jpeg', data: latestWebcamFrameRef.current }];
+                     lastMsg.attachments = [{ 
+                        type: 'image',
+                        mimeType: 'image/jpeg', 
+                        data: latestWebcamFrameRef.current,
+                        url: `data:image/jpeg;base64,${latestWebcamFrameRef.current}`,
+                        name: 'Webcam Frame'
+                    }];
                 }
 
                 // Try streaming first, fallback to non-streaming on error

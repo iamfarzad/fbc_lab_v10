@@ -86,3 +86,22 @@ chore:    Build/tooling
 - Use `src/` imports in api/ or server/
 - Commit before build passes
 - Fix symptoms instead of root causes
+
+---
+
+## Documentation Rules
+
+### Agent Documentation Updates
+**Rule:** When making changes to agent code or flow, ALWAYS update `docs/AGENTS_DOCUMENTATION.md`
+
+**See:** `docs/AGENT_DOCUMENTATION_UPDATE_RULES.md` for complete guidelines
+
+**Quick Checklist:**
+- [ ] Agent code changed? → Update relevant agent section
+- [ ] Prompt changed? → Update Agent Instructions & Prompts section
+- [ ] Routing changed? → Update Orchestration System section
+- [ ] New endpoint? → Update API Endpoints section
+- [ ] Architecture changed? → Update Architecture Overview section
+- [ ] Update "Last Updated" date in header
+
+**Never:** Update archived documents or reference-only docs

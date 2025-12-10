@@ -282,10 +282,14 @@ export class GeminiLiveService {
           isSessionReady: this.isSessionReady
         });
         
-        // Flush any queued media and context updates that were sent before session was ready
-        logger.debug('[GeminiLiveService] Flushing queued media and context...');
-        this.flushPendingMedia();
-        this.flushPendingContext();
+        // Small delay before flushing to ensure backend has session in activeSessions
+        // This prevents race condition where frames arrive before backend is ready
+        setTimeout(() => {
+          // Flush any queued media and context updates that were sent before session was ready
+          logger.debug('[GeminiLiveService] Flushing queued media and context...');
+          this.flushPendingMedia();
+          this.flushPendingContext();
+        }, 200); // 200ms delay to ensure backend session is registered
         
         this.config.onStateChange('CONNECTED');
         logger.debug('[GeminiLiveService] ✅ State changed to CONNECTED');

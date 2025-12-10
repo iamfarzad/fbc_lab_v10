@@ -249,15 +249,44 @@ export function setupMessageRouter(
 
         case MESSAGE_TYPES.REALTIME_INPUT: {
           serverLogger.info('Handling REALTIME_INPUT message', { connectionId })
-          const client = activeSessions.get(connectionId)
+          let client = activeSessions.get(connectionId)
+          
+          // Check if session is starting or ready (race condition fix)
+          const connectionState = connectionStates.get(connectionId)
+          const isSessionStarting = sessionStarting.has(connectionId)
+          const isSessionReady = connectionState?.isReady === true
+          
           if (!client) {
-            if (sessionStarting.has(connectionId)) {
-              serverLogger.debug('REALTIME_INPUT received while session starting - ignoring', { connectionId })
+            // If session is ready but not in activeSessions yet, wait briefly for it to be added
+            if (isSessionReady && !isSessionStarting) {
+              // Session is marked ready but not yet in activeSessions - race condition
+              // Wait briefly for session to be added (should happen immediately after isReady is set)
+              serverLogger.debug('REALTIME_INPUT: Session ready but not in activeSessions yet - waiting', { connectionId })
+              // Try a few times with small delays
+              for (let i = 0; i < 10 && !client; i++) {
+                await new Promise(resolve => setTimeout(resolve, 50))
+                client = activeSessions.get(connectionId)
+              }
+              if (!client) {
+                serverLogger.warn('REALTIME_INPUT: Session ready but still not in activeSessions after retries', { connectionId })
+              }
+            }
+            
+            if (!client) {
+              if (isSessionStarting) {
+                serverLogger.debug('REALTIME_INPUT received while session starting - should be queued on client', { connectionId })
+                break
+              }
+              serverLogger.warn('REALTIME_INPUT received but no active session', { 
+                connectionId,
+                isSessionReady,
+                isSessionStarting,
+                hasConnectionState: !!connectionState
+              })
               break
             }
-            serverLogger.warn('REALTIME_INPUT received but no active session', { connectionId })
-            break
           }
+          
           await handlers.handleRealtimeInput(
             connectionId,
             client,
