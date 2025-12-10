@@ -854,21 +854,25 @@ export class GeminiLiveService {
       // Input analysis
       let inputVolume = 0;
       if (this.inputAnalyser) {
-        const dataArray = new Uint8Array(this.inputAnalyser.frequencyBinCount);
-        this.inputAnalyser.getByteFrequencyData(dataArray);
-        // Calculate RMS (Root Mean Square) for more accurate volume representation
-        const sumSquares = dataArray.reduce((sum, val) => sum + (val / 255) ** 2, 0);
-        inputVolume = Math.sqrt(sumSquares / dataArray.length);
+        if (typeof this.inputAnalyser.getByteFrequencyData === 'function') {
+          const dataArray = new Uint8Array(this.inputAnalyser.frequencyBinCount);
+          this.inputAnalyser.getByteFrequencyData(dataArray);
+          // Calculate RMS (Root Mean Square) for more accurate volume representation
+          const sumSquares = dataArray.reduce((sum, val) => sum + (val / 255) ** 2, 0);
+          inputVolume = Math.sqrt(sumSquares / dataArray.length);
+        }
       }
 
       // Output analysis
       let outputVolume = 0;
       if (this.outputAnalyser) {
-        const dataArray = new Uint8Array(this.outputAnalyser.frequencyBinCount);
-        this.outputAnalyser.getByteFrequencyData(dataArray);
-        // Calculate RMS for output as well
-        const sumSquares = dataArray.reduce((sum, val) => sum + (val / 255) ** 2, 0);
-        outputVolume = Math.sqrt(sumSquares / dataArray.length);
+        if (typeof this.outputAnalyser.getByteFrequencyData === 'function') {
+          const dataArray = new Uint8Array(this.outputAnalyser.frequencyBinCount);
+          this.outputAnalyser.getByteFrequencyData(dataArray);
+          // Calculate RMS for output as well
+          const sumSquares = dataArray.reduce((sum, val) => sum + (val / 255) ** 2, 0);
+          outputVolume = Math.sqrt(sumSquares / dataArray.length);
+        }
       }
 
       // Always call onVolumeChange to keep visual state updated

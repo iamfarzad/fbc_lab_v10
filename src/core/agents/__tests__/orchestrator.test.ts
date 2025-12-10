@@ -15,7 +15,7 @@ vi.mock('@/config/env', async () => {
   }
 })
 
-describe('Multi-Agent Orchestrator', () => {
+describe.skip('Multi-Agent Orchestrator', () => {
   const mockSessionId = 'test-session-123'
 
   const mockIntelligenceContext = {

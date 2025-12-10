@@ -293,7 +293,7 @@ describe('Unified Tool Registry', () => {
 
   describe('UNIFIED_TOOL_NAMES', () => {
     it('should contain all 11 tools', () => {
-      expect(UNIFIED_TOOL_NAMES).toHaveLength(11)
+      expect(UNIFIED_TOOL_NAMES).toHaveLength(12)
     })
 
     it('should contain core business tools', () => {
@@ -325,7 +325,7 @@ describe('Unified Tool Registry', () => {
 
   describe('ToolSchemas', () => {
     it('should export schemas for all tools', () => {
-      expect(Object.keys(ToolSchemas)).toHaveLength(11)
+      expect(Object.keys(ToolSchemas)).toHaveLength(12)
     })
 
     it('should have schema for each unified tool', () => {

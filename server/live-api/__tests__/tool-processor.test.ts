@@ -50,8 +50,12 @@ describe('processToolCall', () => {
   let mockActiveSessions: any;
   let mockWs: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+
+    const { validateToolArgs, executeUnifiedTool } = await import('src/core/tools/unified-tool-registry');
+    vi.mocked(validateToolArgs).mockReturnValue({ valid: true });
+    vi.mocked(executeUnifiedTool).mockResolvedValue({ success: true } as any);
     
     mockClient = {
       sessionId,

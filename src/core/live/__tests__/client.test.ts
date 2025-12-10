@@ -22,11 +22,12 @@ class MockWebSocket {
 }
 
 // Global WebSocket mock
-global.WebSocket = MockWebSocket as any;
-global.WebSocket.CONNECTING = 0;
-global.WebSocket.OPEN = 1;
-global.WebSocket.CLOSING = 2;
-global.WebSocket.CLOSED = 3;
+const WebSocketMockFactory = vi.fn((url: string) => new MockWebSocket(url));
+(global as any).WebSocket = WebSocketMockFactory as any;
+(global as any).WebSocket.CONNECTING = 0;
+(global as any).WebSocket.OPEN = 1;
+(global as any).WebSocket.CLOSING = 2;
+(global as any).WebSocket.CLOSED = 3;
 
 describe('LiveClientWS', () => {
   let client: LiveClientWS;
@@ -47,7 +48,7 @@ describe('LiveClientWS', () => {
 
   describe('Connection', () => {
     it('should connect to WebSocket URL', async () => {
-      const connectSpy = vi.spyOn(global, 'WebSocket');
+      const connectSpy = vi.spyOn(global as any, 'WebSocket');
       client.connect();
       
       expect(connectSpy).toHaveBeenCalledWith(WEBSOCKET_CONFIG.URL);
@@ -77,7 +78,7 @@ describe('LiveClientWS', () => {
       // Since we can't access private methods easily, we'll simulate the effect by mocking the socket instance behavior
       
       // More reliable approach: Use the fact that we mocked WebSocket globally
-      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const mockWsInstance = WebSocketMockFactory.mock.results[0].value;
       mockWsInstance.onclose({ code: 1006, reason: 'Abnormal Closure' });
       
       // Should schedule reconnect
@@ -85,7 +86,7 @@ describe('LiveClientWS', () => {
       
       // Reconnect timer should be active (check implicitly via timer advancement)
       // We expect a new WebSocket connection after delay
-      const connectSpy = vi.spyOn(global, 'WebSocket');
+      const connectSpy = vi.spyOn(global as any, 'WebSocket');
       vi.runAllTimers(); // Advance past reconnect delay
       
       // Should have tried to connect again (total 2 calls: initial + reconnect)
@@ -97,7 +98,7 @@ describe('LiveClientWS', () => {
       vi.runAllTimers();
       
       client.disconnect();
-      const connectSpy = vi.spyOn(global, 'WebSocket');
+      const connectSpy = vi.spyOn(global as any, 'WebSocket');
       
       vi.runAllTimers();
       
@@ -111,7 +112,7 @@ describe('LiveClientWS', () => {
       client.connect();
       vi.runAllTimers();
       
-      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const mockWsInstance = WebSocketMockFactory.mock.results[0].value;
       client.sendText('Hello');
       
       expect(mockWsInstance.send).toHaveBeenCalledWith(expect.stringContaining('REALTIME_INPUT'));
@@ -122,7 +123,7 @@ describe('LiveClientWS', () => {
       client.connect();
       vi.runAllTimers();
       
-      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const mockWsInstance = WebSocketMockFactory.mock.results[0].value;
       const onTextSpy = vi.fn();
       client.on('text', onTextSpy);
       
@@ -141,7 +142,7 @@ describe('LiveClientWS', () => {
       client.connect();
       vi.runAllTimers();
       
-      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const mockWsInstance = WebSocketMockFactory.mock.results[0].value;
       const onSessionStartedSpy = vi.fn();
       client.on('session_started', onSessionStartedSpy);
       
@@ -164,7 +165,7 @@ describe('LiveClientWS', () => {
         client.connect();
         vi.runAllTimers();
         
-        const mockWsInstance = (WebSocket as any).mock.results[0].value;
+        const mockWsInstance = WebSocketMockFactory.mock.results[0].value;
         mockWsInstance.send.mockClear();
         
         // Advance time by heartbeat interval
@@ -177,7 +178,7 @@ describe('LiveClientWS', () => {
         client.connect();
         vi.runAllTimers();
         
-        const mockWsInstance = (WebSocket as any).mock.results[0].value;
+        const mockWsInstance = WebSocketMockFactory.mock.results[0].value;
         const onHeartbeatSpy = vi.fn();
         client.on('heartbeat', onHeartbeatSpy);
         

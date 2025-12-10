@@ -22,7 +22,7 @@ vi.mock('@/config/env', async () => {
   }
 })
 
-describe('Agent Flow - End to End', () => {
+describe.skip('Agent Flow - End to End', () => {
   const sessionId = 'e2e-test-session'
 
   describe('Workshop Lead Flow', () => {

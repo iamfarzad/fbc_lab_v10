@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { App } from './App'
 import { ToastProvider } from './context/ToastContext'
+import { ThemeProvider } from './context/ThemeContext'
 
 // Mock dependencies
 vi.mock('./components/AntigravityCanvas', () => ({
@@ -22,9 +23,11 @@ describe('App Component', () => {
   it('renders without crashing', () => {
     render(
       <MemoryRouter>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </ThemeProvider>
       </MemoryRouter>
     )
     // App renders - check for any visible element
