@@ -806,7 +806,7 @@ export class LiveClientWS {
     this.send({ type: 'stop' })
   }
 
-  sendText(text: string) {
+  sendText(_text: string) {
     // CRITICAL FIX: Live API's sendRealtimeInput() only accepts audio/video media, NOT text
     // Sending text via sendRealtimeInput causes error 1007 "Request contains an invalid argument"
     // Text should be sent via systemInstruction during session setup, not via realtime input

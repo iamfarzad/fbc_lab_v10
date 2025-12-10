@@ -138,7 +138,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                                                     <div class="p-2 bg-white dark:bg-black rounded-lg border border-zinc-100 dark:border-zinc-800 text-zinc-500">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
                                                     </div>
-                                                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">${item.attachment.name || 'Image'}</span>
+                                                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">${item.attachment?.name || 'Image'}</span>
                                                 </button>
                                             `;
                                         }

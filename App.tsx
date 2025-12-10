@@ -357,7 +357,7 @@ export const App: React.FC = () => {
     }, []);
 
     // 11. Handle Send Message
-    const handleSendMessage = useCallback(async (text: string, file?: { mimeType: string, data: string }) => {
+    const handleSendMessage = useCallback(async (text: string, file?: { mimeType: string, data: string, type?: string, url?: string, name?: string }) => {
         // ... (Logic from previous App.tsx)
         const targetShape = detectVisualIntent(text)?.shape;
         if (targetShape) {
@@ -467,21 +467,23 @@ export const App: React.FC = () => {
                 const lastMsg = messages[messages.length - 1];
 
                 if (file && lastMsg) {
+                    const isImage = file.mimeType?.startsWith('image/') || file.type === 'image'
+                    // Type assertion: attachments array type only has mimeType/data, but we need type/url/name for UI
                     lastMsg.attachments = [{ 
-                        type: file.type === 'image' ? 'image' : 'file',
                         mimeType: file.mimeType, 
                         data: file.data,
-                        url: file.url || (file.data ? `data:${file.mimeType};base64,${file.data}` : undefined),
-                        name: file.name
-                    }];
+                        ...(file.type || isImage ? { type: (file.type || 'image') as 'image' | 'file' } : {}),
+                        ...(file.url || file.data ? { url: file.url || `data:${file.mimeType};base64,${file.data}` } : {}),
+                        ...(file.name ? { name: file.name } : {})
+                    } as any];
                 } else if (isWebcamActive && latestWebcamFrameRef.current && lastMsg) {
                      lastMsg.attachments = [{ 
-                        type: 'image',
                         mimeType: 'image/jpeg', 
                         data: latestWebcamFrameRef.current,
+                        type: 'image',
                         url: `data:image/jpeg;base64,${latestWebcamFrameRef.current}`,
                         name: 'Webcam Frame'
-                    }];
+                    } as any];
                 }
 
                 // Try streaming first, fallback to non-streaming on error
