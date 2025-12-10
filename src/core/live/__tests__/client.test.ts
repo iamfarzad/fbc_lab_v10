@@ -22,17 +22,25 @@ class MockWebSocket {
 }
 
 // Global WebSocket mock
-global.WebSocket = MockWebSocket as any;
-global.WebSocket.CONNECTING = 0;
-global.WebSocket.OPEN = 1;
-global.WebSocket.CLOSING = 2;
-global.WebSocket.CLOSED = 3;
+let mockWebSocketInstances: MockWebSocket[] = [];
+const WebSocketMockFactory = vi.fn((url: string) => {
+  const instance = new MockWebSocket(url);
+  mockWebSocketInstances.push(instance);
+  return instance;
+});
+(global as any).WebSocket = WebSocketMockFactory as any;
+(global as any).WebSocket.CONNECTING = 0;
+(global as any).WebSocket.OPEN = 1;
+(global as any).WebSocket.CLOSING = 2;
+(global as any).WebSocket.CLOSED = 3;
 
 describe('LiveClientWS', () => {
   let client: LiveClientWS;
 
   beforeEach(() => {
     vi.useFakeTimers();
+    mockWebSocketInstances = []; // Reset instances before each test
+    WebSocketMockFactory.mockClear();
     // Reset singleton if it exists
     if (typeof window !== 'undefined') {
         delete (window as any).__fbc_liveClient;
@@ -47,10 +55,9 @@ describe('LiveClientWS', () => {
 
   describe('Connection', () => {
     it('should connect to WebSocket URL', async () => {
-      const connectSpy = vi.spyOn(global, 'WebSocket');
       client.connect();
       
-      expect(connectSpy).toHaveBeenCalledWith(WEBSOCKET_CONFIG.URL);
+      expect(WebSocketMockFactory).toHaveBeenCalledWith(WEBSOCKET_CONFIG.URL);
       expect(client.isConnected()).toBe(true); // Connecting counts as connected
     });
 
@@ -60,24 +67,21 @@ describe('LiveClientWS', () => {
       
       client.connect();
       
-      // Fast-forward timers to trigger mock open
-      vi.runAllTimers();
+      // Fast-forward timers to trigger mock open (advance by small amount to avoid infinite loops)
+      vi.advanceTimersByTime(10);
       
       expect(onOpenSpy).toHaveBeenCalled();
       expect(client.getConnectionState()).toBe('open');
     });
 
     it('should reconnect on unexpected close', () => {
+      const initialCallCount = WebSocketMockFactory.mock.calls.length;
       client.connect();
-      vi.runAllTimers(); // Open connection
+      vi.advanceTimersByTime(10); // Open connection
       
       // Simulate unexpected close
-      // Access private socket through casting or public methods if available
-      // For testing, we can simulate the onClose behavior directly via private method exposure or event triggering
-      // Since we can't access private methods easily, we'll simulate the effect by mocking the socket instance behavior
-      
-      // More reliable approach: Use the fact that we mocked WebSocket globally
-      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const mockWsInstance = mockWebSocketInstances[0];
+      if (!mockWsInstance) throw new Error('Mock WebSocket instance not found');
       mockWsInstance.onclose({ code: 1006, reason: 'Abnormal Closure' });
       
       // Should schedule reconnect
@@ -85,33 +89,33 @@ describe('LiveClientWS', () => {
       
       // Reconnect timer should be active (check implicitly via timer advancement)
       // We expect a new WebSocket connection after delay
-      const connectSpy = vi.spyOn(global, 'WebSocket');
-      vi.runAllTimers(); // Advance past reconnect delay
+      vi.advanceTimersByTime(WEBSOCKET_CONFIG.RECONNECT_DELAY + 100); // Advance past reconnect delay
       
       // Should have tried to connect again (total 2 calls: initial + reconnect)
-      expect(connectSpy).toHaveBeenCalledTimes(2);
+      expect(WebSocketMockFactory).toHaveBeenCalledTimes(initialCallCount + 2);
     });
 
     it('should NOT reconnect on manual disconnect', () => {
+      const initialCallCount = WebSocketMockFactory.mock.calls.length;
       client.connect();
-      vi.runAllTimers();
+      vi.advanceTimersByTime(10);
       
       client.disconnect();
-      const connectSpy = vi.spyOn(global, 'WebSocket');
       
-      vi.runAllTimers();
+      vi.advanceTimersByTime(WEBSOCKET_CONFIG.RECONNECT_DELAY + 100);
       
       // Should not have tried to connect again
-      expect(connectSpy).toHaveBeenCalledTimes(1); // Only initial connection
+      expect(WebSocketMockFactory).toHaveBeenCalledTimes(initialCallCount + 1); // Only initial connection
     });
   });
 
   describe('Messaging', () => {
     it('should send text message', () => {
       client.connect();
-      vi.runAllTimers();
+      vi.advanceTimersByTime(10);
       
-      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const mockWsInstance = mockWebSocketInstances[0];
+      if (!mockWsInstance) throw new Error('Mock WebSocket instance not found');
       client.sendText('Hello');
       
       expect(mockWsInstance.send).toHaveBeenCalledWith(expect.stringContaining('REALTIME_INPUT'));
@@ -120,9 +124,10 @@ describe('LiveClientWS', () => {
 
     it('should route received events', () => {
       client.connect();
-      vi.runAllTimers();
+      vi.advanceTimersByTime(10);
       
-      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const mockWsInstance = mockWebSocketInstances[0];
+      if (!mockWsInstance) throw new Error('Mock WebSocket instance not found');
       const onTextSpy = vi.fn();
       client.on('text', onTextSpy);
       
@@ -139,9 +144,10 @@ describe('LiveClientWS', () => {
 
     it('should handle session_started event', () => {
       client.connect();
-      vi.runAllTimers();
+      vi.advanceTimersByTime(10);
       
-      const mockWsInstance = (WebSocket as any).mock.results[0].value;
+      const mockWsInstance = mockWebSocketInstances[0];
+      if (!mockWsInstance) throw new Error('Mock WebSocket instance not found');
       const onSessionStartedSpy = vi.fn();
       client.on('session_started', onSessionStartedSpy);
       
@@ -162,9 +168,10 @@ describe('LiveClientWS', () => {
   describe('Heartbeat', () => {
     it('should send ping at interval', () => {
         client.connect();
-        vi.runAllTimers();
+        vi.advanceTimersByTime(10);
         
-        const mockWsInstance = (WebSocket as any).mock.results[0].value;
+        const mockWsInstance = mockWebSocketInstances[0];
+        if (!mockWsInstance) throw new Error('Mock WebSocket instance not found');
         mockWsInstance.send.mockClear();
         
         // Advance time by heartbeat interval
@@ -175,9 +182,10 @@ describe('LiveClientWS', () => {
     
     it('should emit heartbeat event on receiving heartbeat', () => {
         client.connect();
-        vi.runAllTimers();
+        vi.advanceTimersByTime(10);
         
-        const mockWsInstance = (WebSocket as any).mock.results[0].value;
+        const mockWsInstance = mockWebSocketInstances[0];
+        if (!mockWsInstance) throw new Error('Mock WebSocket instance not found');
         const onHeartbeatSpy = vi.fn();
         client.on('heartbeat', onHeartbeatSpy);
         

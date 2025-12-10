@@ -607,6 +607,10 @@ export class LiveClientWS {
         if (!msg.payload) return
         this.sessionActive = true
         this.lastSessionStartedPayload = msg.payload
+        // Set connectionId if provided in session_started payload
+        if (msg.payload.connectionId) {
+          this.connectionId = msg.payload.connectionId
+        }
         logger.debug('[LIVE_CLIENT] session_started event received', {
           connectionId: msg.payload.connectionId,
           languageCode: msg.payload.languageCode,
