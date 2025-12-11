@@ -1029,7 +1029,7 @@ export const App: React.FC = () => {
                         className="mr-2 p-2 rounded-full hover:bg-white/20 transition-colors group/home"
                         title="Back to Home"
                     >
-                        <span className={`font-bold tracking-tighter text-lg transition-colors ${isDarkMode ? 'text-white group-hover/home:text-orange-400' : 'text-black group-hover/home:text-orange-700'}`}>F.B/c</span>
+                        <span className={`font-matrix font-bold tracking-tighter text-lg transition-colors ${isDarkMode ? 'text-white group-hover/home:text-orange-400' : 'text-black group-hover/home:text-orange-700'}`}>F.B/c</span>
                     </button>
 
                     {/* System Status Pill */}

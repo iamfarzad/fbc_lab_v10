@@ -5,6 +5,7 @@ import { isAdmin } from '../utils/permissions.js'
 import { VOICE_CONFIG } from 'src/config/constants.js'
 import { LIVE_FUNCTION_DECLARATIONS, ADMIN_LIVE_FUNCTION_DECLARATIONS } from 'src/config/live-tools.js'
 import type { FunnelStage } from 'src/core/types/funnel-stage.js'
+import { generateIdentityGuardrailInstructions } from 'src/core/agents/utils/context-briefing.js'
 
 export interface LocationData {
   latitude: number
@@ -236,6 +237,9 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
     const { generateSalesConstraintInstructions } = await import('../../src/core/agents/utils/context-briefing.js')
     contextBlockParts.push(generateSalesConstraintInstructions())
   }
+
+  // Identity guardrails (applies to all sessions)
+  contextBlockParts.push(generateIdentityGuardrailInstructions())
 
   // Add conversation flow and session identifiers to context block
   if (conversationFlow && Object.keys(conversationFlow).length > 0) {

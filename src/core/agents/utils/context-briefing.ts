@@ -113,16 +113,19 @@ export function generateSystemPromptSupplement(ctx: IntelligenceContext | undefi
 - Be helpful and educational.`
   }
 
+  const identityGuardrails = generateIdentityGuardrailInstructions(ctx)
+
   // Include facts if available
   const factsContext = ctx.facts && ctx.facts.length > 0 
-    ? `\n\n📝 SEMANTIC MEMORY (From previous conversations):\n${ctx.facts.map((f, i) => `${i + 1}. ${f}`).join('\n')}\n\nUse these facts naturally - they represent permanent constraints, preferences, or context about this user.`
+    ? `\n\n📝 SEMANTIC MEMORY (From previous conversations):\n${ctx.facts.map((f, i) => `${i + 1}. ${f}`).join('\n')}\n\nUse these facts only AFTER the user confirms name/company/role. If the user corrects anything, discard conflicting facts immediately.`
     : ''
 
   return `
 === 🎯 LIVE STRATEGIC CONTEXT ===
 User Authority: ${authorityLevel} (Adjust deference accordingly).
 Company: ${companyName} (${ctx.company?.size || 'Unknown size'}).
-${specificInstructions}${factsContext}
+${specificInstructions}
+${identityGuardrails}${factsContext}
 =================================
 `
 }
@@ -136,7 +139,7 @@ function generateFactsContext(facts: string[]): string {
 From previous conversations with this user:
 ${facts.map((f, i) => `${i + 1}. ${f}`).join('\n')}
 
-Use these facts naturally - they represent permanent constraints, preferences, or context.
+Use these facts ONLY after the user confirms name/company/role. If they correct anything, discard the conflicting facts.
 ==========================
 `
 }
@@ -163,6 +166,35 @@ ACTIVE INVESTIGATION PATTERNS:
 - Digitizer Pattern: User says "I sketched it out" or "I have it on paper" → capture_webcam_snapshot({ focus_prompt: "Convert the hand-drawn flowchart into a text list of steps" })
 
 Remember: Without focus_prompt, tools return cached summaries. With focus_prompt, you get fresh targeted analysis.
+`
+}
+
+/**
+ * Identity and personalization guardrails
+ * - Prevents hallucinated name/company/role
+ * - Requires explicit confirmation before using stored facts or external research
+ */
+export function generateIdentityGuardrailInstructions(ctx?: IntelligenceContext): string {
+  const hasFacts = !!ctx?.facts?.length
+  const hasName = !!(ctx?.person && ((ctx.person as any).name || ctx.person.fullName))
+  const hasCompany = !!ctx?.company?.name
+
+  const needsConfirm = !hasName || !hasCompany || hasFacts
+
+  if (!needsConfirm) return `
+🛑 IDENTITY GUARDRAILS:
+- Do NOT guess company/role. If unsure, ask for confirmation before referencing identity details.
+- Only run external research if the user asks for it or gives permission.
+- If the user corrects anything, acknowledge, discard conflicting facts, and continue with the updated info.
+`
+
+  return `
+🛑 IDENTITY GUARDRAILS:
+- First, confirm identity: "Can you confirm your name, company, and role so I don't mix you up?"
+- Do NOT assume prior facts are correct. If the user says anything conflicts, discard the old fact immediately.
+- Do NOT invent company/round/industry details. Only cite what the user provided or explicitly approved.
+- Only run external research if the user asks for it or gives permission; otherwise, stay within provided info.
+- After correction, restate the updated identity briefly to show you've reset context.
 `
 }
 

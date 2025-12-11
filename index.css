@@ -1,11 +1,11 @@
 @import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=DotGothic16&display=swap");
+@import url("https://fonts.cdnfonts.com/css/dot-matrix");
 
 /* Custom CSS Variables - True Dark System */
 :root {
 	--font-sans: "Inter", system-ui, -apple-system, sans-serif;
 	--font-mono: "JetBrains Mono", monospace;
-	--font-matrix: "DotGothic16", "JetBrains Mono", monospace;
+	--font-matrix: "Dot Matrix", "JetBrains Mono", monospace;
 
 	/* True Dark Palette */
 	--bg-dark: #000000;
