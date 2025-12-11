@@ -57,15 +57,40 @@ export async function routeToAgent(params: {
 
   const lastMessage = messages[messages.length - 1]?.content || ''
 
-  // Generate system prompt supplement from intelligence context
+  // #region agent log
+  void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'debug-session',
+      runId: 'initial',
+      hypothesisId: 'H1',
+      location: 'src/core/agents/orchestrator.ts:60',
+      message: 'routeToAgent entry',
+      data: {
+        stage: currentStage,
+        trigger: trigger || 'none',
+        lastMsgLen: lastMessage.length,
+        hasIntel: !!intelligenceContext
+      },
+      timestamp: Date.now()
+    })
+  }).catch(() => {})
+  // #endregion
+
+  // Will be set after correction detection
+  let correctedIntelligenceContext: typeof intelligenceContext = intelligenceContext
+
+  // Generate system prompt supplement from intelligence context (will be updated if corrections detected)
   const systemPromptSupplement = generateSystemPromptSupplement(intelligenceContext)
 
   // Helper function to add briefing to context
+  // Note: correctedIntelligenceContext is set after correction detection
   const addBriefingToContext = (baseContext: Partial<AgentContext>): AgentContext => ({
     ...baseContext,
     systemPromptSupplement,
     sessionId: baseContext.sessionId || sessionId,
-    intelligenceContext: baseContext.intelligenceContext || intelligenceContext,
+    intelligenceContext: baseContext.intelligenceContext || (correctedIntelligenceContext || intelligenceContext),
     multimodalContext: baseContext.multimodalContext || multimodalContext,
     conversationFlow: baseContext.conversationFlow || conversationFlow
   } as AgentContext)
@@ -101,6 +126,140 @@ export async function routeToAgent(params: {
       conversationSummary: conversationFlow?.summary || 'No summary available',
       scenario: 'no_booking_low_score' // Default scenario, ideally passed in trigger metadata
     })
+  }
+
+  // === EXIT INTENT DETECTION (before correction/objection) ===
+  if (lastMessage) {
+    try {
+      const { detectExitIntent } = await import('../../lib/exit-detection.js')
+      const exitIntent = detectExitIntent(lastMessage)
+      
+      if (exitIntent === 'WRAP_UP' || exitIntent === 'FRUSTRATION') {
+        logger.info('[Orchestrator] Exit intent detected', { exitIntent, sessionId })
+        return summaryAgent(messages, addBriefingToContext({
+          intelligenceContext: correctedIntelligenceContext,
+          multimodalContext,
+          sessionId,
+          conversationFlow
+        }))
+      }
+    } catch (err) {
+      logger.warn('[Orchestrator] Exit intent detection failed', {
+        error: err instanceof Error ? err.message : String(err)
+      })
+    }
+  }
+
+  // === CORRECTION DETECTION (before objection, update context immediately) ===
+  if (lastMessage && intelligenceContext) {
+    try {
+      const { detectAndExtractCorrections, applyCorrectionsToContext } = await import('./utils/detect-corrections.js')
+      const corrections = await detectAndExtractCorrections(lastMessage, intelligenceContext)
+      
+      // #region agent log
+      void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'initial',
+          hypothesisId: 'H2',
+          location: 'src/core/agents/orchestrator.ts:137',
+          message: 'correction detection result',
+          data: {
+            hasCorrections: !!corrections,
+            confidence: corrections?.confidence ?? 0,
+            correctedName: corrections?.name || null,
+            correctedCompany: corrections?.company?.name || null,
+            correctedRole: corrections?.role || corrections?.person?.role || null
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
+
+      if (corrections && corrections.confidence >= 0.3) {
+        logger.info('[Orchestrator] User correction detected', {
+          sessionId,
+          corrections: {
+            name: corrections.name,
+            company: corrections.company?.name,
+            role: corrections.role
+          },
+          confidence: corrections.confidence
+        })
+        
+        // Apply corrections to context
+        correctedIntelligenceContext = applyCorrectionsToContext(intelligenceContext, corrections)
+        
+        // #region agent log
+        void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: 'debug-session',
+            runId: 'initial',
+            hypothesisId: 'H3',
+            location: 'src/core/agents/orchestrator.ts:151',
+            message: 'context after correction applied',
+            data: {
+              name: correctedIntelligenceContext?.name || null,
+              company: correctedIntelligenceContext?.company?.name || null,
+              role: correctedIntelligenceContext?.role || correctedIntelligenceContext?.person?.role || null
+            },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+
+        // Persist corrected context immediately (non-blocking)
+        if (sessionId && sessionId !== 'anonymous') {
+          try {
+            const { ContextStorage } = await import('../context/context-storage.js')
+            const storage = new ContextStorage()
+            await storage.updateWithVersionCheck(
+              sessionId,
+              {
+                intelligence_context: correctedIntelligenceContext as any,
+                name: correctedIntelligenceContext.name,
+                role: correctedIntelligenceContext.role || correctedIntelligenceContext.person?.role,
+              },
+              { attempts: 1, backoff: 0 }
+            )
+            logger.debug('[Orchestrator] Corrected intelligence context persisted', { sessionId })
+            // #region agent log
+            void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId: 'debug-session',
+                runId: 'initial',
+                hypothesisId: 'H4',
+                location: 'src/core/agents/orchestrator.ts:165',
+                message: 'context persisted',
+                data: { sessionId },
+                timestamp: Date.now()
+              })
+            }).catch(() => {})
+            // #endregion
+          } catch (persistErr) {
+            logger.warn('[Orchestrator] Failed to persist corrected context', {
+              error: persistErr instanceof Error ? persistErr.message : String(persistErr),
+              sessionId
+            })
+          }
+        }
+        
+        // Update the context used for this request (reassign the variable)
+        // Note: We can't reassign the const parameter, so we update correctedIntelligenceContext
+        // and use it in addBriefingToContext
+      }
+    } catch (err) {
+      // Non-fatal - continue with normal routing
+      logger.warn('[Orchestrator] Correction detection failed, continuing with normal routing', {
+        error: err instanceof Error ? err.message : String(err)
+      })
+    }
   }
 
   // === OBJECTION OVERRIDE (highest priority) ===
@@ -253,7 +412,7 @@ export async function routeToAgent(params: {
   try {
     await agentPersistence.persistAgentResult(sessionId, validated, {
       sessionId,
-      intelligenceContext,
+      intelligenceContext: correctedIntelligenceContext, // Use corrected context
       multimodalContext,
       conversationFlow
     })

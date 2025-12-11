@@ -83,7 +83,44 @@ export interface LocationData {
 
 export class LeadResearchService {
   // Cached research function
-  private cachedResearch: (email: string, name?: string, companyUrl?: string, sessionId?: string, location?: LocationData, options?: { contents?: any[] }) => Promise<ResearchResult>
+  private cachedResearch: (
+    email: string,
+    name?: string,
+    companyUrl?: string,
+    sessionId?: string,
+    location?: LocationData,
+    options?: { contents?: any[]; linkedInUrl?: string; forceFresh?: boolean }
+  ) => Promise<ResearchResult>
+
+  /**
+   * Build region-aware queries to probe location, registry, and LinkedIn anchors.
+   * Implements the "Probe then Drill" geolocation loop.
+   */
+  private buildStrategicQueries(name: string, company: string, email: string): string[] {
+    const tld = email.split('.').pop()?.toLowerCase()
+
+    let regionContext = ''
+    let registryTerm = 'business registry'
+
+    if (tld === 'ae') {
+      regionContext = 'Dubai UAE'
+      registryTerm = 'DIFC OR DED license'
+    } else if (tld === 'no') {
+      regionContext = 'Norway Oslo'
+      registryTerm = 'brreg proff.no'
+    } else if (tld === 'uk') {
+      regionContext = 'London UK'
+      registryTerm = 'Companies House'
+    }
+
+    return [
+      `"${name}" "${company}" site:linkedin.com`,
+      regionContext
+        ? `"${company}" ${regionContext} ${registryTerm}`
+        : `"${company}" headquarters location`,
+      `"${company}" ${name} AI technology consulting services`
+    ]
+  }
 
   constructor() {
     // Wrap the internal method with caching (24 hour TTL)
@@ -112,14 +149,14 @@ export class LeadResearchService {
     companyUrl?: string,
     sessionId?: string,
     location?: LocationData,
-    options?: { contents?: any[] }
+    options?: { contents?: any[]; linkedInUrl?: string; forceFresh?: boolean }
   ): Promise<ResearchResult> {
     // Client-side Caching (localStorage)
     // This preserves the behavior from the old service for browser environments
     const cacheKey = `lead_research_${email}_${name || ''}_${location?.city || ''}`
     
     let clientCacheHit = false
-    if (typeof window !== 'undefined') {
+    if (!options?.forceFresh && typeof window !== 'undefined') {
         const cached = localStorage.getItem(cacheKey)
         if (cached) {
             logger.debug('[LeadResearch] Client cache hit', { email })
@@ -143,7 +180,12 @@ export class LeadResearchService {
     let serverCacheHit = false
     const startTime = Date.now()
     try {
-      result = await this.cachedResearch(email, name, companyUrl, sessionId, location, options)
+      if (options?.forceFresh) {
+        logger.debug('[LeadResearch] Force fresh research, bypassing cache', { email, sessionId })
+        result = await this.researchLeadInternal(email, name, companyUrl, sessionId, location, options)
+      } else {
+        result = await this.cachedResearch(email, name, companyUrl, sessionId, location, options)
+      }
       // If result came back very quickly (< 100ms), likely from server cache
       // This is a heuristic since we can't directly detect cache hits from the wrapper
       const duration = Date.now() - startTime
@@ -178,7 +220,7 @@ export class LeadResearchService {
     companyUrl?: string,
     sessionId?: string,
     location?: LocationData,
-    options?: { contents?: any[] }
+    options?: { contents?: any[]; linkedInUrl?: string; forceFresh?: boolean }
   ): Promise<ResearchResult> {
     void sessionId
 
@@ -241,6 +283,13 @@ export class LeadResearchService {
         }
       }
       
+      const linkedInUrl = options?.linkedInUrl || (companyUrl?.includes('linkedin.com') ? companyUrl : undefined)
+      const strategicQueries = this.buildStrategicQueries(
+        name || emailPrefix,
+        companyNameFromDomain || domain,
+        email
+      )
+
       // Build location context for prompt
       const locationContext = location 
         ? `User Location: ${location.city || 'Unknown city'}, ${location.country || 'Unknown country'} (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`
@@ -255,7 +304,13 @@ Email: ${email}
 Name: ${name || 'Unknown'}
 Domain: ${domain}
 Company URL: ${companyUrl || 'Use email domain to find company website'}
+${linkedInUrl ? `LinkedIn URL: ${linkedInUrl} (USE THIS AS PRIMARY PROFILE - verify current role/dates)` : ''}
 ${locationContext ? `${locationContext}` : ''}
+
+STRATEGIC QUERIES (Probe then Drill):
+- Q1 (LinkedIn Anchor): ${strategicQueries[0]}
+- Q2 (Registry / HQ): ${strategicQueries[1]}
+- Q3 (Context Clue): ${strategicQueries[2]}
 
 CRITICAL RESEARCH TASKS:
 1) LinkedIn Profile Discovery (SMART MATCHING):
@@ -267,14 +322,21 @@ CRITICAL RESEARCH TASKS:
      * "email:${email} LinkedIn" (if email format known)
      * "${firstName || emailPrefix} ${domain} LinkedIn" (first name + company domain)
    - VERIFICATION: When multiple profiles found, prioritize:
-     1. Profile where current company matches domain "${domain}" or company name "${companyNameFromDomain}"
-     2. Profile where email domain "${domain}" matches the profile's company domain
+     1. Profile where CURRENT (not past) company matches domain "${domain}" or company name "${companyNameFromDomain}"
+     2. Profile where email domain "${domain}" matches the profile's CURRENT company domain
      3. Profile where email prefix "${emailPrefix}" matches name pattern (e.g., first.last, firstlast)
      4. Profile with most matching details (name, location, role)
      5. Profile with highest activity/connections (more likely to be current)
-   - Extract: current role, company, seniority level, experience, education, skills
+   - CRITICAL: Check employment dates on LinkedIn profile
+     * Look for "Present" or recent end dates (within last 2 years) for current positions
+     * IGNORE positions that ended more than 2 years ago unless explicitly marked as current
+     * If profile shows "${companyNameFromDomain || domain}" in "Experience" section, check the date range
+     * Only use company/role if it's marked as CURRENT or has end date in 2024-2025
+     * If profile shows old positions (e.g., ended in 2016, 2017, etc.), those are PAST companies, not current
+   - Extract: CURRENT role (not past), company, seniority level, experience, education, skills
    - Look for: mutual connections, recommendations, posts, articles, certifications
-   - CRITICAL: Verify it's the right person by cross-referencing email domain with profile company
+   - CRITICAL: Verify it's the right person by cross-referencing email domain with profile's CURRENT company
+   - CRITICAL: If LinkedIn shows "${companyNameFromDomain || domain}" but with end date before 2023, that's a PAST company - do NOT use it as current
 
 2) Company Deep Dive${companyUrl ? ` (URL provided: ${companyUrl})` : ` (find website from domain ${domain})`}:
    ${companyUrl ? `- CRITICAL: The company URL ${companyUrl} is provided - analyze it deeply using URL context
@@ -341,10 +403,18 @@ CRITICAL RESEARCH TASKS:
 - For LinkedIn: Use ALL name variations (${nameVariations.length > 0 ? nameVariations.join(', ') : name || emailPrefix}) and match with email domain for verification
   * Try: "name + ${companyNameFromDomain || domain.split('.')[0]} + LinkedIn", "name + ${domain} + LinkedIn", "site:linkedin.com/in name ${companyNameFromDomain || domain.split('.')[0]}"
   * CRITICAL: Verify profile matches email domain "${domain}" - if profile shows different company, it's likely wrong
+  * CRITICAL: Check employment dates - only use CURRENT positions (marked "Present" or ended in 2024-2025)
+  * CRITICAL: IGNORE past positions - if "${companyNameFromDomain || domain}" appears with end date before 2023, it's a PAST company, not current
+  * If LinkedIn URL is provided (${linkedInUrl || 'none'}), treat it as primary and extract current role/company from it
   * If multiple profiles found, prioritize:
-    1. Profile where current company matches "${domain}" or "${companyNameFromDomain}"
+    1. Profile where CURRENT company (not past) matches "${domain}" or "${companyNameFromDomain}"
     2. Profile where email prefix "${emailPrefix}" matches name pattern
     3. Profile with most matching details
+    4. Profile with most recent activity/updates (indicates current status)
+- LOCATION-FIRST SYNTHESIS:
+  1) Identify location from snippets: city/country (e.g., Dubai, Oslo, NY)
+  2) Resolve ambiguity: if company name is generic, match by location + role
+  3) Extract specific industry (e.g., "Media Production" vs "Event Planning")
 - For company URL: Deeply analyze the website content (URL analysis provided below if available)
   * Check "Team" or "About Us" pages for person's profile
   * Look for email format patterns (first.last@domain, etc.) to verify identity
@@ -357,9 +427,17 @@ CRITICAL RESEARCH TASKS:
 - SMART MATCHING: Always verify person identity by matching:
   1. Name variations with email domain company
   2. Email prefix patterns with name
-  3. Company domain with profile company
+  3. Company domain with profile's CURRENT company (check employment dates!)
   4. Location consistency across sources
+- EMPLOYMENT DATE VERIFICATION (CRITICAL):
+  * When extracting company/role from LinkedIn, ALWAYS check the employment date range
+  * Only use positions marked as "Present" or with end dates in 2024-2025
+  * If a company appears with end date before 2023, it's a PAST position - do NOT use as current company
+  * If profile shows "${companyNameFromDomain || domain}" ended in 2016, 2017, etc., that's historical data, not current
+  * Look for the most recent position in the Experience section
+  * If unsure about dates, prioritize profiles with recent activity (posts, updates in last 6 months)
 - If information conflicts, note uncertainty but provide best assessment
+- If LinkedIn shows old employment (ended years ago), search for more recent information or note that current company is unknown
 - Build the STRONGEST possible profile - don't settle for surface-level data
 - Return structured data matching the schema exactly with maximum detail
 - Include profileUrl (LinkedIn URL) if found - this is critical for verification`
@@ -384,9 +462,33 @@ CRITICAL RESEARCH TASKS:
       }
 
       // Enhance prompt with URL analysis if available
+      const synthesisPrompt = `
+You are analyzing search results for a potential lead.
+
+INPUTS:
+Name: ${name || emailPrefix}
+Company: ${companyNameFromDomain || domain}
+
+TASK:
+1. Identify Location First: Look for city/country in snippets (Dubai, Oslo, NY, etc.).
+2. Resolve Ambiguity:
+   - If company name is generic (e.g., "Eve"), use location + role context to disambiguate.
+   - If multiple matches, prefer the one aligning with LinkedIn anchor and registry/location signals.
+3. Extract Industry: Be specific (e.g., "Media Production" vs "Event Planning").
+
+OUTPUT JSON:
+{
+  "location": "City, Country",
+  "industry": "Specific Industry",
+  "confidence": 0-100
+}`
+
       let enhancedPrompt = `${contextBlock}
 
-${instructionBlock}`
+${instructionBlock}
+
+LOCATION/INDUSTRY SYNTHESIS:
+${synthesisPrompt}`
       
       if (urlAnalysis) {
         enhancedPrompt += `\n\nCOMPANY WEBSITE ANALYSIS (from ${companyUrl}):

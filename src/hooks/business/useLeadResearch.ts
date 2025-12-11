@@ -105,12 +105,17 @@ export function useLeadResearch({
         setIsResearching(true);
 
         try {
+            const linkedInOverride = companyUrl && companyUrl.includes('linkedin.com') ? companyUrl : undefined;
             const result = await services.researchServiceRef.current.researchLead(
-                email, 
-                name, 
+                email,
+                name,
                 companyUrl,
                 undefined, // sessionId
-                locationData || undefined // Pass location data when available
+                locationData || undefined, // Pass location data when available
+                {
+                    forceFresh: true, // always bypass stale cache for correctness
+                    ...(linkedInOverride ? { linkedInUrl: linkedInOverride } : {})
+                }
             );
             researchResultRef.current = result;
 
@@ -307,6 +312,7 @@ export function useLeadResearch({
         setShowTerms,
         locationData,
         isResearching,
+        setIsResearching, // Expose setter for Glass Box UI (reasoning events)
         researchResultRef,
         intelligenceContextRef,
         performBackgroundResearch,

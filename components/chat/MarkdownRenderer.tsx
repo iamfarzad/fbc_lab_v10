@@ -19,14 +19,14 @@ const formatInline = (text: string, isDarkMode: boolean = false, depth: number =
     if (depth > 10) return [text];
     
     const codeParts = text.split(/(`.*?`)/g);
-    return codeParts.flatMap((part, i) => {
+    return codeParts.flatMap<React.ReactNode>((part, i) => {
         if (part.startsWith('`') && part.endsWith('`')) {
             return <code key={i} className="bg-black/5 px-1 py-0.5 rounded text-xs font-mono">{part.slice(1,-1)}</code>;
         }
         
         // First, handle markdown links [text](url)
         const linkParts = part.split(/(\[[^\]]+\]\([^)]+\))/g);
-        const processedParts = linkParts.flatMap((subPart, j) => {
+        const processedParts: React.ReactNode[] = linkParts.flatMap<React.ReactNode>((subPart, j) => {
             const linkMatch = subPart.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
             if (linkMatch) {
                 // Check if it's a cal.com URL

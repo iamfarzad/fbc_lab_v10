@@ -99,7 +99,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             {/* Welcome Text */}
             <div className="text-center space-y-2">
               <h1 className="text-3xl font-semibold text-gray-900">
-                Welcome to F.B/c
+                Welcome to <span className="font-matrix">F.B/c</span>
               </h1>
               <p className="text-gray-500">
                 Your AI consulting assistant

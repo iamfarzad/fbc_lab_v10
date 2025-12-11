@@ -200,7 +200,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
             >
                 <div className="
                     w-full
-                    bg-white dark:bg-zinc-950 md:bg-white/80 md:dark:bg-zinc-950/80
+                    bg-white dark:bg-black
                     backdrop-blur-xl border-t border-white/20 dark:border-white/10
                     p-4 pb-[env(safe-area-inset-bottom,24px)] md:pb-6
                     md:rounded-b-[32px]
@@ -222,12 +222,12 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                     setShowUpload(false);
                                 }}
                                 maxFiles={1}
-                                className="bg-gray-50/50 dark:bg-white/5 backdrop-blur-sm"
+                                className="bg-gray-50/50 dark:bg-black backdrop-blur-sm"
                             />
                         </div>
                     )}
 
-                    <div className="relative flex flex-col gap-2 bg-gray-50/80 dark:bg-white/5 backdrop-blur-xl border border-gray-100 dark:border-white/10 p-2 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] ring-1 ring-black/5 dark:ring-white/5 transition-all focus-within:ring-black/10 dark:focus-within:ring-white/20 focus-within:bg-white dark:focus-within:bg-black/40">
+                    <div className="relative flex flex-col gap-2 bg-gray-50/80 dark:bg-black backdrop-blur-xl border border-gray-100 dark:border-white/10 p-2 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] ring-1 ring-black/5 dark:ring-white/5 transition-all focus-within:ring-black/10 dark:focus-within:ring-white/20 focus-within:bg-white dark:focus-within:bg-black">
                         
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf,text/plain,text/csv,application/json" onChange={handleFileSelect} />
 
@@ -388,7 +388,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
             >
                 <div className="flex items-center gap-3 w-full max-w-[500px] mx-auto">
                     
-                    <div className="flex-1 h-[60px] bg-white/90 dark:bg-zinc-950/90 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/5 dark:ring-white/5 flex items-center p-1.5 gap-2 transition-transform hover:scale-[1.01]">
+                    <div className="flex-1 h-[60px] bg-white/90 dark:bg-black backdrop-blur-2xl border border-white/25 dark:border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/5 dark:ring-white/5 flex items-center p-1.5 gap-2 transition-transform hover:scale-[1.01]">
                         
                         <Tooltip text={isWebcamActive ? "Close Camera" : "Open Camera"}>
                             <button 

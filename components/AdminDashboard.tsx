@@ -134,7 +134,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchServic
       <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-xl ${isDarkMode ? 'bg-black/90' : 'bg-gray-50/90'}`}>
         <div className={`w-full max-w-sm p-8 rounded-3xl shadow-2xl border animate-fade-in-up ${isDarkMode ? 'bg-black border-white/10' : 'bg-white border-white/40'}`}>
           <div className="flex flex-col items-center gap-4 mb-8">
-             <div className={`w-12 h-12 flex items-center justify-center rounded-xl font-bold font-mono text-sm shadow-lg ${isDarkMode ? 'bg-white text-black' : 'bg-black text-white'}`}>FB</div>
+             <div className={`w-12 h-12 flex items-center justify-center rounded-xl font-bold font-matrix text-sm shadow-lg ${isDarkMode ? 'bg-white text-black' : 'bg-black text-white'}`}>FB</div>
              <div className="text-center">
                 <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Admin Console</h2>
                 <p className={`text-xs font-mono uppercase tracking-wider mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Authorized Personnel Only</p>
@@ -173,8 +173,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, researchServic
        {/* Top Bar */}
        <header className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode ? 'bg-black/40 border-white/10' : 'bg-white/40 border-gray-200'}`}>
            <div className="flex items-center gap-3">
-               <div className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold font-mono text-xs ${isDarkMode ? 'bg-white text-black' : 'bg-black text-white'}`}>FB</div>
-               <span className="font-semibold tracking-tight">F.B/c Admin</span>
+               <div className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold font-matrix text-xs ${isDarkMode ? 'bg-white text-black' : 'bg-black text-white'}`}>FB</div>
+               <span className="font-matrix font-semibold tracking-tight">F.B/c Admin</span>
                <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase border ${isDarkMode ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-orange-50 text-orange-700 border-orange-200'}`}>System Online</span>
            </div>
            <button onClick={onClose} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>

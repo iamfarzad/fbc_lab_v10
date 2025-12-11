@@ -12,7 +12,6 @@ import { ResponseTimeBadge } from './chat/MessageMetadata';
 import WebcamPreview from './chat/WebcamPreview';
 import ScreenSharePreview from './chat/ScreenSharePreview';
 import IconButton from './chat/shared/IconButton';
-import { ResearchingIndicator } from './chat/ResearchingIndicator';
 
 interface MultimodalChatProps {
   items: TranscriptItem[];
@@ -40,6 +39,7 @@ interface MultimodalChatProps {
   onGenerateDiscoveryReport?: () => void;
   onDownloadDiscoveryReport?: () => void;
   onEmailDiscoveryReport?: () => void;
+  onGenerateExecutiveMemo?: () => void;
   userEmail?: string | undefined;
   userName?: string | undefined;
   activeTools?: ToolCall[];
@@ -50,6 +50,7 @@ interface MultimodalChatProps {
   screenShareError?: string | null;
   // Research
   isResearching?: boolean;
+  reasoning?: string;
 }
 
 const MultimodalChat: React.FC<MultimodalChatProps> = ({ 
@@ -76,6 +77,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     onGenerateDiscoveryReport,
     onDownloadDiscoveryReport,
     onEmailDiscoveryReport,
+    onGenerateExecutiveMemo,
     userEmail,
     activeTools = [],
     latency: _latency,
@@ -91,6 +93,17 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [showPDFMenu, setShowPDFMenu] = useState(false);
   const pdfMenuRef = useRef<HTMLDivElement>(null);
+  const emailButtonLabel = userEmail ? `Email PDF to ${userEmail.split('@')[0]}...` : 'Email PDF';
+  const handleEmailPdf = () => {
+      if (!onEmailPDF) return;
+      onEmailPDF();
+      setShowPDFMenu(false);
+  };
+  const handleGenerateExecutiveMemo = () => {
+      if (!onGenerateExecutiveMemo) return;
+      onGenerateExecutiveMemo();
+      setShowPDFMenu(false);
+  };
   
   // Camera State
   const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
@@ -318,8 +331,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
       <div 
         className={`
             relative flex flex-col w-full h-full md:h-[calc(100%-3rem)] md:m-6 md:rounded-[32px] overflow-hidden 
-            bg-white dark:bg-zinc-950 md:bg-white/40 md:dark:bg-zinc-950/40
-            backdrop-blur-xl border-none md:border md:border-white/40 dark:md:border-white/10 
+            bg-white dark:bg-black
+            backdrop-blur-xl border border-white/25 dark:border-white/10 md:border md:border-white/25 dark:md:border-white/10 
             md:shadow-2xl pointer-events-auto transition-colors duration-500
         `}
         onDragOver={handleDragOver}
@@ -361,7 +374,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
           {/* MOBILE DRAG HANDLE */}
           <div 
-             className="w-full flex justify-center pt-3 pb-2 md:hidden cursor-grab active:cursor-grabbing shrink-0 z-50 bg-white/50 dark:bg-black/50 backdrop-blur-md"
+             className="w-full flex justify-center pt-3 pb-2 md:hidden cursor-grab active:cursor-grabbing shrink-0 z-50 bg-white dark:bg-black backdrop-blur-md"
              onTouchStart={handleTouchStart}
              onTouchMove={handleTouchMove}
              onTouchEnd={handleTouchEnd}
@@ -370,10 +383,10 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
           </div>
 
           {/* CHAT HEADER */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 shrink-0 z-10 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-md gap-4">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10 shrink-0 z-10 bg-white dark:bg-black backdrop-blur-md gap-4">
               <div className="flex items-center gap-3 min-w-0">
                  {/* Connection Dot & Title */}
-                 <div className="flex items-center gap-2.5">
+                 <div className="flex items-center gap-2.5 whitespace-nowrap">
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-500 ${connectionState === LiveConnectionState.CONNECTED ? 'bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
                     <span className="text-sm font-semibold tracking-wide text-gray-800 dark:text-gray-100 font-mono">
                         F.B/c
@@ -446,14 +459,20 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                           )}
                           {onEmailPDF && (
                             <button
-                              onClick={() => {
-                                onEmailPDF();
-                                setShowPDFMenu(false);
-                              }}
+                              onClick={handleEmailPdf}
                               className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${isDarkMode ? 'text-white/80 hover:bg-white/10' : 'text-black/80 hover:bg-black/5'}`}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                              Email PDF{userEmail ? ` to ${userEmail.split('@')[0]}...` : ''}
+                              {emailButtonLabel}
+                            </button>
+                          )}
+                          {onGenerateExecutiveMemo && (
+                            <button
+                              onClick={handleGenerateExecutiveMemo}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors border-t ${isDarkMode ? 'text-white/80 hover:bg-white/10 border-white/5' : 'text-black/80 hover:bg-black/5 border-black/5'}`}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                              Executive Memo
                             </button>
                           )}
                         </div>
@@ -484,11 +503,6 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                 relative flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8 custom-scrollbar mask-image-gradient
                 ${items.length === 0 && !isResearching ? 'flex flex-col justify-center' : ''} 
             `}>
-            {isResearching && (
-              <div className="w-full mb-4">
-                <ResearchingIndicator isResearching={isResearching} />
-              </div>
-            )}
             {(() => {
               // Filter out empty messages (no text, attachment, reasoning, or error)
               // Only keep streaming messages if they have some content or are actively streaming
@@ -517,6 +531,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                       isDarkMode={isDarkMode}
                       agentMode={agentMode}
                       activeTools={activeTools}
+                      isResearching={isResearching}
                       onDownloadReport={onDownloadDiscoveryReport}
                       onEmailReport={onEmailDiscoveryReport}
                       onBookCall={() => window.open('https://cal.com/farzadbayat/30min', '_blank')}

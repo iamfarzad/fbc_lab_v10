@@ -192,6 +192,26 @@ export default async function handler(
                             finalIntelligenceContext = freshContext || undefined
                         }
                         
+                        // Load semantic memory (facts) for this lead
+                        if (finalIntelligenceContext?.email) {
+                            try {
+                                const { retrieveLeadFacts } = await import('../src/core/agents/utils/fact-extractor.js')
+                                const facts = await retrieveLeadFacts(finalIntelligenceContext.email)
+                                if (facts.length > 0) {
+                                    finalIntelligenceContext.facts = facts
+                                    logger.debug('[API /chat] Loaded semantic memory', { 
+                                        factCount: facts.length, 
+                                        email: finalIntelligenceContext.email 
+                                    })
+                                }
+                            } catch (factErr) {
+                                logger.warn('[API /chat] Failed to load facts', {
+                                    error: factErr instanceof Error ? factErr.message : String(factErr)
+                                })
+                                // Non-fatal - continue without facts
+                            }
+                        }
+                        
                         // Send status update when intelligence context is loaded
                         if (shouldStream && finalIntelligenceContext) {
                             res.write('data: {"type":"status","message":"Intelligence context loaded"}\n\n');
@@ -430,7 +450,7 @@ export default async function handler(
                                 ...metadata
                             })}\n\n`);
                         },
-                        onDone: (result: AgentResult) => {
+                        onDone: async (result: AgentResult) => {
                             logger.info('[API /chat] Stream complete', { 
                                 agent: result.agent,
                                 model: result.model,
@@ -446,6 +466,24 @@ export default async function handler(
                             })}\n\n`);
                             res.write('data: [DONE]\n\n');
                             res.end();
+                            
+                            // Semantic Memory: Extract facts after response (every 3-4 turns)
+                            if (validMessages.length > 0 && validMessages.length % 4 === 0 && finalIntelligenceContext?.email) {
+                                try {
+                                    const { extractKeyFacts, retrieveLeadFacts } = await import('../src/core/agents/utils/fact-extractor.js')
+                                    const existingFacts = await retrieveLeadFacts(finalIntelligenceContext.email)
+                                    await extractKeyFacts(
+                                        validMessages.map(m => ({ role: m.role, content: m.content || '' })),
+                                        existingFacts,
+                                        sessionId || 'anonymous',
+                                        finalIntelligenceContext.email
+                                    )
+                                } catch (factErr) {
+                                    logger.warn('[API /chat] Fact extraction failed (non-fatal)', {
+                                        error: factErr instanceof Error ? factErr.message : String(factErr)
+                                    })
+                                }
+                            }
                         },
                         onError: (error: Error) => {
                             res.write(`data: ${JSON.stringify({
@@ -490,6 +528,27 @@ export default async function handler(
                 trigger: trigger || 'chat',
                 conversationFlow // Pass flow context to orchestrator
             });
+
+            // Semantic Memory: Extract facts after response (every 3-4 turns)
+            if (validMessages.length > 0 && validMessages.length % 4 === 0 && finalIntelligenceContext?.email) {
+                // Run fact extraction in background (non-blocking)
+                void (async () => {
+                    try {
+                        const { extractKeyFacts, retrieveLeadFacts } = await import('../src/core/agents/utils/fact-extractor.js')
+                        const existingFacts = await retrieveLeadFacts(finalIntelligenceContext.email)
+                        await extractKeyFacts(
+                            validMessages.map(m => ({ role: m.role, content: m.content || '' })),
+                            existingFacts,
+                            sessionId || 'anonymous',
+                            finalIntelligenceContext.email
+                        )
+                    } catch (factErr) {
+                        logger.warn('[API /chat] Fact extraction failed (non-fatal)', {
+                            error: factErr instanceof Error ? factErr.message : String(factErr)
+                        })
+                    }
+                })()
+            }
 
             // Return agent response
             return res.status(200).json({

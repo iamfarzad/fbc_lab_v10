@@ -86,6 +86,8 @@ export interface IntelligenceContext {
   profile?: LeadProfile
   // Strategic Context for agent communication adaptation
   strategicContext?: AgentStrategicContext
+  // Semantic Memory: Cross-session facts about this lead
+  facts?: string[]
 }
 
 export interface MultimodalContextData {

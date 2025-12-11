@@ -79,6 +79,25 @@ export const App: React.FC = () => {
     // 4. UI State
     const [isChatVisible, setIsChatVisible] = useState(true);
     const { isDarkMode, toggleTheme } = useTheme();
+    
+    // Glass Box UI: Active tools and reasoning state
+    const [activeTools, setActiveTools] = useState<Array<{
+        id: string;
+        name: string;
+        status: 'pending' | 'running' | 'complete' | 'error';
+        startTime: number;
+        endTime?: number;
+        input?: Record<string, unknown>;
+        output?: unknown;
+        error?: string;
+    }>>([]);
+    const [currentReasoning, setCurrentReasoning] = useState<string>('');
+    const currentReasoningRef = useRef<string>('');
+    
+    // Keep ref in sync with state
+    useEffect(() => {
+        currentReasoningRef.current = currentReasoning;
+    }, [currentReasoning]);
 
     const [activeRoute, setActiveRoute] = useState<ModelRoute>({
         id: GEMINI_MODELS.DEFAULT_CHAT,
@@ -304,7 +323,8 @@ export const App: React.FC = () => {
         handleTermsComplete,
         handleStartChatRequest,
         performResearch,
-        isResearching
+        isResearching,
+        setIsResearching
     } = useLeadResearch({
         services: { standardChatRef, researchServiceRef, liveServiceRef },
         setTranscript,
@@ -456,6 +476,13 @@ export const App: React.FC = () => {
                 setBackendStatus({ mode: 'agents', message: 'Routing via Multi-Agent...', severity: 'info' });
 
                 const loadingId = Date.now() + 1;
+                // Set research state when starting a new message (will be cleared when done)
+                setIsResearching(true); // Show research UI immediately when agent starts responding
+                
+                // Clear Glass Box UI state for new message
+                setActiveTools([]);
+                setCurrentReasoning('');
+                
                 setTranscript(prev => [...prev, {
                     id: loadingId.toString(),
                     role: 'model',
@@ -517,9 +544,13 @@ export const App: React.FC = () => {
                             // Update transcript with accumulated text as it streams
                             if (!abortControllerRef.current || abortControllerRef.current.signal.aborted) return;
                             
+                            // Use ref to get latest reasoning (avoids stale closure)
+                            const reasoningSnapshot = currentReasoningRef.current;
+                            
                             setTranscript(prev => {
                                 const updated = [...prev];
                                 const loadingIndex = updated.findIndex(item => item.id === loadingId.toString());
+                                
                                 if (loadingIndex >= 0 && updated[loadingIndex]) {
                                     const existingItem = updated[loadingIndex];
                                     updated[loadingIndex] = {
@@ -530,7 +561,8 @@ export const App: React.FC = () => {
                                         isFinal: false,
                                         status: 'streaming',
                                         ...(existingItem.attachment && { attachment: existingItem.attachment }),
-                                        ...(existingItem.reasoning && { reasoning: existingItem.reasoning }),
+                                        // Include reasoning if we have it from metadata (use latest from ref)
+                                        ...(reasoningSnapshot && reasoningSnapshot.trim() && { reasoning: reasoningSnapshot }),
                                         ...(existingItem.processingTime && { processingTime: existingItem.processingTime }),
                                         ...(existingItem.error && { error: existingItem.error }),
                                         ...(existingItem.contextSources && { contextSources: existingItem.contextSources })
@@ -543,12 +575,112 @@ export const App: React.FC = () => {
                                         text: accumulatedText,
                                         timestamp: new Date(),
                                         isFinal: false,
-                                        status: 'streaming'
+                                        status: 'streaming',
+                                        ...(reasoningSnapshot && reasoningSnapshot.trim() && { reasoning: reasoningSnapshot })
                                     };
                                     updated.push(newItem);
                                 }
                                 return updated;
                             });
+                        },
+                        onMetadata: (metadata) => {
+                            // Glass Box UI: Handle streaming metadata (tool calls, reasoning, thinking)
+                            if (!abortControllerRef.current || abortControllerRef.current.signal.aborted) return;
+                            
+                            console.log('[App] onMetadata received', { 
+                                type: metadata.type, 
+                                hasToolCall: !!metadata.toolCall,
+                                hasReasoning: !!metadata.reasoning,
+                                hasMessage: !!metadata.message,
+                                metadata 
+                            });
+                            
+                            // Handle tool calls - check multiple possible structures
+                            const toolCall = metadata.toolCall || (metadata.type === 'tool_call' ? metadata : null);
+                            if (toolCall && (metadata.type === 'tool_call' || toolCall.name || toolCall.toolCallId)) {
+                                const toolName = toolCall.name || toolCall.toolName || 'unknown';
+                                const toolId = toolCall.id || toolCall.toolCallId || `tool-${Date.now()}`;
+                                const toolArgs = toolCall.args || toolCall.input || {};
+                                
+                                console.log('[App] Processing tool call', { toolName, toolId, toolArgs });
+                                
+                                setActiveTools(prev => {
+                                    const existing = prev.find(t => t.id === toolId);
+                                    if (existing) {
+                                        return prev.map(t => 
+                                            t.id === toolId 
+                                                ? { ...t, status: 'running' as const, input: toolArgs }
+                                                : t
+                                        );
+                                    }
+                                    return [...prev, {
+                                        id: toolId,
+                                        name: toolName,
+                                        status: 'running' as const,
+                                        startTime: Date.now(),
+                                        input: toolArgs
+                                    }];
+                                });
+                            }
+                            
+                            // Handle tool results - check multiple possible structures
+                            const toolResult = metadata.toolResult || (metadata.type === 'tool_result' ? metadata : null);
+                            if (toolResult && (metadata.type === 'tool_result' || toolResult.result !== undefined)) {
+                                const resultId = toolResult.id || toolResult.toolCallId || toolResult.toolCall?.id;
+                                if (resultId) {
+                                    console.log('[App] Processing tool result', { resultId, hasError: !!toolResult.error });
+                                    setActiveTools(prev => prev.map(t => 
+                                        t.id === resultId 
+                                            ? { 
+                                                ...t, 
+                                                status: toolResult.error ? 'error' as const : 'complete' as const,
+                                                endTime: Date.now(),
+                                                output: toolResult.result || toolResult.output,
+                                                error: toolResult.error
+                                            }
+                                            : t
+                                    ));
+                                }
+                            }
+                            
+                            // Handle reasoning - check multiple possible structures
+                            const reasoningText = metadata.reasoning || metadata.delta || metadata.text || '';
+                            if (reasoningText && (metadata.type === 'reasoning' || metadata.type === 'reasoning-delta')) {
+                                console.log('[App] Processing reasoning', { length: reasoningText.length });
+                                setCurrentReasoning(prev => {
+                                    const updated = prev + reasoningText;
+                                    currentReasoningRef.current = updated; // Update ref immediately
+                                    // Also update transcript item with reasoning in real-time
+                                    setTranscript(prevTranscript => {
+                                        const updatedTranscript = [...prevTranscript];
+                                        const loadingIndex = updatedTranscript.findIndex(item => item.id === loadingId.toString());
+                                        if (loadingIndex >= 0 && updatedTranscript[loadingIndex]) {
+                                            updatedTranscript[loadingIndex] = {
+                                                ...updatedTranscript[loadingIndex],
+                                                reasoning: updated
+                                            };
+                                        }
+                                        return updatedTranscript;
+                                    });
+                                    return updated;
+                                });
+                                setIsResearching(true); // Trigger research UI (particle morphing, research chip)
+                            }
+                            
+                            if (metadata.type === 'reasoning_start' || metadata.type === 'reasoning-start') {
+                                console.log('[App] Reasoning started');
+                                setCurrentReasoning('');
+                                currentReasoningRef.current = ''; // Update ref immediately
+                                setIsResearching(true); // Trigger research UI
+                            }
+                            
+                            // Handle thinking states
+                            if (metadata.type === 'thinking' || metadata.message || metadata.type === 'meta') {
+                                if (metadata.message || metadata.reasoning) {
+                                    console.log('[App] Processing thinking state');
+                                    setIsResearching(true); // Trigger research UI
+                                }
+                            }
                         }
                     });
                 } catch (streamError) {
@@ -571,16 +703,29 @@ export const App: React.FC = () => {
                      // Fallback logic could go here, omitting for brevity in this step, can be added if needed
                 } else {
                     setBackendStatus({ mode: 'agents', message: `Agent: ${agentResponse.agent}`, severity: 'info' });
+                    
+                    // Save reasoning to transcript before clearing state
+                    const finalReasoning = typeof currentReasoning === 'string' && currentReasoning.trim() 
+                        ? currentReasoning.trim() 
+                        : (typeof agentResponse.metadata?.reasoning === 'string' ? agentResponse.metadata.reasoning : undefined);
+                    
+                    // Clear Glass Box UI state when response completes
+                    setActiveTools([]);
+                    setCurrentReasoning('');
+                    setIsResearching(false); // Clear research state when response completes
+                    
                     setTranscript(prev => {
                         const filtered = prev.filter(item => item.id !== loadingId.toString());
-                        return [...filtered, {
+                        const newItem: TranscriptItem = {
                             id: Date.now().toString(),
                             role: 'model',
                             text: agentResponse.output || '',
                             timestamp: new Date(),
                             isFinal: true,
-                            status: 'complete'
-                        }];
+                            status: 'complete',
+                            ...(finalReasoning && { reasoning: finalReasoning })
+                        };
+                        return [...filtered, newItem];
                     });
                     persistMessageToServer(sessionId, 'model', agentResponse.output || '', new Date());
                 }
@@ -676,6 +821,14 @@ export const App: React.FC = () => {
             showToast('Failed to generate AI Insights Report. Please try again.', 'error');
         }
     }, [sessionId, transcript, userProfile, screenShare.isActive, setTranscript, showToast]);
+
+    const handleGenerateExecutiveMemo = useCallback(() => {
+        // Send a message to the agent asking it to generate an executive memo
+        // The agent will use the generate_executive_memo tool with appropriate parameters
+        const message = "Generate an executive memo for the decision maker based on our conversation. Please identify the key objection (budget, timing, or security) and the appropriate target audience (CFO, CEO, or CTO).";
+        handleSendMessage(message);
+        showToast('Requesting executive memo... The agent will generate it based on our conversation.', 'info');
+    }, [handleSendMessage, showToast]);
 
     const handleDownloadDiscoveryReport = useCallback(() => {
         if (!latestReportDataRef.current) {
@@ -982,6 +1135,9 @@ export const App: React.FC = () => {
                     // Research
                     isResearching={isResearching}
                     
+                    // Glass Box UI: Active tools
+                    activeTools={activeTools}
+                    
                     // Agent mode
                     agentMode={visualState.mode}
                     
@@ -994,6 +1150,7 @@ export const App: React.FC = () => {
                     onGenerateDiscoveryReport={handleGenerateDiscoveryReport}
                     onDownloadDiscoveryReport={handleDownloadDiscoveryReport}
                     onEmailDiscoveryReport={handleEmailPDF} // Reuse email PDF handler for now
+                    onGenerateExecutiveMemo={handleGenerateExecutiveMemo}
                 />
             )}
         </div>

@@ -395,6 +395,75 @@ describe('Unified Tool Registry', () => {
       expect(invalidSizeType.valid).toBe(false)
     })
 
+    it('should validate generate_executive_memo args correctly', () => {
+      // Valid - with all required fields
+      const validResult = validateToolArgs('generate_executive_memo', {
+        target_audience: 'CFO',
+        key_blocker: 'budget',
+        proposed_solution: '2-Day In-House Workshop'
+      })
+      expect(validResult.valid).toBe(true)
+
+      // Valid - all audience types
+      const audiences = ['CFO', 'CEO', 'CTO']
+      for (const audience of audiences) {
+        const result = validateToolArgs('generate_executive_memo', {
+          target_audience: audience,
+          key_blocker: 'budget',
+          proposed_solution: 'Test solution'
+        })
+        expect(result.valid).toBe(true)
+      }
+
+      // Valid - all blocker types
+      const blockers = ['budget', 'timing', 'security']
+      for (const blocker of blockers) {
+        const result = validateToolArgs('generate_executive_memo', {
+          target_audience: 'CFO',
+          key_blocker: blocker,
+          proposed_solution: 'Test solution'
+        })
+        expect(result.valid).toBe(true)
+      }
+
+      // Invalid - missing target_audience
+      const invalidMissingAudience = validateToolArgs('generate_executive_memo', {
+        key_blocker: 'budget',
+        proposed_solution: 'Test'
+      })
+      expect(invalidMissingAudience.valid).toBe(false)
+
+      // Invalid - missing key_blocker
+      const invalidMissingBlocker = validateToolArgs('generate_executive_memo', {
+        target_audience: 'CFO',
+        proposed_solution: 'Test'
+      })
+      expect(invalidMissingBlocker.valid).toBe(false)
+
+      // Invalid - missing proposed_solution
+      const invalidMissingSolution = validateToolArgs('generate_executive_memo', {
+        target_audience: 'CFO',
+        key_blocker: 'budget'
+      })
+      expect(invalidMissingSolution.valid).toBe(false)
+
+      // Invalid - wrong target_audience enum
+      const invalidAudience = validateToolArgs('generate_executive_memo', {
+        target_audience: 'INVALID',
+        key_blocker: 'budget',
+        proposed_solution: 'Test'
+      })
+      expect(invalidAudience.valid).toBe(false)
+
+      // Invalid - wrong key_blocker enum
+      const invalidBlocker = validateToolArgs('generate_executive_memo', {
+        target_audience: 'CFO',
+        key_blocker: 'INVALID',
+        proposed_solution: 'Test'
+      })
+      expect(invalidBlocker.valid).toBe(false)
+    })
+
     it('should validate extract_action_items args correctly', () => {
       // Valid - empty object (no required params)
       const validEmpty = validateToolArgs('extract_action_items', {})
@@ -562,6 +631,7 @@ describe('Unified Tool Registry', () => {
       expect(UNIFIED_TOOL_NAMES).toContain('generate_custom_syllabus')
       expect(UNIFIED_TOOL_NAMES).toContain('analyze_competitor_gap')
       expect(UNIFIED_TOOL_NAMES).toContain('simulate_cost_of_inaction')
+      expect(UNIFIED_TOOL_NAMES).toContain('generate_executive_memo')
     })
   })
 

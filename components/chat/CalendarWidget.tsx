@@ -121,7 +121,7 @@ export function CalendarWidget({
             {/* F.B/c Logo Badge */}
             <div className="flex-shrink-0">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-orange-400 via-blue-500 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-lg relative overflow-hidden">
-                <span className="relative z-10 font-mono tracking-tight">F.B/c</span>
+                <span className="relative z-10 font-matrix tracking-tight">F.B/c</span>
                 {/* Animated shimmer overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse opacity-50"></div>
               </div>
@@ -187,7 +187,7 @@ export function CalendarWidget({
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-orange-500 to-blue-500"></div>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Powered by <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-blue-500">F.B/c</span>
+                Powered by <span className="font-matrix font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-blue-500">F.B/c</span>
               </p>
             </div>
           </div>

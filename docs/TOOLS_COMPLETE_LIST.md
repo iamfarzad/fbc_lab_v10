@@ -1,7 +1,7 @@
 # Complete Tool System Documentation
 
 **Last Updated:** 2025-01-27  
-**Total Tools:** 20 (14 existing + 3 consulting + 3 teaser)
+**Total Tools:** 21 (14 existing + 3 consulting + 4 sales/teaser)
 
 This document provides a complete overview of all tool functions, their files, and how they work.
 
@@ -488,6 +488,7 @@ All sales/consulting agents (discovery, pitch, closer, workshop-sales, consultin
 - PROVE you know the answer by describing the *outcome*, but sell the *method*
 - Use `simulate_cost_of_inaction` for inefficiency discussions
 - Use `analyze_competitor_gap` for industry/urgency discussions
+- Use `generate_executive_memo` when budget/timing/security objections are raised (helps champion sell internally)
 
 **Exception:** Only break this rule if explicitly asked "How does this work technically?" AND they've already booked a call or shown strong buying intent.
 
@@ -595,6 +596,42 @@ All sales/consulting agents (discovery, pitch, closer, workshop-sales, consultin
 
 ---
 
+### 18. `generate_executive_memo`
+**Purpose:** Generate a 1-page executive memo for CFO/CEO/CTO to overcome budget/timing/security objections  
+**File:** `server/utils/tool-implementations.ts` (inline)
+
+**Schema:**
+```typescript
+{
+  target_audience: 'CFO' | 'CEO' | 'CTO' (required) - Who to convince
+  key_blocker: 'budget' | 'timing' | 'security' (required) - Main objection
+  proposed_solution: string (required) - e.g. "2-Day In-House Workshop"
+}
+```
+
+**Implementation:**
+- Uses conversation context and previous tool results (ROI data, cost of inaction)
+- Generates tailored memo addressing specific C-level concerns
+- CFO focus: Financial ROI, cost savings, payback period
+- CEO focus: Competitive advantage, market positioning
+- CTO focus: Technical architecture, security, scalability
+
+**Usage:**
+- When champion (person chatting) needs to sell to decision maker (their boss)
+- Budget objections → CFO memo
+- Timing concerns → CEO/CTO memo
+- Security questions → CTO memo
+
+**Example Response:**
+"Your CFO is concerned about budget? Let me draft a 1-page memo they can review that shows the ROI. This will help you get approval."
+
+**Sales Strategy:**
+- Used by summary agent when preparing final proposals
+- Helps champion overcome internal objections
+- Demonstrates business acumen beyond technical skills
+
+---
+
 ### Vision Tools - Active Investigation Upgrade
 
 The vision tools (`capture_screen_snapshot` and `capture_webcam_snapshot`) now support **Active Investigation Mode** via the `focus_prompt` parameter:
@@ -632,14 +669,12 @@ src/core/tools/
 ├── unified-tool-registry.ts      # Main registry (schemas, validation, execution)
 ├── tool-executor.ts              # Retry, cache, logging wrapper
 ├── types.ts                      # Tool execution result types
-├── shared-tool-registry.ts       # Legacy shared tools (still used)
-├── shared-tools.ts               # Shared tool name constants
-├── tool-types.ts                 # Additional type definitions
-├── extract-action-items.ts       # Individual tool module (legacy)
-├── generate-summary-preview.ts   # Individual tool module (legacy)
-├── calculate-roi.ts              # Individual tool module (legacy)
-├── draft-follow-up-email.ts      # Individual tool module (legacy)
-└── generate-proposal.ts          # Individual tool module (legacy)
+└── tool-types.ts                 # Additional type definitions
+
+src/core/intelligence/
+├── search.ts                     # Web search implementation
+├── analysis.ts                   # LLM analysis functions
+└── vision-analysis.ts            # Active vision analysis with focus prompts
 
 src/config/
 └── live-tools.ts                 # Live API function declarations
@@ -649,10 +684,6 @@ server/
 │   └── tool-processor.ts         # Voice tool call processor
 └── utils/
     └── tool-implementations.ts   # Server-side execution functions
-
-src/core/intelligence/
-├── search.ts                     # Web search implementation
-└── analysis.ts                   # LLM analysis functions
 ```
 
 ---
@@ -739,6 +770,7 @@ Tools are mapped to capabilities for analytics:
 const CAPABILITY_MAP = {
   'search_web': 'search',
   'get_weather': 'search',
+  'get_stock_price': 'search',
   'search_companies_by_location': 'search',
   'calculate_roi': 'roi',
   'extract_action_items': 'doc',
@@ -747,6 +779,12 @@ const CAPABILITY_MAP = {
   'generate_proposal_draft': 'exportPdf',
   'capture_screen_snapshot': 'screenShare',
   'capture_webcam_snapshot': 'webcam',
+  'analyze_website_tech_stack': 'search',
+  'generate_architecture_diagram': 'doc',
+  'search_internal_case_studies': 'search',
+  'generate_custom_syllabus': 'doc',
+  'analyze_competitor_gap': 'search',
+  'simulate_cost_of_inaction': 'roi',
   'get_dashboard_stats': 'doc'
 }
 ```
@@ -800,4 +838,4 @@ To add a new tool:
 - Chat tools use `toolExecutor` for retry/cache/logging
 - Voice tools use inline retry/timeout in `tool-processor.ts`
 - Tools return standardized `ToolResult` format
-- Legacy shared-tool-registry still exists but is superseded by unified registry
+- All tools are registered in `unified-tool-registry.ts` (single source of truth)

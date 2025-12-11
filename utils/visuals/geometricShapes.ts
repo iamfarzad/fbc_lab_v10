@@ -76,7 +76,7 @@ export function calculatePixelText(
     const { index } = ctx;
     // Don't force uppercase immediately, allow case-specific glyphs if they exist
     const cleanText = text; 
-    const scale = options.scale || 18;
+    const scale = options.scale || 14; // Reduced from 18 to 14 for better mobile readability
     const particlesPerChar = options.particlesPerChar || 250;
     const jitterAmount = options.jitter ?? 0.5;
     const spacing = 1.5 * scale;
@@ -641,7 +641,7 @@ export const GeometricShapes = {
     // Enhanced text rendering with better clarity
     const textResult = calculatePixelText(ctx, str, centerX, centerY, { 
         particlesPerChar: 350,
-        scale: 20,
+        scale: 16, // Reduced from 20 for better mobile readability
         jitter: 0.3
     });
     
@@ -807,7 +807,7 @@ export const GeometricShapes = {
 
       const textParticles = 2000; 
       if (index < textParticles && valueStr) {
-          const textResult = calculatePixelText(ctx, valueStr, centerX, centerY - 120, { scale: 12, particlesPerChar: 200 });
+          const textResult = calculatePixelText(ctx, valueStr, centerX, centerY - 120, { scale: 10, particlesPerChar: 200 }); // Reduced from 12 to 10
           if (textResult) return textResult;
       }
 
@@ -871,9 +871,9 @@ export const GeometricShapes = {
       const centerY = cy(ctx);
       const str = visualState.textContent || "AI";
       
-      // Calculate scale based on length to fit screen
+      // Calculate scale based on length to fit screen (reduced for smaller screens)
       const maxChars = 12;
-      const defaultScale = 20;
+      const defaultScale = 14; // Reduced from 20 to 14 for better mobile readability
       let scale = defaultScale;
       if (str.length > maxChars) {
           scale = defaultScale * (maxChars / str.length);

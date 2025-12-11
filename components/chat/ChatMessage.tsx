@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { TranscriptItem } from 'types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { CalendarWidget } from './CalendarWidget';
@@ -9,7 +9,6 @@ import ErrorMessage from './ErrorMessage';
 import { WebPreviewCard } from './Attachments';
 import { User, ChevronDown, Sparkles } from 'lucide-react';
 import { CONTACT_CONFIG } from 'src/config/constants';
-import { useState } from 'react';
 import { ToolCall } from './ToolCallIndicator';
 
 interface ChatMessageProps {
@@ -21,6 +20,7 @@ interface ChatMessageProps {
     isDarkMode?: boolean;
     agentMode?: 'idle' | 'listening' | 'thinking' | 'speaking';
     activeTools?: ToolCall[];
+    isResearching?: boolean;
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ 
@@ -31,7 +31,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     onBookCall,
     isDarkMode = false,
     agentMode = 'idle',
-    activeTools = []
+    activeTools = [],
+    isResearching = false
 }) => {
     // Early return if message has no content at all
     const hasContent = item.text?.trim() || item.attachment || item.reasoning || item.error;
@@ -44,20 +45,22 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     
     const isUser = item.role === 'user';
     const [isThinkingOpen, setIsThinkingOpen] = useState(false);
+    const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+    const reasoningSteps = useMemo(() => {
+        if (!item.reasoning) return [];
+        const steps = item.reasoning
+            .split(/\n+/)
+            .map(step => step.trim())
+            .filter(Boolean);
+        return Array.from(new Set(steps));
+    }, [item.reasoning]);
     
     // Normalize the visual mode used for status + shimmer
     const hasActiveTools = activeTools.some(t => t.status === 'running');
-    const shimmerMode =
-        hasActiveTools
-            ? 'thinking' // show analyzing vibe when tools are running
-            : item.status === 'streaming'
-                ? 'thinking'
-                : agentMode === 'speaking'
-                    ? 'speaking'
-                    : agentMode === 'listening'
-                        ? 'listening'
-                        : 'thinking';
-
+    const isStreamingOrThinking = item.status === 'streaming' || (!item.isFinal && !item.text?.trim());
+    const shouldShowResearch = isResearching || hasActiveTools || isStreamingOrThinking;
+    const groundingChunks = item.groundingMetadata?.groundingChunks ?? [];
+    
     // Handle System Messages - hide text if attachment exists (attachment is the real content)
     if (item.text.startsWith('[System:') && !item.attachment) {
         return (
@@ -78,15 +81,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     const Avatar = () => (
         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border shadow-sm transition-all duration-300 ${
             isUser 
-                ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400' 
-                : 'bg-gradient-to-br from-black to-zinc-800 dark:from-white dark:to-zinc-200 border-transparent text-white dark:text-black shadow-md'
+                ? 'bg-zinc-100 dark:bg-black/80 border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-300' 
+                : 'bg-gradient-to-br from-black to-zinc-800 dark:from-zinc-900 dark:to-black border-transparent text-white dark:text-white shadow-md'
         }`}>
-            {isUser ? <User className="w-4 h-4" /> : <span className="text-[10px] font-bold tracking-tighter">FB</span>}
+            {isUser ? <User className="w-4 h-4" /> : <span className="font-matrix text-[10px] font-bold tracking-tighter">FB</span>}
         </div>
     );
 
     return (
-        <div className={`flex gap-4 w-full mb-6 ${isUser ? 'flex-row-reverse' : 'flex-row'} animate-fade-in-up group`}>
+        <div className={`flex gap-4 w-full mb-6 ${isUser ? 'flex-row-reverse' : 'flex-row'} animate-fade-in-up group`} data-agent-mode={agentMode}>
             
             {/* Avatar Column */}
             <div className="pt-1">
@@ -96,29 +99,27 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
             {/* Content Column */}
             <div className={`flex flex-col gap-2 max-w-[85%] md:max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
                 
-                {/* Speaker Name with Inline Typing Indicator */}
-                <div className="flex items-center gap-2 ml-1">
-                    <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
-                        {isUser ? 'You' : 'F.B/c'}
-                    </span>
-                    {/* Inline typing indicator - shows when thinking/streaming */}
-                    {!isUser && (item.status === 'streaming' || (!item.isFinal && !item.text?.trim())) && (
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-1 h-1 bg-zinc-400 dark:bg-zinc-500 rounded-full animate-pulse"></div>
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                                {hasActiveTools ? 'Analyzing...' : shimmerMode === 'speaking' ? 'Talking...' : 'Typing...'}
-                            </span>
-                            {/* Shimmer line */}
-                            <div className="h-0.5 w-12 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                                <div className="h-full w-full bg-gradient-to-r from-transparent via-zinc-400 dark:via-zinc-500 to-transparent animate-shimmer"></div>
+                {/* Speaker Name with Unified Status Indicator */}
+                <div className="flex flex-col gap-2 ml-1">
+                    <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-medium text-zinc-400 dark:text-zinc-500 ${isUser ? '' : 'font-matrix'}`}>
+                            {isUser ? 'You' : 'F.B/c'}
+                        </span>
+                        {!isUser && shouldShowResearch && (
+                            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.45)]" />
+                                <span>{hasActiveTools ? 'Analyzing' : isResearching ? 'Research' : 'Thinking'}</span>
+                                <span className="relative h-[2px] w-12 overflow-hidden rounded-full bg-blue-200/70 dark:bg-blue-800/60">
+                                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/80 to-transparent animate-shimmer" />
+                                </span>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
 
                 {/* 1a. File/Image Attachments */}
                 {item.attachment && (item.attachment.type === 'image' || item.attachment.type === 'file') && (
-                    <div className={`mb-2 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-1 ${item.attachment.type === 'image' ? 'max-w-[85%] md:max-w-[60%]' : ''}`}>
+                    <div className={`mb-2 overflow-hidden rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-black p-1 ${item.attachment.type === 'image' ? 'max-w-[85%] md:max-w-[60%]' : ''}`}>
                         {item.attachment.type === 'image' ? (
                             <div 
                                 className="relative cursor-zoom-in group/img"
@@ -193,7 +194,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                             <div className={`p-1 rounded-md transition-colors ${isThinkingOpen ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-500' : 'text-zinc-400 group-hover/btn:text-zinc-600 dark:group-hover/btn:text-zinc-300'}`}>
                                 <Sparkles className="w-3.5 h-3.5" />
                             </div>
-                            <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 tracking-wide">
+                            <span className="text-[10px] sm:text-[11px] font-medium text-zinc-500 dark:text-zinc-400 tracking-wide">
                                 {isThinkingOpen ? 'Reasoning Process' : 'Show Reasoning'}
                             </span>
                             <ChevronDown className={`w-3 h-3 text-zinc-400 transition-transform duration-300 ${isThinkingOpen ? 'rotate-180' : ''}`} />
@@ -203,9 +204,32 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                             className={`grid transition-[grid-template-rows] duration-300 ease-out ${isThinkingOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
                         >
                             <div className="overflow-hidden">
-                                <div className="mt-3 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300 font-mono bg-zinc-50/50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm relative">
+                                <div className="mt-3 rounded-xl border border-orange-200/60 dark:border-orange-900/40 bg-gradient-to-br from-orange-50/80 via-white/80 to-orange-100/40 dark:from-orange-950/40 dark:via-black/30 dark:to-orange-900/10 shadow-sm relative p-3 sm:p-4">
                                     <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-orange-400/50 to-transparent"></div>
-                                    {item.reasoning}
+                                    <div className="flex flex-col gap-3">
+                                        {reasoningSteps.length > 0 ? reasoningSteps.map((step, idx) => (
+                                            <div key={`reason-${item.id}-${step}`} className="flex items-start gap-3">
+                                                <div className="flex flex-col items-center pt-1">
+                                                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shadow-[0_0_12px_rgba(249,115,22,0.45)]" />
+                                                    {idx < reasoningSteps.length - 1 && (
+                                                        <span className="flex-1 w-[1px] bg-gradient-to-b from-orange-400/40 via-orange-300/30 to-transparent" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="text-[10px] sm:text-[11px] font-semibold text-orange-700 dark:text-orange-300 mb-1 tracking-wide uppercase">
+                                                        Step {idx + 1}
+                                                    </div>
+                                                    <div className="text-[11px] sm:text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-200 whitespace-pre-line">
+                                                        {step}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="text-[11px] sm:text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-200 font-mono">
+                                                {item.reasoning}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -215,14 +239,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                 {/* 3. Message Bubble - Skip if system message with attachment */}
                 {item.text && !(item.text.startsWith('[System:') && item.attachment) ? (
                     <div className={`
-                        relative px-5 py-3.5 text-[14px] leading-relaxed
+                        relative px-5 py-3.5 text-[13px] sm:text-[14px] leading-relaxed
                         ${isUser 
-                            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-tr-sm' 
+                            ? 'bg-zinc-100 dark:bg-black text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-tr-sm' 
                             : 'bg-transparent text-zinc-800 dark:text-zinc-200 p-0'
                         }
                     `}>
                         {!isUser && (
-                             <div className="bg-white/80 dark:bg-zinc-900 backdrop-blur-sm border border-zinc-100 dark:border-zinc-800 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md">
+                             <div className="bg-white dark:bg-black backdrop-blur-sm border border-zinc-100 dark:border-white/10 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm transition-all duration-300 hover:shadow-md">
                                 <MarkdownRenderer content={item.text} isUser={isUser} isDarkMode={isDarkMode} />
                              </div>
                         )}
@@ -232,7 +256,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                 ) : null}
 
                 {/* 4. Grounding (Sources) - Enhanced Visibility with Research Header */}
-                {(item.groundingMetadata?.webSearchQueries?.length || item.groundingMetadata?.groundingChunks?.length) ? (
+                {((item.groundingMetadata?.webSearchQueries?.length ?? 0) > 0 || groundingChunks.length > 0) ? (
                     <div className="mt-4 w-full p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-800/30">
                         <div className="flex items-center gap-2 mb-3">
                             <svg className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -257,11 +281,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                         )}
                         
                         {/* Source Cards Grid */}
-                        {item.groundingMetadata.groundingChunks?.length > 0 && (
+                        {groundingChunks.length > 0 && (
                             <div>
                                 <div className="text-[10px] font-medium text-blue-600 dark:text-blue-400 mb-2">Sources:</div>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {item.groundingMetadata.groundingChunks
+                                    {groundingChunks
                                         .filter((chunk: any) => chunk.web?.uri || chunk.maps?.uri)
                                         .map((chunk: any, i: number) => {
                                             const url = chunk.web?.uri || chunk.maps?.uri;
@@ -306,32 +330,134 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
                     />
                 )}
 
-              {/* Inline Metadata - Timestamp and Token Count (no card) */}
+              {/* Metadata Dropdown - Timestamp, Token Count, Sources */}
         {!isUser && item.isFinal && item.status !== 'error' && (
-             <div className="mt-1.5 pl-1 flex items-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-500">
-                <span className="opacity-60" title={new Date(item.timestamp).toLocaleString()}>
-                    {(() => {
-                        const now = new Date();
-                        const diff = now.getTime() - new Date(item.timestamp).getTime();
-                        if (diff < 60000) return 'just now';
-                        if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-                        if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-                        return new Date(item.timestamp).toLocaleDateString();
-                    })()}
-                </span>
-                {item.processingTime && (
-                    <>
-                        <span>•</span>
-                        <span className="opacity-60">{item.processingTime < 1000 ? `${item.processingTime}ms` : `${(item.processingTime / 1000).toFixed(1)}s`}</span>
-                    </>
+            <div className="mt-1.5 pl-1">
+                <button
+                    onClick={() => setIsMetadataOpen(!isMetadataOpen)}
+                    className="flex items-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors group/metadata"
+                >
+                    <span className="opacity-60">
+                        {(() => {
+                            const now = new Date();
+                            const diff = now.getTime() - new Date(item.timestamp).getTime();
+                            if (diff < 60000) return 'just now';
+                            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+                            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+                            return new Date(item.timestamp).toLocaleDateString();
+                        })()}
+                    </span>
+                    {item.processingTime && (
+                        <>
+                            <span>•</span>
+                            <span className="opacity-60">{item.processingTime < 1000 ? `${item.processingTime}ms` : `${(item.processingTime / 1000).toFixed(1)}s`}</span>
+                        </>
+                    )}
+                    {item.text.length > 0 && (
+                        <>
+                            <span>•</span>
+                            <span className="opacity-60">{Math.ceil(item.text.length / 4)} tokens</span>
+                        </>
+                    )}
+                {((groundingChunks.length > 0) || (item.contextSources?.length ?? 0) > 0) && (
+                        <>
+                            <span>•</span>
+                            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isMetadataOpen ? 'rotate-180' : ''}`} />
+                        </>
+                    )}
+                </button>
+
+                {/* Dropdown Content */}
+                {((groundingChunks.length > 0) || (item.contextSources?.length ?? 0) > 0 || item.processingTime || item.timestamp) && (
+                    <div 
+                        className={`grid transition-[grid-template-rows] duration-300 ease-out ${isMetadataOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+                    >
+                        <div className="overflow-hidden">
+                            <div className="mt-2 rounded-lg border border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/50 p-3 space-y-3">
+                                {/* Full Metadata */}
+                                <div className="space-y-1.5">
+                                    <div className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">Metadata</div>
+                                    <div className="text-[11px] text-zinc-600 dark:text-zinc-300 font-mono space-y-1">
+                                        <div className="flex justify-between gap-4">
+                                            <span className="opacity-70">Timestamp:</span>
+                                            <span>{new Date(item.timestamp).toLocaleString()}</span>
+                                        </div>
+                                        {item.processingTime && (
+                                            <div className="flex justify-between gap-4">
+                                                <span className="opacity-70">Processing:</span>
+                                                <span>{item.processingTime < 1000 ? `${item.processingTime}ms` : `${(item.processingTime / 1000).toFixed(2)}s`}</span>
+                                            </div>
+                                        )}
+                                        {item.text.length > 0 && (
+                                            <div className="flex justify-between gap-4">
+                                                <span className="opacity-70">Tokens:</span>
+                                                <span>{Math.ceil(item.text.length / 4)} (estimated)</span>
+                                            </div>
+                                        )}
+                                        {item.role && (
+                                            <div className="flex justify-between gap-4">
+                                                <span className="opacity-70">Role:</span>
+                                                <span className="uppercase">{item.role}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Sources from Grounding */}
+                                {groundingChunks.length > 0 && (
+                                    <div className="space-y-1.5 pt-2 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                                        <div className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">Sources</div>
+                                        <div className="space-y-1.5">
+                                            {groundingChunks
+                                                .filter((chunk: any) => chunk.web?.uri || chunk.maps?.uri)
+                                                .map((chunk: any, i: number) => {
+                                                    const url = chunk.web?.uri || chunk.maps?.uri;
+                                                    const title = chunk.web?.title || chunk.maps?.title || "Source";
+                                                    if (!url) return null;
+                                                    return (
+                                                        <a
+                                                            key={i}
+                                                            href={url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="block text-[11px] text-blue-600 dark:text-blue-400 hover:underline truncate"
+                                                        >
+                                                            {title}
+                                                        </a>
+                                                    );
+                                                })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Context Sources */}
+                                {item.contextSources && item.contextSources.length > 0 && (
+                                    <div className="space-y-1.5 pt-2 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                                        <div className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">Context</div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {item.contextSources.map((source, i) => (
+                                                <span
+                                                    key={i}
+                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-zinc-200/50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400"
+                                                >
+                                                    {source.type === 'company' && '🏢'}
+                                                    {source.type === 'person' && '👤'}
+                                                    {source.type === 'location' && '📍'}
+                                                    {source.type === 'file' && '📄'}
+                                                    {source.type === 'webcam' && '📹'}
+                                                    {source.type === 'screen' && '🖥️'}
+                                                    {source.type === 'web' && '🌐'}
+                                                    {source.label}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 )}
-                {item.text.length > 0 && (
-                    <>
-                        <span>•</span>
-                        <span className="opacity-60">{Math.ceil(item.text.length / 4)} tokens</span>
-                    </>
-                )}
-             </div>
+            </div>
         )}
       </div>
     </div>

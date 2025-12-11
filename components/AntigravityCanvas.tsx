@@ -5,6 +5,7 @@ import type { VisualState } from 'types';
 import { calculateParticleTarget } from 'utils/visuals/index';
 import type { ParticleContext } from 'utils/visuals/types';
 import { useTheme } from '../context/ThemeContext';
+import { unifiedContext } from '../services/unifiedContext';
 
 interface AntigravityCanvasProps {
   visualState: VisualState;
@@ -176,6 +177,62 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
   const requestRef = useRef<number>(0);
   const mouseRef = useRef({ x: -1000, y: -1000 });
   const particlesRef = useRef<Particle[]>([]);
+
+  const buildKeywordPool = (state: VisualState) => {
+    const snapshot = unifiedContext.getSnapshot();
+    const research = snapshot.researchContext;
+    const intel = snapshot.intelligenceContext || {};
+    const words: string[] = [];
+
+    const pushWords = (arr?: (string | undefined)[]) => {
+        arr?.forEach(w => {
+            if (!w) return;
+            const trimmed = w.trim();
+            if (trimmed.length > 3 && trimmed.length < 48) words.push(trimmed);
+        });
+    };
+
+    // From research findings
+    if (research) {
+        pushWords([
+            research.company?.name,
+            research.company?.industry,
+            research.company?.domain,
+            research.person?.fullName,
+            research.role
+        ]);
+        pushWords(research.strategic?.competitors);
+        pushWords(research.strategic?.market_trends);
+        pushWords(research.strategic?.pain_points);
+    }
+
+    // From intelligence context if present
+    if (intel.company) {
+        pushWords([intel.company.name, intel.company.industry, intel.company.domain]);
+    }
+    if (intel.person) {
+        pushWords([intel.person.fullName, intel.person.role]);
+    }
+    if (intel.strategic) {
+        pushWords(intel.strategic.competitors);
+        pushWords(intel.strategic.market_trends);
+        pushWords(intel.strategic.pain_points);
+    }
+
+    // From current textContent
+    if (state.textContent) {
+        pushWords(
+            state.textContent
+                .split(/[\s,.;:/\n]+/)
+                .map(w => w.trim())
+        );
+    }
+
+    const unique = Array.from(new Set(words)).slice(0, 10);
+    if (unique.length > 0) return unique;
+    if (state.researchActive) return ['Research', 'Context', 'Signals', 'Leads', 'Trends', 'Insights'];
+    return ['Research'];
+  };
   
   // Clock state
   const currentTimeRef = useRef("");
@@ -258,16 +315,29 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
     resize();
 
     const animate = (time: number) => {
-      const currentState = visualStateRef.current;
+      const baseState = visualStateRef.current;
       const darkMode = isDarkModeRef.current;
       const cx = displayWidth / 2;
       const cy = displayHeight / 2;
+
+      // When research is active, morph particles into rotating keywords using text shape
+      let renderState = baseState;
+      if (baseState.researchActive) {
+          const pool = buildKeywordPool(baseState);
+          const idx = pool.length ? Math.floor((time * 0.00025)) % pool.length : 0;
+          const keyword = pool[idx] || 'Research';
+          renderState = {
+              ...baseState,
+              shape: 'text',
+              textContent: keyword
+          };
+      }
       
-      smoothedAudioRef.current += (currentState.audioLevel - smoothedAudioRef.current) * 0.3; 
+      smoothedAudioRef.current += (renderState.audioLevel - smoothedAudioRef.current) * 0.3; 
       
       let clearOpacity = 0.25; 
-      if (['dna','grid','globe','brain','constellation','face','weather','chart','map','clock','code'].includes(currentState.shape)) clearOpacity = 0.18; 
-      if (currentState.mode === 'speaking') clearOpacity = 0.3; 
+      if (['dna','grid','globe','brain','constellation','face','weather','chart','map','clock','code'].includes(renderState.shape)) clearOpacity = 0.18; 
+      if (renderState.mode === 'speaking') clearOpacity = 0.3; 
       
       // Dynamic background clear for trails
       // In dark mode, we clear with pure black for maximum contrast
@@ -279,7 +349,7 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
       ctx.fillRect(0, 0, displayWidth, displayHeight);
 
       // Constellation Lines
-      if (currentState.shape === 'constellation') {
+      if (renderState.shape === 'constellation') {
          const numNodes = 6;
          const nodeSpeed = time * 0.0005;
          const nodes: {x:number, y:number}[] = [];
@@ -305,7 +375,7 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
       }
 
       // Chart Grid Lines (Background Only)
-      if (currentState.shape === 'chart') {
+      if (renderState.shape === 'chart') {
           const graphWidth = displayWidth * 0.6;
           const graphHeight = 200;
           const startX = cx - graphWidth/2;
@@ -327,7 +397,7 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
       }
 
       // Research Mode Visualization (when research is active)
-      if (currentState.researchActive && currentState.shape === 'scanner') {
+      if (baseState.researchActive && renderState.shape === 'scanner') {
           // Draw scanning lines effect
           const scanSpeed = time * 0.003;
           const scanY = (cy - displayHeight * 0.3) + (Math.sin(scanSpeed) * displayHeight * 0.6);
@@ -340,7 +410,7 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
           ctx.stroke();
           
           // Draw pulsing circles at citation points
-          const citationCount = currentState.citationCount || 0;
+          const citationCount = baseState.citationCount || 0;
           if (citationCount > 0) {
               const angleStep = (Math.PI * 2) / citationCount;
               for (let i = 0; i < citationCount; i++) {
@@ -366,7 +436,7 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
             displayHeight, 
             mouseRef.current.x, 
             mouseRef.current.y, 
-            currentState,
+            renderState,
             smoothedAudioRef.current,
             time,
             currentTimeRef.current 
@@ -457,18 +527,6 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
                 </div>
             )}
 
-            {/* Research Mode Badge - Shows when research is active */}
-            {visualState.researchActive && (
-                <div className="absolute top-6 left-6 animate-fade-in-up">
-                    <div className={`flex items-center gap-2 backdrop-blur-md px-3 py-1.5 rounded-full border shadow-lg ${isDarkMode ? 'bg-black/60 border-blue-500/30 text-blue-400' : 'bg-white/80 border-blue-300 text-blue-700'}`}>
-                        <svg className="w-3.5 h-3.5 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <circle cx="11" cy="11" r="8"/>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                        </svg>
-                        <span className="text-xs font-semibold">Research</span>
-                    </div>
-                </div>
-            )}
 
             {/* Reasoning Complexity Indicator - Subtle visual feedback */}
             {visualState.reasoningComplexity !== undefined && visualState.reasoningComplexity > 0.3 && (

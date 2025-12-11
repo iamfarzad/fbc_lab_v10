@@ -1,134 +1,239 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=DotGothic16&display=swap");
 
 /* Custom CSS Variables - True Dark System */
 :root {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  
-  /* True Dark Palette */
-  --bg-dark: #000000;
-  --bg-card-dark: #111111;
-  --border-dark: #333333;
-  --text-primary-dark: #ffffff;
-  --text-secondary-dark: #a1a1aa; /* zinc-400 */
+	--font-sans: "Inter", system-ui, -apple-system, sans-serif;
+	--font-mono: "JetBrains Mono", monospace;
+	--font-matrix: "DotGothic16", "JetBrains Mono", monospace;
+
+	/* True Dark Palette */
+	--bg-dark: #000000;
+	--bg-card-dark: #111111;
+	--border-dark: #333333;
+	--text-primary-dark: #ffffff;
+	--text-secondary-dark: #a1a1aa; /* zinc-400 */
 }
 
 /* Base Styles */
 body {
-  background-color: #f8f9fa;
-  color: #111;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.5s ease;
+	background-color: #ffffff;
+	color: #111;
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	transition: background-color 0.5s ease;
+	color-scheme: light;
 }
 
-body.dark {
-  background-color: var(--bg-dark);
-  color: var(--text-primary-dark);
+.dark body {
+	background-color: var(--bg-dark);
+	color: var(--text-primary-dark);
+	color-scheme: dark;
 }
 
 /* Noise Overlay - Subtle texture */
 .noise-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 50;
-  opacity: 0.02; /* Reduced opacity for cleaner look */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: 50;
+	opacity: 0.02; /* Reduced opacity for cleaner look */
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
 /* Custom Scrollbar - Minimal */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+	width: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+	background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
+	background: rgba(0, 0, 0, 0.1);
+	border-radius: 10px;
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15); /* Lighter in dark mode */
+	background: rgba(255, 255, 255, 0.15); /* Lighter in dark mode */
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
+	background: rgba(0, 0, 0, 0.2);
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+	background: rgba(255, 255, 255, 0.25);
+}
+
+.font-matrix {
+	font-family: var(--font-matrix);
+	letter-spacing: -0.02em;
 }
 
 /* Animations - Standardized */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px) scale(0.98); filter: blur(4px); }
-  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+	from {
+		opacity: 0;
+		transform: translateY(20px) scale(0.98);
+		filter: blur(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+		filter: blur(0);
+	}
 }
 @keyframes fadeInScale {
-  from { opacity: 0; transform: scale(0.95); filter: blur(4px); }
-  to { opacity: 1; transform: scale(1); filter: blur(0); }
+	from {
+		opacity: 0;
+		transform: scale(0.95);
+		filter: blur(4px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+		filter: blur(0);
+	}
 }
 
-.animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-fade-in-scale { animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in-up {
+	animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-fade-in-scale {
+	animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 
 /* Reduced Motion Support */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
 
-  .animate-pulse,
-  .animate-spin,
-  .animate-bounce {
-    animation: none !important;
-  }
+	.animate-pulse,
+	.animate-spin,
+	.animate-bounce {
+		animation: none !important;
+	}
 }
 
 /* Glass Panel - Refined for True Dark */
 .glass-panel {
-  @apply bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-sm;
+	@apply bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-sm;
 }
 
 /* Utilities */
 .mask-image-gradient {
-  mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
+	mask-image: linear-gradient(
+		to bottom,
+		transparent 0%,
+		black 5%,
+		black 95%,
+		transparent 100%
+	);
 }
 .mask-image-gradient-right {
-    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+	mask-image: linear-gradient(to right, black 85%, transparent 100%);
 }
 
 /* Animation Utilities */
-@keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
-.animate-float { animation: float 6s ease-in-out infinite; }
+@keyframes float {
+	0%,
+	100% {
+		transform: translateY(0px);
+	}
+	50% {
+		transform: translateY(-5px);
+	}
+}
+.animate-float {
+	animation: float 6s ease-in-out infinite;
+}
 
-@keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.animate-spin-slow { animation: spin-slow 20s linear infinite; }
+@keyframes spin-slow {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+.animate-spin-slow {
+	animation: spin-slow 20s linear infinite;
+}
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+	0% {
+		transform: translateX(-100%);
+	}
+	100% {
+		transform: translateX(100%);
+	}
 }
 .animate-shimmer {
-  animation: shimmer 1.5s ease-in-out infinite;
+	animation: shimmer 1.5s ease-in-out infinite;
 }
-@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-@keyframes popIn { 0% { opacity: 0; transform: scale(0.5); } 70% { transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+@keyframes slideDown {
+	from {
+		opacity: 0;
+		transform: translateY(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+@keyframes scaleIn {
+	from {
+		opacity: 0;
+		transform: scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+@keyframes popIn {
+	0% {
+		opacity: 0;
+		transform: scale(0.5);
+	}
+	70% {
+		transform: scale(1.1);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
 
-.animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-slide-down { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-scale-in { animation: scaleIn 0.2s ease-out forwards; }
-.animate-pop-in { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-up {
+	animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-slide-down {
+	animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.animate-scale-in {
+	animation: scaleIn 0.2s ease-out forwards;
+}
+.animate-pop-in {
+	animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

@@ -61,6 +61,7 @@ const CAPABILITY_MAP: Record<string, string> = {
   'generate_custom_syllabus': 'doc', // Teaser tool - curriculum architect
   'analyze_competitor_gap': 'search', // Teaser tool - FOMO radar
   'simulate_cost_of_inaction': 'roi', // Teaser tool - ROI simulator
+  'generate_executive_memo': 'doc', // Executive briefing for C-level objections
   'get_dashboard_stats': 'doc' // Admin tool
 }
 

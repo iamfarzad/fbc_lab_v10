@@ -51,7 +51,13 @@ ${ctx.person?.profileUrl ? `- Mention you've seen their background context.` : '
  * to agent system prompts to ensure context-aware communication.
  */
 export function generateSystemPromptSupplement(ctx: IntelligenceContext | undefined): string {
-  if (!ctx || !ctx.strategicContext) return ''
+  if (!ctx || !ctx.strategicContext) {
+    // Still include facts even if strategicContext is missing
+    if (ctx?.facts && ctx.facts.length > 0) {
+      return generateFactsContext(ctx.facts)
+    }
+    return ''
+  }
 
   const { privacySensitivity, technicalLevel, authorityLevel } = ctx.strategicContext
   const companyName = ctx.company?.name || 'their company'
@@ -107,12 +113,31 @@ export function generateSystemPromptSupplement(ctx: IntelligenceContext | undefi
 - Be helpful and educational.`
   }
 
+  // Include facts if available
+  const factsContext = ctx.facts && ctx.facts.length > 0 
+    ? `\n\n📝 SEMANTIC MEMORY (From previous conversations):\n${ctx.facts.map((f, i) => `${i + 1}. ${f}`).join('\n')}\n\nUse these facts naturally - they represent permanent constraints, preferences, or context about this user.`
+    : ''
+
   return `
 === 🎯 LIVE STRATEGIC CONTEXT ===
 User Authority: ${authorityLevel} (Adjust deference accordingly).
 Company: ${companyName} (${ctx.company?.size || 'Unknown size'}).
-${specificInstructions}
+${specificInstructions}${factsContext}
 =================================
+`
+}
+
+/**
+ * Generate facts-only context (when strategicContext is missing)
+ */
+function generateFactsContext(facts: string[]): string {
+  return `
+=== 📝 SEMANTIC MEMORY ===
+From previous conversations with this user:
+${facts.map((f, i) => `${i + 1}. ${f}`).join('\n')}
+
+Use these facts naturally - they represent permanent constraints, preferences, or context.
+==========================
 `
 }
 
@@ -156,6 +181,7 @@ export function generateSalesConstraintInstructions(): string {
 - PROVE you know the answer by briefly describing the *outcome* ("Yes, we can automate that using RAG pipelines"), but sell the *method* ("That's exactly what we cover in our Advanced Implementation module").
 - Use 'simulate_cost_of_inaction' when they mention inefficient processes to show the cost of waiting.
 - Use 'analyze_competitor_gap' when discussing industry context to create urgency.
+- Use 'generate_executive_memo' when budget, timing, or security objections are raised - this helps the champion sell to their decision maker (CFO/CEO/CTO).
 
 When to break this rule: Only if explicitly asked "How does this work technically?" AND they've already booked a call or shown strong buying intent (explicit budget discussion, timeline commitment).
 `

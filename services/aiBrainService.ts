@@ -347,6 +347,7 @@ export class AIBrainService {
             conversationFlow?: any;
             intelligenceContext?: any;
             onChunk?: (text: string) => void;
+            onMetadata?: (metadata: { type: string; toolCall?: any; reasoning?: string; message?: string; [key: string]: any }) => void;
         }
     ): Promise<AgentResponse> {
         try {
@@ -475,9 +476,20 @@ export class AIBrainService {
                                             hasToolCall: !!parsed.toolCall,
                                             hasReasoning: !!parsed.reasoning
                                         });
-                                        // These are intermediate events - could be used for UI updates
-                                        // Tool calls, reasoning steps, thinking states, etc.
-                                        // For now, we just accumulate them in metadata
+                                        
+                                        // Call onMetadata callback immediately for UI updates
+                                        if (options?.onMetadata) {
+                                            const metadata: { type: string; toolCall?: any; reasoning?: string; message?: string; [key: string]: any } = {
+                                                type: parsed.type || 'meta',
+                                                ...parsed
+                                            };
+                                            if (parsed.toolCall) metadata.toolCall = parsed.toolCall;
+                                            if (parsed.reasoning) metadata.reasoning = parsed.reasoning;
+                                            if (parsed.message) metadata.message = parsed.message;
+                                            options.onMetadata(metadata);
+                                        }
+                                        
+                                        // Also accumulate them in metadata for final result
                                         if (!finalResult) {
                                             finalResult = {
                                                 success: true,

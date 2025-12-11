@@ -724,5 +724,25 @@ describeE2E('E2E Tool Integration Tests', () => {
         expect(result.data?.annualCost).toBeDefined()
       }
     })
+
+    it('should execute generate_executive_memo', async () => {
+      const { executeUnifiedTool } = await import('../src/core/tools/unified-tool-registry')
+      
+      const sessionId = 'test-session-id'
+      const args = {
+        target_audience: 'CFO',
+        key_blocker: 'budget',
+        proposed_solution: '2-Day In-House Workshop'
+      }
+      
+      const result = await executeUnifiedTool('generate_executive_memo', args, { sessionId })
+
+      expect(verifyToolResult(result)).toBe(true)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data?.memo).toBeDefined()
+        expect(typeof result.data?.memo).toBe('string')
+      }
+    })
   })
 })

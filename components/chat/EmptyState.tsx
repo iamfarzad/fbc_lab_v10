@@ -28,7 +28,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onSuggest }) => {
       <div className="mb-8 relative group cursor-default animate-fade-in-scale" style={{ animationDelay: '100ms' }}>
          <div className="absolute inset-0 bg-gradient-to-tr from-zinc-200 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900 rounded-[32px] rotate-3 blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
          <div className={`relative w-20 h-20 ${BG.default} ${RADIUS.lg} flex items-center justify-center shadow-2xl ${BORDER.subtle}`}>
-            <span className="font-serif text-2xl tracking-tighter italic font-bold text-black dark:text-white">
+            <span className="font-matrix text-2xl tracking-tighter italic font-bold text-black dark:text-white">
                F.B<span className="text-black dark:text-white">/</span>c
             </span>
          </div>
