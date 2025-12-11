@@ -15,7 +15,7 @@ const ExtractedFactsSchema = z.object({
   }))
 })
 
-// type ExtractedFacts = z.infer<typeof ExtractedFactsSchema> // Unused, kept for reference
+type ExtractedFact = z.infer<typeof ExtractedFactsSchema>['facts'][number]
 
 /**
  * Extract permanent facts from conversation messages
@@ -87,8 +87,8 @@ Extract only NEW facts that aren't already in the existing facts list.`
     }
 
     const factsToInsert = result.object.facts
-      .filter(f => f.fact && f.fact.trim().length > 0)
-      .map(f => ({
+      .filter((f: ExtractedFact) => f.fact && f.fact.trim().length > 0)
+      .map((f: ExtractedFact) => ({
         session_id: sessionId,
         email,
         fact_text: f.fact.trim(),
