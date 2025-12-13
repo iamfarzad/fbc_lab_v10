@@ -6,6 +6,8 @@ import path from 'path'
 export default defineConfig(({ mode }) => {
   // Load env vars - matches v9 approach
   const env = loadEnv(mode, '.', '')
+  const apiProxyTarget =
+    env.VITE_API_PROXY_TARGET || `http://127.0.0.1:${env.VITE_API_PROXY_PORT || '3002'}`
 
   return {
     plugins: [react()],
@@ -43,7 +45,9 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           // Use 127.0.0.1 to avoid rare localhost resolution issues in some dev setups
-          target: 'http://127.0.0.1:3002',
+          // Default assumes `pnpm dev:api:3002` (Vercel dev) on port 3002.
+          // Override with VITE_API_PROXY_TARGET or VITE_API_PROXY_PORT when needed.
+          target: apiProxyTarget,
           changeOrigin: true,
         },
       },
@@ -57,4 +61,3 @@ export default defineConfig(({ mode }) => {
     },
   }
 })
-

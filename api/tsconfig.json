@@ -1,0 +1,28 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "noEmit": true
+  },
+  "include": [
+    "./**/*.ts",
+    "../src/**/*.ts",
+    "../server/**/*.ts",
+    "../services/**/*.ts",
+    "../utils/**/*.ts",
+    "../types.ts",
+    "../config.ts"
+  ],
+  "exclude": [
+    "../components/**",
+    "../dist/**",
+    "../e2e/**",
+    "../logs/**",
+    "../node_modules/**",
+    "../playwright-report/**",
+    "../scripts/**",
+    "../test/**",
+    "../test-results/**"
+  ]
+}
+

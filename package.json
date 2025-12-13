@@ -130,7 +130,13 @@
 		"tailwindcss": "^4.1.17",
 		"tsx": "^4.7.0",
 		"typescript": "^5.2.2",
+		"vercel": "48.2.5",
 		"vite": "^5.0.8",
 		"vitest": "^1.0.4"
+	},
+	"pnpm": {
+		"overrides": {
+			"@vercel/node>typescript": "5.2.2"
+		}
 	}
 }
