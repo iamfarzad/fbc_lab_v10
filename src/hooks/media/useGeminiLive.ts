@@ -23,7 +23,6 @@ interface UseGeminiLiveProps {
     handleVolumeChange: (input: number, output: number) => void;
     handleTranscript: (text: string, isUser: boolean, isFinal: boolean, grounding: any, agent: any) => void;
     handleToolCall: (calls: any[]) => Promise<any[]>;
-    standardChatRef: React.MutableRefObject<any>; // For context sync
     intelligenceContextRef: React.MutableRefObject<any>; // For context sync
 }
 
@@ -40,7 +39,6 @@ export function useGeminiLive({
     handleVolumeChange,
     handleTranscript,
     handleToolCall,
-    standardChatRef,
     intelligenceContextRef,
     liveServiceRef // External Ref
 }: UseGeminiLiveProps & { liveServiceRef: React.MutableRefObject<GeminiLiveService | null> }) {
@@ -100,16 +98,9 @@ export function useGeminiLive({
             `If the user asks about the weather, ALWAYS check the location and then call update_dashboard({ shape: 'weather', ... }).`
         );
 
-        // INJECT RESEARCH CONTEXT (MATCH SPEC)
-        if (researchResultRef.current?.person?.fullName && researchResultRef.current?.company?.name) {
-            const rc = researchResultRef.current;
-            systemInstruction += `\n\n[CRITICAL CONTEXT: INTERLOCUTOR PROFILE]\n` +
-                `You are speaking with: ${rc.person.fullName} (${rc.role})\n` +
-                `Company: ${rc.company.name} (${rc.company.industry || 'Industry unknown'})\n` +
-                `Summary: ${rc.company.summary || 'N/A'}\n` +
-                `Strategic Context: ${JSON.stringify(rc.strategic || {})}\n` +
-                `Adapt your tone to be relevant to their industry and role.`;
-        } else if (userProfile) {
+        // NOTE: Voice system instructions are server-managed (server/live-api/config-builder.ts).
+        // Keep this client-side instruction minimal to avoid unverified personalization.
+        if (userProfile) {
             systemInstruction += `\n\n[USER CONTEXT]\nName: ${userProfile.name}\nEmail: ${userProfile.email}\n`;
         }
 
@@ -173,23 +164,9 @@ export function useGeminiLive({
             onToolCall: handleToolCall
         });
 
-        // Ensure research context is synced to all services
-        if (researchResultRef.current) {
-            if (standardChatRef.current) {
-                standardChatRef.current.setResearchContext(researchResultRef.current);
-            }
-            if (liveServiceRef.current) {
-                liveServiceRef.current.setResearchContext(researchResultRef.current);
-            }
-            // Pass research context as intelligence context for agents (flattened)
-            const researchData = researchResultRef.current;
-            intelligenceContextRef.current = {
-                ...intelligenceContextRef.current,
-                ...(researchData?.company ? { company: researchData.company } : {}),
-                ...(researchData?.person ? { person: researchData.person } : {}),
-                ...(researchData?.strategic ? { strategic: researchData.strategic } : {}),
-                research: researchData
-            };
+        // Sync research context only to the Live service (agents get context via AIBrainService).
+        if (researchResultRef.current && liveServiceRef.current) {
+            liveServiceRef.current.setResearchContext(researchResultRef.current);
         }
 
         try {
@@ -220,7 +197,7 @@ export function useGeminiLive({
             }
         }
 
-    }, [handleVolumeChange, handleTranscript, handleToolCall, userProfile, standardChatRef, intelligenceContextRef, unifiedContext, transcriptRef, researchResultRef, setActiveRoute, setVisualState, setIsChatVisible, connectionState, showToast]);
+    }, [handleVolumeChange, handleTranscript, handleToolCall, userProfile, intelligenceContextRef, unifiedContext, transcriptRef, researchResultRef, setActiveRoute, setVisualState, setIsChatVisible, connectionState, showToast]);
 
     // Critical Fix: Manual Ref management to avoid useEffect dependency cycles
     const handleConnectRef = useRef(handleConnect);
