@@ -420,7 +420,7 @@ export function generateDiscoveryReportHTML(data: DiscoveryReportData): string {
       <div class="cta-subtitle">Book a free 30-minute consultation to discuss solutions tailored to your needs.</div>
       <a href="${data.bookingUrl}" class="cta-button">Book Your Free Consultation</a>
       <div class="cta-link">${data.bookingUrl}</div>
-      <div class="cta-alternative">Questions? Email ${data.consultantEmail}</div>
+      <div class="cta-alternative">Questions? Email ${escapeHtml(data.consultantEmail)}</div>
     </div>
     
     <!-- Footer -->
@@ -567,4 +567,3 @@ export function generateSampleDiscoveryReport(): DiscoveryReportData {
     consultantName: 'Farzad Bayat'
   }
 }
-

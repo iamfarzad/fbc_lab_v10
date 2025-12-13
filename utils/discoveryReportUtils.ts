@@ -415,7 +415,7 @@ export function buildDiscoveryReportFromClient(input: DiscoveryReportInput): Dis
     totalMessages: transcript.length,
     modalitiesUsed,
     bookingUrl: 'https://cal.com/farzad-bayat/30min',
-    consultantEmail: 'farzad@fbc.ai',
+    consultantEmail: 'contact@farzadbayat.com',
     consultantName: 'Farzad Bayat',
     // Store additional data for template
     executiveSummary: summaryAgentOutput?.executiveSummary,
@@ -598,7 +598,7 @@ export function generateDiscoveryReportHTMLClient(data: DiscoveryReportData & {
       <div class="cta-subtitle">Book a free 30-minute consultation to discuss solutions tailored to your needs.</div>
       <a href="${data.bookingUrl}" class="cta-button">Book Your Free Consultation</a>
       <div class="cta-link">${data.bookingUrl}</div>
-      <div class="cta-alternative">Questions? Email ${data.consultantEmail}</div>
+      <div class="cta-alternative">Questions? Email ${escapeHtml(data.consultantEmail)}</div>
     </div>
     
     <div class="footer">
@@ -724,4 +724,3 @@ export function createDiscoveryReportTranscriptItem(data: DiscoveryReportData, h
     attachment
   }
 }
-

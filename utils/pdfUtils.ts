@@ -1,5 +1,5 @@
 
-import { TranscriptItem, ResearchResult } from '../types.ts';
+import { TranscriptItem, ResearchResult } from '../types';
 
 interface PDFOptions {
     transcript: TranscriptItem[];
