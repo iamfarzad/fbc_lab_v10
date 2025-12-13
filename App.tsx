@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import AntigravityCanvas from './components/AntigravityCanvas';
 import MultimodalChat from './components/MultimodalChat';
+import { buildContextSources } from './components/chat/ContextSources';
 import { BrowserCompatibility } from './components/BrowserCompatibility';
 import LandingPage from './components/LandingPage';
 import { useScreenShare } from 'src/hooks/media/useScreenShare';
@@ -57,6 +58,16 @@ function calculateReasoningComplexity(reasoning?: string): number {
     return Math.min(complexity, 1.0);
 }
 
+function isLiveRealtimeMediaMime(mimeType?: string): boolean {
+    if (!mimeType) return false;
+    if (mimeType.startsWith('image/')) return true;
+    if (mimeType.startsWith('audio/')) return true;
+    if (mimeType.startsWith('video/')) return true;
+    // Common audio mime patterns used by Gemini Live
+    if (mimeType.includes('pcm') || mimeType.includes('rate=')) return true;
+    return false;
+}
+
 export const App: React.FC = () => {
     const { showToast } = useToast();
     
@@ -64,8 +75,8 @@ export const App: React.FC = () => {
     const { view, setView } = useAppRouting();
 
     // 2. Session & Service Registry
-    const [sessionId] = useState<string>(`session-${Date.now()}`);
-    const { standardChatRef, researchServiceRef, aiBrainRef } = useServiceRegistry(sessionId);
+    const [sessionId] = useState<string>(() => unifiedContext.getSnapshot().sessionId || `session-${Date.now()}`);
+    const { researchServiceRef, aiBrainRef } = useServiceRegistry(sessionId);
 
     // 3. Shared Refs for Dependency Injection
     const liveServiceRef = useRef<GeminiLiveService | null>(null);
@@ -79,6 +90,9 @@ export const App: React.FC = () => {
     // 4. UI State
     const [isChatVisible, setIsChatVisible] = useState(true);
     const { isDarkMode, toggleTheme } = useTheme();
+    
+    // Add state to track chat width
+    const [chatWidth, setChatWidth] = useState(450);
     
     // Glass Box UI: Active tools and reasoning state
     const [activeTools, setActiveTools] = useState<Array<{
@@ -282,6 +296,52 @@ export const App: React.FC = () => {
         handleTranscriptUpdateRef.current = handleTranscriptUpdate;
     }, [handleTranscriptUpdate]);
 
+    // Voice ↔ Agents unification
+    const handleSendMessageRef = useRef<
+        ((text: string, file?: { mimeType: string; data: string; type?: string; url?: string; name?: string }, opts?: any) => Promise<void>) | null
+    >(null);
+    const lastVoiceAgentTurnRef = useRef<{ text: string; at: number } | null>(null);
+    const lastSendRef = useRef<{ key: string; at: number } | null>(null);
+
+    const buildVoiceHistoryOverride = useCallback((finalText: string): TranscriptItem[] => {
+        const now = new Date();
+        const cleaned = (finalText || '').trim();
+        const history = [...(transcriptRef.current || [])];
+        const last = history[history.length - 1];
+
+        if (last && last.role === 'user') {
+            // If we have an in-progress user transcript, finalize it.
+            if (!last.isFinal) {
+                history[history.length - 1] = {
+                    ...last,
+                    text: cleaned || last.text,
+                    isFinal: true,
+                    status: 'complete',
+                    timestamp: last.timestamp || now
+                };
+                return history;
+            }
+            // If last user message already matches, reuse.
+            if ((last.text || '').trim() === cleaned) {
+                return history;
+            }
+        }
+
+        // Otherwise, append a synthetic final user message for the agent turn.
+        if (cleaned) {
+            history.push({
+                id: `voice-${Date.now()}`,
+                role: 'user',
+                text: cleaned,
+                timestamp: now,
+                isFinal: true,
+                status: 'complete'
+            });
+        }
+
+        return history;
+    }, []);
+
     // 8. Gemini Live Service Hook (now uses the pre-defined handleTranscriptUpdate)
     const { 
         connectionState, 
@@ -302,18 +362,50 @@ export const App: React.FC = () => {
         handleVolumeChange,
         handleTranscript: (text, isUser, isFinal, grounding, agent) => {
              logger.debug('[App] handleTranscript called', { text: text?.substring(0, 50), isUser, isFinal, hasRef: !!handleTranscriptUpdateRef.current });
+             const agentsForVoice = connectionState === LiveConnectionState.CONNECTED;
+
+             // When using agents for voice responses, ignore Live-model output transcripts.
+             if (agentsForVoice && !isUser) return;
+
              // Use ref to always get latest function
              if (handleTranscriptUpdateRef.current) {
                  handleTranscriptUpdateRef.current(text, isUser, isFinal, grounding, agent);
              } else {
                  logger.warn('[App] handleTranscriptUpdateRef.current is null!');
              }
+
+             // Route final user voice transcripts to the agent orchestrator.
+             if (agentsForVoice && isUser && isFinal) {
+                 const cleaned = (text || '').trim();
+                 if (!cleaned) return;
+
+                 const now = Date.now();
+                 const last = lastVoiceAgentTurnRef.current;
+                 if (last && last.text === cleaned && now - last.at < 1500) return;
+                 lastVoiceAgentTurnRef.current = { text: cleaned, at: now };
+
+                 const historyOverride = buildVoiceHistoryOverride(cleaned);
+                 void handleSendMessageRef.current?.(cleaned, undefined as any, {
+                     skipUserAppend: true,
+                     historyOverride,
+                     timestampOverride: new Date(),
+                     skipResearch: true
+                 });
+             }
         },
         handleToolCall,
-        standardChatRef,
         intelligenceContextRef,
         liveServiceRef
     });
+
+    // Mute Live-model audio output when routing voice through agents + TTS.
+    useEffect(() => {
+        const agentsForVoice = connectionState === LiveConnectionState.CONNECTED;
+        liveServiceRef.current?.setOutputMuted?.(agentsForVoice);
+        if (!agentsForVoice && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
+    }, [connectionState, liveServiceRef]);
 
     // 9. Lead Research Hook
     const { 
@@ -323,10 +415,9 @@ export const App: React.FC = () => {
         handleTermsComplete,
         handleStartChatRequest,
         performResearch,
-        isResearching,
-        setIsResearching
+        isResearching
     } = useLeadResearch({
-        services: { standardChatRef, researchServiceRef, liveServiceRef },
+        services: { researchServiceRef, liveServiceRef },
         setTranscript,
         setIsWebcamActive,
         connectionState,
@@ -343,6 +434,11 @@ export const App: React.FC = () => {
             researchActive: isResearching 
         }));
     }, [isResearching, setVisualState]);
+
+    // Per-turn thinking state (separate from lead research)
+    const [isThinking, setIsThinking] = useState(false);
+    const toolsForMessageRef = useRef<Array<any>>([]);
+    const toolIndexByIdRef = useRef<Record<string, number>>({});
 
     // Log connection state changes
     useEffect(() => {
@@ -376,8 +472,40 @@ export const App: React.FC = () => {
         });
     }, []);
 
+    const speakAgentOutput = useCallback((rawText: string) => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+        const cleaned = (rawText || '')
+            .replace(/```[\s\S]*?```/g, '')
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!cleaned) return;
+
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(cleaned);
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+    }, []);
+
     // 11. Handle Send Message
-    const handleSendMessage = useCallback(async (text: string, file?: { mimeType: string, data: string, type?: string, url?: string, name?: string }) => {
+    const handleSendMessage = useCallback(async (
+        text: string,
+        file?: { mimeType: string, data: string, type?: string, url?: string, name?: string },
+        opts?: { skipUserAppend?: boolean; historyOverride?: TranscriptItem[]; timestampOverride?: Date; skipResearch?: boolean }
+    ) => {
+        // Guard against accidental double-submits (e.g., Enter + click, or duplicated handlers)
+        const dedupeKey = `${(text || '').trim()}|${file?.mimeType || ''}|${file?.data?.length || 0}`;
+        const nowMs = Date.now();
+        const lastSend = lastSendRef.current;
+        if (lastSend && lastSend.key === dedupeKey && nowMs - lastSend.at < 800) {
+            logger.warn('[App] Dropping duplicate send', { dedupeKey });
+            return;
+        }
+        lastSendRef.current = { key: dedupeKey, at: nowMs };
+
         // ... (Logic from previous App.tsx)
         const targetShape = detectVisualIntent(text)?.shape;
         if (targetShape) {
@@ -393,12 +521,15 @@ export const App: React.FC = () => {
             }));
         }
 
+        const skipUserAppend = opts?.skipUserAppend === true;
+        const userTimestamp = opts?.timestampOverride ?? new Date();
+
         const isImage = file?.mimeType.startsWith('image/');
         const userItem: TranscriptItem = {
             id: Date.now().toString(),
             role: 'user',
             text: text,
-            timestamp: new Date(),
+            timestamp: userTimestamp,
             isFinal: true,
             status: 'complete',
             ...(file && {
@@ -412,58 +543,39 @@ export const App: React.FC = () => {
             })
         };
 
-        setTranscript(prev => [...prev, userItem]);
+        if (!skipUserAppend) {
+            setTranscript(prev => [...prev, userItem]);
+        }
 
         if (sessionId) {
-            await persistMessageToServer(sessionId, 'user', text, userItem.timestamp, file);
+            await persistMessageToServer(sessionId, 'user', text, userTimestamp, file);
         }
 
         // Detect research intent in message
-        void performResearch(text);
+        if (!opts?.skipResearch) {
+            void performResearch(text);
+        }
 
         const shouldUseVoice = connectionState === LiveConnectionState.CONNECTED && liveServiceRef.current;
 
+        // If voice is connected, keep sending realtime media (audio/video/images) through the Live WebSocket.
+        // Text chat should still route through the agent orchestrator via AIBrainService so agents remain active.
         if (shouldUseVoice) {
             setBackendStatus({
                 mode: 'voice',
-                message: file ? 'Voice + media sent via Live WebSocket' : 'Voice message sent via Live WebSocket',
+                message: file
+                    ? (isLiveRealtimeMediaMime(file.mimeType)
+                        ? 'Voice connected: media sent via Live WebSocket'
+                        : 'Voice connected: file routed to agents (not sent to Live)')
+                    : 'Voice connected',
                 severity: 'info'
             });
-            if (file) {
-                 liveServiceRef.current?.sendRealtimeMedia(file);
+            if (file && isLiveRealtimeMediaMime(file.mimeType)) {
+                liveServiceRef.current?.sendRealtimeMedia(file);
             }
-            // Text during voice mode - route to standardChatService instead of Live API
-            // Live API's sendRealtimeInput() only accepts audio/video, not text (causes error 1007)
-            if (text.trim() && standardChatRef.current) {
-                try {
-                    const currentHistory = [...transcriptRef.current, userItem];
-                    const response = await standardChatRef.current.sendMessage(
-                        currentHistory,
-                        text,
-                        file ? { mimeType: file.mimeType, data: file.data } : undefined
-                    );
-                    
-                    // Add response to transcript
-                    const responseItem: TranscriptItem = {
-                        id: (Date.now() + 1).toString(),
-                        role: 'model',
-                        text: response.text,
-                        timestamp: new Date(),
-                        isFinal: true,
-                        status: 'complete',
-                        ...(response.reasoning && { reasoning: response.reasoning })
-                    };
-                    setTranscript(prev => [...prev, responseItem]);
-                    
-                    if (sessionId) {
-                        await persistMessageToServer(sessionId, 'model', response.text, responseItem.timestamp);
-                    }
-                } catch (err) {
-                    console.error('Failed to send text via standardChatService during voice mode:', err);
-                    showToast('Failed to send text message. Please try again.', 'error');
-                }
-            }
-        } else if (aiBrainRef.current) {
+        }
+
+        if (aiBrainRef.current) {
             const storedKey = localStorage.getItem('fbc_api_key');
             const apiKey = storedKey || process.env.API_KEY;
             if (!apiKey || apiKey.includes('INSERT_API_KEY')) {
@@ -475,16 +587,19 @@ export const App: React.FC = () => {
                 abortControllerRef.current = new AbortController();
                 setBackendStatus({ mode: 'agents', message: 'Routing via Multi-Agent...', severity: 'info' });
 
-                const loadingId = Date.now() + 1;
-                // Set research state when starting a new message (will be cleared when done)
-                setIsResearching(true); // Show research UI immediately when agent starts responding
+                const loadingId = `assistant-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                // Do not toggle lead-research UI for normal agent turns.
+                // isResearching is reserved for background/manual lead research only.
+                setIsThinking(true);
+                toolsForMessageRef.current = [];
+                toolIndexByIdRef.current = {};
                 
                 // Clear Glass Box UI state for new message
                 setActiveTools([]);
                 setCurrentReasoning('');
                 
                 setTranscript(prev => [...prev, {
-                    id: loadingId.toString(),
+                    id: loadingId,
                     role: 'model',
                     text: '',
                     timestamp: new Date(),
@@ -492,24 +607,28 @@ export const App: React.FC = () => {
                     status: 'streaming'
                 }]);
 
-                const currentHistory = [...transcriptRef.current, userItem];
+                const baseHistory = opts?.historyOverride ?? transcriptRef.current;
+                const currentHistory = skipUserAppend ? baseHistory : [...baseHistory, userItem];
                 
                 // Context sync
                 const location = await unifiedContext.ensureLocation();
-                 if (standardChatRef.current && location) standardChatRef.current.setLocation(location);
                  if (liveServiceRef.current && location) liveServiceRef.current.setLocation(location);
 
                 const unifiedSnapshot = unifiedContext.getSnapshot();
-                const researchData = unifiedSnapshot.researchContext || intelligenceContextRef.current?.research;
-                const intelligencePayload = {
+                const mergedIntelligencePayload: any = {
                     ...(unifiedSnapshot.intelligenceContext || {}),
                     ...(intelligenceContextRef.current || {}),
-                    ...(researchData?.company ? { company: researchData.company } : {}),
-                    ...(researchData?.person ? { person: researchData.person } : {}),
-                    ...(researchData?.strategic ? { strategic: researchData.strategic } : {}),
-                    ...(researchData ? { research: researchData } : {}),
                     ...(location ? { location } : {})
                 };
+                // Normalize for API validation (requires at least email or name when sending a context object)
+                if (!mergedIntelligencePayload.name && mergedIntelligencePayload.person?.fullName) {
+                    mergedIntelligencePayload.name = mergedIntelligencePayload.person.fullName;
+                }
+                const finalIntelligencePayload =
+                    (typeof mergedIntelligencePayload.email === 'string' && mergedIntelligencePayload.email.trim()) ||
+                    (typeof mergedIntelligencePayload.name === 'string' && mergedIntelligencePayload.name.trim())
+                        ? mergedIntelligencePayload
+                        : undefined;
 
                 const messages = AIBrainService.transcriptToMessages(currentHistory);
                 const lastMsg = messages[messages.length - 1];
@@ -539,7 +658,7 @@ export const App: React.FC = () => {
                 try {
                     agentResponse = await aiBrainRef.current.chatStream(messages, {
                         conversationFlow: conversationFlowRef.current || unifiedSnapshot.conversationFlow,
-                        intelligenceContext: intelligencePayload,
+                        ...(finalIntelligencePayload ? { intelligenceContext: finalIntelligencePayload } : {}),
                         onChunk: (accumulatedText: string) => {
                             // Update transcript with accumulated text as it streams
                             if (!abortControllerRef.current || abortControllerRef.current.signal.aborted) return;
@@ -549,7 +668,7 @@ export const App: React.FC = () => {
                             
                             setTranscript(prev => {
                                 const updated = [...prev];
-                                const loadingIndex = updated.findIndex(item => item.id === loadingId.toString());
+                                const loadingIndex = updated.findIndex(item => item.id === loadingId);
                                 
                                 if (loadingIndex >= 0 && updated[loadingIndex]) {
                                     const existingItem = updated[loadingIndex];
@@ -570,7 +689,7 @@ export const App: React.FC = () => {
                                 } else {
                                     // If loading item was removed, add it back
                                     const newItem: TranscriptItem = {
-                                        id: loadingId.toString(),
+                                        id: loadingId,
                                         role: 'model',
                                         text: accumulatedText,
                                         timestamp: new Date(),
@@ -621,6 +740,31 @@ export const App: React.FC = () => {
                                         input: toolArgs
                                     }];
                                 });
+
+                                // Track tool call for this message
+                                {
+                                    const existingIdx = toolIndexByIdRef.current[String(toolId)];
+                                    const startedAt = Date.now();
+                                    if (typeof existingIdx === 'number' && toolsForMessageRef.current[existingIdx]) {
+                                        toolsForMessageRef.current[existingIdx] = {
+                                            ...toolsForMessageRef.current[existingIdx],
+                                            name: toolName,
+                                            type: 'call',
+                                            state: 'running',
+                                            input: toolArgs,
+                                            startedAt: toolsForMessageRef.current[existingIdx].startedAt || startedAt
+                                        };
+                                    } else {
+                                        toolIndexByIdRef.current[String(toolId)] = toolsForMessageRef.current.length;
+                                        toolsForMessageRef.current.push({
+                                            name: toolName,
+                                            type: 'call',
+                                            state: 'running',
+                                            input: toolArgs,
+                                            startedAt
+                                        });
+                                    }
+                                }
                             }
                             
                             // Handle tool results - check multiple possible structures
@@ -640,12 +784,43 @@ export const App: React.FC = () => {
                                             }
                                             : t
                                     ));
+
+                                    // Update matching tool entry for this message
+                                    {
+                                        const now = Date.now();
+                                        const idx = toolIndexByIdRef.current[String(resultId)];
+                                        if (typeof idx === 'number' && toolsForMessageRef.current[idx]) {
+                                            toolsForMessageRef.current[idx] = {
+                                                ...toolsForMessageRef.current[idx],
+                                                name:
+                                                    toolsForMessageRef.current[idx].name ||
+                                                    toolResult.name ||
+                                                    toolResult.toolName ||
+                                                    toolResult.toolCall?.name ||
+                                                    'unknown',
+                                                state: toolResult.error ? 'error' : 'complete',
+                                                output: toolResult.result || toolResult.output,
+                                                error: toolResult.error,
+                                                finishedAt: now
+                                            };
+                                        } else {
+                                            toolIndexByIdRef.current[String(resultId)] = toolsForMessageRef.current.length;
+                                            toolsForMessageRef.current.push({
+                                                name: toolResult.name || toolResult.toolName || toolResult.toolCall?.name || 'unknown',
+                                                type: 'result',
+                                                state: toolResult.error ? 'error' : 'complete',
+                                                output: toolResult.result || toolResult.output,
+                                                error: toolResult.error,
+                                                finishedAt: now
+                                            });
+                                        }
+                                    }
                                 }
                             }
                             
-                            // Handle reasoning - check multiple possible structures
-                            const reasoningText = metadata.reasoning || metadata.delta || metadata.text || '';
-                            if (reasoningText && (metadata.type === 'reasoning' || metadata.type === 'reasoning-delta')) {
+	                            // Handle reasoning - check multiple possible structures
+	                            const reasoningText = metadata.reasoning || metadata.delta || metadata.text || '';
+	                            if (reasoningText && (metadata.type === 'reasoning' || metadata.type === 'reasoning-delta')) {
                                 console.log('[App] Processing reasoning', { length: reasoningText.length });
                                 setCurrentReasoning(prev => {
                                     const updated = prev + reasoningText;
@@ -664,21 +839,37 @@ export const App: React.FC = () => {
                                     });
                                     return updated;
                                 });
-                                setIsResearching(true); // Trigger research UI (particle morphing, research chip)
-                            }
-                            
-                            if (metadata.type === 'reasoning_start' || metadata.type === 'reasoning-start') {
+                                // Do not toggle lead-research UI during normal agent reasoning.
+	                            }
+	                            
+	                            // Handle grounding metadata (citations/sources) emitted at end of streaming generation
+	                            if (metadata.groundingMetadata?.groundingChunks) {
+	                                const gm = metadata.groundingMetadata;
+	                                setTranscript(prevTranscript => {
+	                                    const updatedTranscript = [...prevTranscript];
+	                                    const loadingIndex = updatedTranscript.findIndex(item => item.id === loadingId.toString());
+	                                    if (loadingIndex >= 0 && updatedTranscript[loadingIndex]) {
+	                                        updatedTranscript[loadingIndex] = {
+	                                            ...updatedTranscript[loadingIndex],
+	                                            groundingMetadata: gm
+	                                        };
+	                                    }
+	                                    return updatedTranscript;
+	                                });
+	                            }
+	                            
+	                            if (metadata.type === 'reasoning_start' || metadata.type === 'reasoning-start') {
                                 console.log('[App] Reasoning started');
                                 setCurrentReasoning('');
                                 currentReasoningRef.current = ''; // Update ref immediately
-                                setIsResearching(true); // Trigger research UI
+                                // Do not toggle lead-research UI during normal agent reasoning.
                             }
                             
                             // Handle thinking states
                             if (metadata.type === 'thinking' || metadata.message || metadata.type === 'meta') {
                                 if (metadata.message || metadata.reasoning) {
                                     console.log('[App] Processing thinking state');
-                                    setIsResearching(true); // Trigger research UI
+                                    // Do not toggle lead-research UI during normal agent reasoning.
                                 }
                             }
                         }
@@ -690,16 +881,18 @@ export const App: React.FC = () => {
                     
                     agentResponse = await aiBrainRef.current.chat(messages, {
                         conversationFlow: conversationFlowRef.current || unifiedSnapshot.conversationFlow,
-                        intelligenceContext: intelligencePayload
+                        ...(finalIntelligencePayload ? { intelligenceContext: finalIntelligencePayload } : {})
                     });
                 }
 
                 if (!abortControllerRef.current || abortControllerRef.current.signal.aborted) return;
 
                 if (!agentResponse.success) {
-                    setTranscript(prev => prev.filter(item => item.id !== loadingId.toString()));
+                    setTranscript(prev => prev.filter(item => item.id !== loadingId));
                     showToast(agentResponse.error || 'Agent Error', 'error');
-                     setBackendStatus({ mode: 'fallback', message: 'Fallback to StandardChat', severity: 'warn' });
+                     setBackendStatus({ mode: 'agents', message: 'Agent backend error', severity: 'error' });
+                     setIsThinking(false);
+                     abortControllerRef.current = null;
                      // Fallback logic could go here, omitting for brevity in this step, can be added if needed
                 } else {
                     setBackendStatus({ mode: 'agents', message: `Agent: ${agentResponse.agent}`, severity: 'info' });
@@ -708,34 +901,76 @@ export const App: React.FC = () => {
                     const finalReasoning = typeof currentReasoning === 'string' && currentReasoning.trim() 
                         ? currentReasoning.trim() 
                         : (typeof agentResponse.metadata?.reasoning === 'string' ? agentResponse.metadata.reasoning : undefined);
+
+                    // Persist conversation flow updates from agents (SSOT via UnifiedContext)
+                    const nextFlow =
+                        (agentResponse.metadata as any)?.enhancedConversationFlow ||
+                        (agentResponse.metadata as any)?.conversationFlow;
+                    if (nextFlow) {
+                        conversationFlowRef.current = nextFlow;
+                        unifiedContext.setConversationFlow(nextFlow);
+                    }
                     
                     // Clear Glass Box UI state when response completes
                     setActiveTools([]);
                     setCurrentReasoning('');
-                    setIsResearching(false); // Clear research state when response completes
+                    // Do not clear lead-research state here; it's managed by useLeadResearch.
+                    setIsThinking(false);
+
+	                    const groundingMetadata = agentResponse.metadata?.groundingMetadata as any;
+	                    const chainOfThought = agentResponse.metadata?.chainOfThought as any;
+	                    const maybeCity = (location as any)?.city as string | undefined;
+	                    const maybeCountry = (location as any)?.country as string | undefined;
+	                    const contextSources = buildContextSources({
+	                        company: finalIntelligencePayload?.company,
+                        person: finalIntelligencePayload?.person,
+                        ...(maybeCity ? { location: { city: maybeCity, ...(maybeCountry ? { country: maybeCountry } : {}) } } : {}),
+                        hasConversation: currentHistory.length > 1
+                    });
                     
                     setTranscript(prev => {
-                        const filtered = prev.filter(item => item.id !== loadingId.toString());
-                        const newItem: TranscriptItem = {
-                            id: Date.now().toString(),
-                            role: 'model',
-                            text: agentResponse.output || '',
-                            timestamp: new Date(),
-                            isFinal: true,
-                            status: 'complete',
-                            ...(finalReasoning && { reasoning: finalReasoning })
-                        };
-                        return [...filtered, newItem];
+                        const updated = [...prev];
+                        const idx = updated.findIndex(item => item.id === loadingId);
+                        const base = idx >= 0 && updated[idx] ? updated[idx] : undefined;
+	                        const finalItem: TranscriptItem = {
+	                            id: loadingId,
+	                            role: 'model',
+	                            text: agentResponse.output || base?.text || '',
+	                            timestamp: base?.timestamp || new Date(),
+	                            isFinal: true,
+	                            status: 'complete',
+	                            ...(chainOfThought?.steps && Array.isArray(chainOfThought.steps) && chainOfThought.steps.length > 0
+	                                ? { chainOfThought }
+	                                : {}),
+	                            ...(finalReasoning && { reasoning: finalReasoning }),
+	                            ...(groundingMetadata && { groundingMetadata }),
+	                            ...(contextSources.length > 0 && { contextSources }),
+	                            ...(toolsForMessageRef.current.length > 0 && { tools: toolsForMessageRef.current })
+	                        };
+                        if (idx >= 0) updated[idx] = finalItem;
+                        else updated.push(finalItem);
+                        return updated;
                     });
                     persistMessageToServer(sessionId, 'model', agentResponse.output || '', new Date());
+                    abortControllerRef.current = null;
+
+                    // If voice is connected, speak the agent response (Live-model audio is muted).
+                    if (shouldUseVoice && agentResponse.output) {
+                        speakAgentOutput(agentResponse.output);
+                    }
                 }
 
             } catch (e: any) {
                 console.error("Chat error", e);
                 showToast(e.message, 'error');
+                setIsThinking(false);
             }
         }
-    }, [connectionState, sessionId, setBackendStatus, showToast, aiBrainRef, persistMessageToServer, liveServiceRef, standardChatRef, setVisualState, setTranscript, isWebcamActive]);
+    }, [connectionState, sessionId, setBackendStatus, showToast, aiBrainRef, persistMessageToServer, liveServiceRef, setVisualState, setTranscript, isWebcamActive, speakAgentOutput, performResearch]);
+
+    useEffect(() => {
+        handleSendMessageRef.current = handleSendMessage;
+    }, [handleSendMessage]);
 
     // 12. PDF Generation Handlers
     const handleGeneratePDF = useCallback(() => {
@@ -838,50 +1073,50 @@ export const App: React.FC = () => {
 
         try {
             const { htmlContent, reportName } = latestReportDataRef.current;
-            
-            // Create a temporary window with the HTML content
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) {
-                showToast('Please allow popups to download the PDF.', 'error');
-                return;
-            }
 
-            // Write HTML with print styles
-            printWindow.document.write(`
+            // Create a complete HTML document with the report content
+            const fullHtml = `
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <meta charset="UTF-8">
                     <title>${reportName}</title>
                     <style>
-                        @media print {
-                            @page { margin: 0; }
-                            body { margin: 0; }
-                        }
                         body {
                             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            margin: 0;
                             padding: 20px;
-                            max-width: 800px;
-                            margin: 0 auto;
+                            background: white;
+                        }
+                        @media print {
+                            body { margin: 0; padding: 0; }
                         }
                     </style>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
                 </head>
                 <body>${htmlContent}</body>
                 </html>
-            `);
-            printWindow.document.close();
+            `;
 
-            // Wait for content to load, then trigger print
-            setTimeout(() => {
-                printWindow.print();
-                // Close window after print dialog
-                setTimeout(() => {
-                    printWindow.close();
-                }, 100);
-            }, 500);
+            // Create a blob with the HTML content
+            const blob = new Blob([fullHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+
+            // Create a temporary download link
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Clean up the blob URL
+            URL.revokeObjectURL(url);
+
+            showToast('Report downloaded successfully!', 'success');
         } catch (err) {
             console.error('Failed to download report:', err);
-            showToast('Failed to download PDF. Please try again.', 'error');
+            showToast('Failed to download report. Please try again.', 'error');
         }
     }, [showToast]);
 
@@ -900,10 +1135,7 @@ export const App: React.FC = () => {
                 }
                 if (result) return result;
             }
-            if (standardChatRef.current) {
-                logger.debug("Local AI unavailable, using Cloud Fallback (Flash Lite) for edit.");
-                return await standardChatRef.current.performQuickAction(text, action);
-            }
+            logger.debug("Local AI unavailable, no cloud fallback available for edit.");
             return text;
         } catch (e) {
             console.error("Edit action failed", e);
@@ -938,7 +1170,7 @@ export const App: React.FC = () => {
         // Log every frame received from webcam (throttled to avoid spam)
         const now = Date.now();
         if (!webcamFrameLogRef.current || now - webcamFrameLogRef.current > 2000) {
-            console.log('📹 [App] Webcam frame received from WebcamPreview', {
+            logger.debug('[App] Webcam frame received from WebcamPreview', {
                 size: base64.length,
                 hasLiveService: !!liveServiceRef.current,
                 connectionState,
@@ -960,12 +1192,12 @@ export const App: React.FC = () => {
                 });
                 // Log when actually sent (not queued) to verify connection
                 if (!isQueued) {
-                    console.log('✅ [App] Webcam frame SENT to Live API (not queued)', {
+                    logger.debug('[App] Webcam frame sent to Live API (not queued)', {
                         size: base64.length,
                         connectionState
                     });
                 } else {
-                    console.log('⏳ [App] Webcam frame QUEUED (session not ready)', {
+                    logger.debug('[App] Webcam frame queued (session not ready)', {
                         size: base64.length,
                         connectionState
                     });
@@ -976,14 +1208,14 @@ export const App: React.FC = () => {
         } else {
             // Log why frame is not being sent
             if (!liveServiceRef.current) {
-                console.warn('⚠️ [App] Webcam frame NOT sent: liveServiceRef.current is null');
+                logger.debug('[App] Webcam frame not sent: liveServiceRef.current is null');
             } else if (connectionState !== LiveConnectionState.CONNECTED && connectionState !== LiveConnectionState.CONNECTING) {
-                console.warn('⚠️ [App] Webcam frame NOT sent: connectionState is', connectionState);
+                logger.debug('[App] Webcam frame not sent: invalid connectionState', { connectionState });
             }
             
             // Auto-connect if webcam is active but disconnected
             if (isWebcamActive && connectionState === LiveConnectionState.DISCONNECTED) {
-                console.log('🔄 [App] Webcam active but Live API disconnected, attempting connection');
+                logger.debug('[App] Webcam active but Live API disconnected, attempting connection');
                 void handleConnect();
             }
         }
@@ -1007,10 +1239,12 @@ export const App: React.FC = () => {
 
 
     return (
-        <div className={`relative w-full h-full overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`relative w-full h-full overflow-hidden ${isDarkMode ? 'bg-black' : 'bg-gray-50'}`}>
             <BrowserCompatibility />
-            <AntigravityCanvas 
+            <AntigravityCanvas
                visualState={visualState}
+               chatWidth={isChatVisible ? chatWidth : 0}
+               userProfile={userProfile}
             />
             {showTerms && (
                 <TermsOverlay 
@@ -1134,6 +1368,7 @@ export const App: React.FC = () => {
                     
                     // Research
                     isResearching={isResearching}
+                    isThinking={isThinking}
                     
                     // Glass Box UI: Active tools
                     activeTools={activeTools}
@@ -1151,6 +1386,8 @@ export const App: React.FC = () => {
                     onDownloadDiscoveryReport={handleDownloadDiscoveryReport}
                     onEmailDiscoveryReport={handleEmailPDF} // Reuse email PDF handler for now
                     onGenerateExecutiveMemo={handleGenerateExecutiveMemo}
+                    onWidthChange={setChatWidth}
+                    onVisibilityChange={setIsChatVisible}
                 />
             )}
         </div>
