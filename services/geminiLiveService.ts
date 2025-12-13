@@ -313,6 +313,8 @@ export class GeminiLiveService {
 
       this.liveClient.on('output_transcript', (text, isFinal) => {
         logger.debug('[GeminiLiveService] Received output_transcript', { text, isFinal, hasCallback: !!this.config.onTranscript });
+        // When routing voice responses through agents + local TTS, suppress Live-model output.
+        if (this.outputMuted) return;
         // onTranscript callback updates React state, which syncs to unifiedContext via useChatSession
         if (this.config.onTranscript) {
           this.config.onTranscript(text, false, isFinal);
@@ -578,8 +580,9 @@ export class GeminiLiveService {
    */
   public setOutputMuted(muted: boolean) {
     this.outputMuted = muted;
-    if (this.outputNode) {
-      this.outputNode.gain.value = muted ? 0 : 1;
+    const gainParam = (this.outputNode as any)?.gain
+    if (gainParam && typeof gainParam === 'object' && 'value' in gainParam) {
+      gainParam.value = muted ? 0 : 1
     }
   }
 

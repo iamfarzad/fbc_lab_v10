@@ -1,5 +1,5 @@
 import type { GenerateTextResult } from 'ai'
-import type { GroundingMetadata } from 'types'
+import type { GroundingMetadata } from '../../types.js'
 
 /**
  * Extract metadata from AI SDK GenerateTextResult

@@ -1,8 +1,8 @@
 import * as path from 'path'
 import * as dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
-import { logger } from 'src/lib/logger'
-import { getResolvedGeminiApiKey } from 'src/config/env'
+import { logger } from '../../src/lib/logger.js'
+import { getResolvedGeminiApiKey } from '../../src/config/env.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

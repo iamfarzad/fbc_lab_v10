@@ -248,7 +248,7 @@ export function validateAgentResponse(
 
   const correctedResponse =
     shouldBlock && issues.some(i => i.type === 'hallucinated_identity_fact')
-      ? `I don't want to guess details about you or your company from an email domain or background assumptions. Can you confirm your company name and your role? Then tell me what you want to achieve today.`
+      ? `I don't want to guess details about you or your company. Quick check: what's your company name and your role? Then tell me what you want to achieve today.`
       : undefined
 
   return {

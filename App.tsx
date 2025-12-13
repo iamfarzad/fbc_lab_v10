@@ -302,6 +302,7 @@ export const App: React.FC = () => {
     >(null);
     const lastVoiceAgentTurnRef = useRef<{ text: string; at: number } | null>(null);
     const lastSendRef = useRef<{ key: string; at: number } | null>(null);
+    const inFlightSendKeysRef = useRef<Set<string>>(new Set());
 
     const buildVoiceHistoryOverride = useCallback((finalText: string): TranscriptItem[] => {
         const now = new Date();
@@ -551,9 +552,16 @@ export const App: React.FC = () => {
             await persistMessageToServer(sessionId, 'user', text, userTimestamp, file);
         }
 
-        // Detect research intent in message
+        // Background research should NOT run on every turn.
+        // Only trigger when the user explicitly asks for it or provides an email to enrich.
         if (!opts?.skipResearch) {
-            void performResearch(text);
+            const explicitRequest =
+                /\b(research|look up|lookup|find out|background check|what did you find|tell me about|who is|enrich)\b/i.test(text);
+            const containsEmail =
+                /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/.test(text);
+            if (explicitRequest || containsEmail) {
+                void performResearch(text);
+            }
         }
 
         const shouldUseVoice = connectionState === LiveConnectionState.CONNECTED && liveServiceRef.current;
@@ -576,12 +584,11 @@ export const App: React.FC = () => {
         }
 
         if (aiBrainRef.current) {
-            const storedKey = localStorage.getItem('fbc_api_key');
-            const apiKey = storedKey || process.env.API_KEY;
-            if (!apiKey || apiKey.includes('INSERT_API_KEY')) {
-                 showToast("API Key not configured.", 'error');
-                 return;
+            if (inFlightSendKeysRef.current.has(dedupeKey)) {
+                logger.warn('[App] Dropping duplicate in-flight send', { dedupeKey });
+                return;
             }
+            inFlightSendKeysRef.current.add(dedupeKey);
 
             try {
                 abortControllerRef.current = new AbortController();
@@ -964,6 +971,8 @@ export const App: React.FC = () => {
                 console.error("Chat error", e);
                 showToast(e.message, 'error');
                 setIsThinking(false);
+            } finally {
+                inFlightSendKeysRef.current.delete(dedupeKey);
             }
         }
     }, [connectionState, sessionId, setBackendStatus, showToast, aiBrainRef, persistMessageToServer, liveServiceRef, setVisualState, setTranscript, isWebcamActive, speakAgentOutput, performResearch]);

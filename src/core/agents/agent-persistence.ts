@@ -83,6 +83,9 @@ export class AgentPersistenceService {
     // Extract proposal data from summary agent output
     const proposalData = this.extractProposalData(metadata) as Record<string, unknown> | null
 
+    const enhancedFlow = this.coerceConversationFlow((metadata as unknown as Record<string, unknown> | undefined)?.enhancedConversationFlow)
+    const flowToPersist = enhancedFlow || context.conversationFlow
+
     // CRITICAL FIELDS (sync) - minimal for speed
     const criticalUpdate = {
       last_agent: agentResult.agent,
@@ -91,7 +94,7 @@ export class AgentPersistenceService {
       analytics_pending: true, // Track async job
       intelligence_context: this.buildIntelligenceUpdate(agentResult, context),
       conversation_flow: this.sanitizeConversationFlow(
-        (metadata?.enhancedConversationFlow as ConversationFlowState | undefined) || context.conversationFlow
+        flowToPersist
       ), // Use enhanced if available, fallback to client flow
       metadata: proposalData ? { ...sanitizedMetadata, proposal: proposalData } : sanitizedMetadata,
       updated_at: new Date().toISOString()
@@ -234,6 +237,18 @@ export class AgentPersistenceService {
     }
   }
 
+  private coerceConversationFlow(flow: unknown): ConversationFlowState | undefined {
+    if (!flow || typeof flow !== 'object' || Array.isArray(flow)) return undefined
+
+    const record = flow as Record<string, unknown>
+    if (!record.covered || typeof record.covered !== 'object' || Array.isArray(record.covered)) return undefined
+    if (!('recommendedNext' in record)) return undefined
+    if (!Array.isArray(record.coverageOrder)) return undefined
+    if (typeof record.totalUserTurns !== 'number') return undefined
+
+    return flow as ConversationFlowState
+  }
+
   private hashPII(value: string): string {
     return generateHash(value)
   }
@@ -360,4 +375,3 @@ export class AgentPersistenceService {
 }
 
 export const agentPersistence = new AgentPersistenceService()
-

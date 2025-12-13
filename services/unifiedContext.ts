@@ -1,4 +1,4 @@
-import type { TranscriptItem, ResearchResult } from 'types';
+import type { TranscriptItem, ResearchResult } from '../types.js';
 
 type Location = { latitude: number; longitude: number };
 

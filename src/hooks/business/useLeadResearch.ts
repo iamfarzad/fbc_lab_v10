@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { LeadResearchService } from 'src/core/intelligence/lead-research';
+import type { LeadResearchService } from 'src/core/intelligence/lead-research';
 import { GeminiLiveService } from '../../../services/geminiLiveService';
 import { unifiedContext } from '../../../services/unifiedContext';
 import { TranscriptItem, ResearchResult, LiveConnectionState } from '../../../types';
 import { logger } from 'src/lib/logger-client';
-import { buildLeadProfile } from 'src/core/intelligence/profile-builder';
-import type { AgentStrategicContext } from 'src/core/intelligence/types';
+import type { LocationData } from 'src/core/intelligence/lead-research';
 
 export interface UserProfile {
     name: string;
@@ -26,7 +25,7 @@ interface UseLeadResearchProps {
 
 export function useLeadResearch({
     services,
-    setTranscript,
+    setTranscript: _setTranscript,
     setIsWebcamActive,
     connectionState,
     onVoiceConnect,
@@ -50,6 +49,20 @@ export function useLeadResearch({
     
     // Internal refs removed
 
+
+    const postJson = useCallback(async <T,>(path: string, payload: unknown): Promise<T> => {
+        const res = await fetch(path, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        try {
+            return JSON.parse(text) as T;
+        } catch {
+            throw new Error(text || `Request failed: ${res.status}`);
+        }
+    }, []);
 
     // Restore profile on mount
     useEffect(() => {
@@ -119,130 +132,40 @@ export function useLeadResearch({
         };
     };
 
-    const deriveStrategicContext = (research: ResearchResult): AgentStrategicContext => {
-        const role = (research.role || research.person?.role || '').toLowerCase();
-        const industry = (research.company?.industry || '').toLowerCase();
-        const seniority = (research.person?.seniority || '').toLowerCase();
-
-        let privacySensitivity: AgentStrategicContext['privacySensitivity'] = 'LOW';
-        if (industry.match(/finance|bank|health|medical|legal|defense|gov/i)) {
-            privacySensitivity = 'HIGH';
-        } else if (industry.match(/enterprise|insurance|telecom/i)) {
-            privacySensitivity = 'MEDIUM';
-        }
-
-        let technicalLevel: AgentStrategicContext['technicalLevel'] = 'LOW';
-        if (role.match(/cto|cio|developer|engineer|architect|data|scientist|product/i)) {
-            technicalLevel = 'HIGH';
-        }
-
-        let authorityLevel: AgentStrategicContext['authorityLevel'] = 'RESEARCHER';
-        if (role.match(/founder|ceo|vp|director|head of/i) || seniority === 'c-level') {
-            authorityLevel = 'DECISION_MAKER';
-        } else if (role.match(/manager|lead/i)) {
-            authorityLevel = 'INFLUENCER';
-        }
-
-        return { privacySensitivity, technicalLevel, authorityLevel };
-    };
-
-    const applyResearchToContext = (
+    const applyServerResearchToContext = (
         email: string,
         name: string | undefined,
-        companyUrl: string | undefined,
-        rawResult: ResearchResult
+        _companyUrl: string | undefined,
+        payload: { research?: ResearchResult; intelligenceContext?: any; trustedIdentity?: boolean }
     ) => {
-        const profile = buildLeadProfile(rawResult as any, email, name);
-        const strategicContext = deriveStrategicContext(rawResult);
-        const citationsCount = rawResult.citations?.length || 0;
-
-        // Trust gate: avoid "confident but wrong" personalization when identity signals are weak.
-        // Require a strong name signal (full name or structured email prefix) plus high confidence + grounding.
-        const emailPrefix = (email.split('@')[0] || '').trim();
-        const providedNameTokens = (name || '').trim().split(/\s+/).filter(Boolean);
-        const emailDomain = (email.split('@')[1] || '').trim().toLowerCase();
-        const genericDomains = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com', 'aol.com', 'protonmail.com'];
-        const hasCorporateEmailSignal = Boolean(emailDomain) && !genericDomains.includes(emailDomain);
-        const hasStrongNameSignal =
-            providedNameTokens.length >= 2 || /[._-]/.test(emailPrefix) || !!(companyUrl && companyUrl.includes('linkedin.com'));
-
-        const trustedIdentity =
-            hasStrongNameSignal &&
-            hasCorporateEmailSignal &&
-            profile.identity.verified &&
-            profile.identity.confidenceScore >= 85 &&
-            rawResult.confidence >= 0.75 &&
-            citationsCount > 0;
-
-        const researchForContext = trustedIdentity
-            ? rawResult
-            : buildFallbackResearchResult(email, name, companyUrl);
-
-        if (!trustedIdentity) {
-            logger.warn('[LeadResearch] Unverified identity, using fallback context', {
-                email,
-                rawConfidence: rawResult.confidence,
-                citationsCount,
-                profileVerified: profile.identity.verified,
-                profileConfidence: profile.identity.confidenceScore
-            });
+        const research = payload.research;
+        if (research) {
+            researchResultRef.current = research;
+            services.liveServiceRef.current?.setResearchContext(research);
+            unifiedContext.setResearchContext(research);
+        } else {
+            researchResultRef.current = null;
+            unifiedContext.setResearchContext(null);
         }
 
-        // Only expose trusted (or fallback) research to prompt layers
-        researchResultRef.current = researchForContext;
-        services.liveServiceRef.current?.setResearchContext(researchForContext);
-        unifiedContext.setResearchContext(researchForContext);
-
-        // Persist raw research separately, but only merge identity fields when trusted
-        const companyForIntelligence = trustedIdentity && rawResult.company
-            ? {
-                name: rawResult.company.name,
-                domain: rawResult.company.domain,
-                ...(rawResult.company.website ? { website: rawResult.company.website } : {}),
-                ...(rawResult.company.linkedin ? { linkedin: rawResult.company.linkedin } : {})
-            }
-            : undefined;
-
-        const personForIntelligence = trustedIdentity && rawResult.person
-            ? {
-                fullName: rawResult.person.fullName,
-                ...(rawResult.person.seniority ? { seniority: rawResult.person.seniority } : {}),
-                ...(rawResult.person.profileUrl ? { profileUrl: rawResult.person.profileUrl } : {})
-            }
-            : undefined;
-
-        const identityConfirmed = (intelligenceContextRef.current as any)?.identityConfirmed === true;
-
-        intelligenceContextRef.current = {
-            ...intelligenceContextRef.current,
-            email,
-            name: name || profile.identity.name || emailPrefix || 'Unknown',
-            identityConfirmed,
-            ...(companyForIntelligence ? { company: companyForIntelligence } : {}),
-            ...(personForIntelligence ? { person: personForIntelligence } : {}),
-            // Store citations separately so downstream guardrails can require grounding before treating identity as verified.
-            research: {
-                citations: trustedIdentity ? (rawResult.citations || []) : []
-            },
-            researchConfidence: rawResult.confidence,
-            profile,
-            strategicContext,
-            lastUpdated: new Date().toISOString()
-        };
-
-        unifiedContext.setIntelligenceContext(intelligenceContextRef.current);
+        if (payload.intelligenceContext) {
+            intelligenceContextRef.current = payload.intelligenceContext;
+            unifiedContext.setIntelligenceContext(payload.intelligenceContext);
+        } else {
+            const minimal = { email, name: name || email.split('@')[0] || 'Unknown', identityConfirmed: true };
+            intelligenceContextRef.current = minimal;
+            unifiedContext.setIntelligenceContext(minimal);
+        }
     };
 
     const performBackgroundResearch = useCallback(async (email: string, name: string, companyUrl?: string) => {
-        if (!services.researchServiceRef.current) return;
-
         const genericDomains = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'icloud.com'];
         const domain = email.split('@')[1]?.toLowerCase();
 
         if (domain && genericDomains.includes(domain) && !companyUrl) {
             logger.debug("Generic email detected without override, using fallback research context.");
             const fallback = buildFallbackResearchResult(email, name, companyUrl);
-            applyResearchToContext(email, name, companyUrl, fallback);
+            applyServerResearchToContext(email, name, companyUrl, { research: fallback });
             return;
         }
 
@@ -250,20 +173,28 @@ export function useLeadResearch({
         setIsResearching(true);
 
         try {
-            const linkedInOverride = companyUrl && companyUrl.includes('linkedin.com') ? companyUrl : undefined;
-            const result = await services.researchServiceRef.current.researchLead(
+            const snapshot = unifiedContext.getSnapshot();
+            const sessionId = snapshot.sessionId || `session-${Date.now()}`;
+            if (!snapshot.sessionId) unifiedContext.setSessionId(sessionId);
+
+            const response = await postJson<{
+                ok: boolean;
+                allowResearch?: boolean;
+                trustedIdentity?: boolean;
+                research?: ResearchResult;
+                intelligenceContext?: any;
+                error?: string;
+            }>('/api/intelligence/init-session', {
+                sessionId,
                 email,
                 name,
                 companyUrl,
-                undefined, // sessionId
-                locationData || undefined, // Pass location data when available
-                {
-                    forceFresh: true, // always bypass stale cache for correctness
-                    ...(linkedInOverride ? { linkedInUrl: linkedInOverride } : {})
-                }
-            );
-            
-            applyResearchToContext(email, name, companyUrl, result);
+                ...(locationData ? { location: locationData as LocationData } : {}),
+                forceFresh: true
+            });
+
+            if (!response.ok) throw new Error(response.error || 'Research failed');
+            applyServerResearchToContext(email, name, companyUrl, response);
 
         // Do not inject low-value system transcript items.
         // Research status is surfaced via isResearching + context/sources UI.
@@ -274,10 +205,9 @@ export function useLeadResearch({
         } finally {
             setIsResearching(false);
         }
-    }, [services, setTranscript, locationData]);
+    }, [locationData, postJson]);
 
     const performResearch = useCallback(async (input: string) => {
-        if (!services.researchServiceRef.current) return;
         const permissionGranted = sessionPermissions?.research === true;
         const explicitRequest =
             /\b(research|look up|lookup|find out|background check|what did you find|tell me about|who is|enrich)\b/i.test(input);
@@ -297,18 +227,38 @@ export function useLeadResearch({
         // Research status is surfaced via isResearching + context/sources UI.
 
         try {
-            const result = await services.researchServiceRef.current.researchLead(email);
+            const snapshot = unifiedContext.getSnapshot();
+            const sessionId = snapshot.sessionId || `session-${Date.now()}`;
+            if (!snapshot.sessionId) unifiedContext.setSessionId(sessionId);
+
             const inferredName =
                 userProfile?.name ||
-                (intelligenceContextRef.current?.name as string | undefined);
-            applyResearchToContext(email, inferredName, undefined, result);
+                (intelligenceContextRef.current?.name as string | undefined) ||
+                undefined;
+
+            const response = await postJson<{
+                ok: boolean;
+                allowResearch?: boolean;
+                trustedIdentity?: boolean;
+                research?: ResearchResult;
+                intelligenceContext?: any;
+                error?: string;
+            }>('/api/intelligence/init-session', {
+                sessionId,
+                email,
+                ...(inferredName ? { name: inferredName } : {}),
+                forceFresh: true
+            });
+
+            if (!response.ok) throw new Error(response.error || 'Research failed');
+            applyServerResearchToContext(email, inferredName, undefined, response);
 
             // Do not inject low-value system transcript items.
             // Research status is surfaced via isResearching + context/sources UI.
         } catch (e) {
             console.error("Research failed", e);
         }
-    }, [services, userProfile, setTranscript, sessionPermissions]);
+    }, [postJson, userProfile, sessionPermissions]);
 
     const handleTermsComplete = async (
         name: string,
@@ -364,27 +314,57 @@ export function useLeadResearch({
 
         setView('chat');
 
-        const shouldRunBackgroundResearch = Boolean(permissions?.research);
+        const snapshot = unifiedContext.getSnapshot();
+        const sessionId = snapshot.sessionId || `session-${Date.now()}`;
+        if (!snapshot.sessionId) unifiedContext.setSessionId(sessionId);
 
-        // Always clear stale research unless we are explicitly running it for this session.
-        if (!shouldRunBackgroundResearch) {
-            researchResultRef.current = null;
-            unifiedContext.setResearchContext(null);
+        // Persist consent server-side so /api/chat can safely load it from DB.
+        try {
+            await postJson<{ ok: boolean; error?: string }>('/api/consent', {
+                sessionId,
+                email,
+                name,
+                companyUrl,
+                allowResearch: Boolean(permissions?.research)
+            });
+        } catch (err) {
+            logger.warn('[LeadResearch] Failed to persist consent (non-fatal)', { err });
         }
 
-        const researchPromise = shouldRunBackgroundResearch
-            ? performBackgroundResearch(email, name, companyUrl)
-            : null;
+        // Always initialize session context on the server (this runs research only if consent allows it).
+        const initPromise = (async () => {
+            setIsResearching(Boolean(permissions?.research));
+            try {
+                const response = await postJson<{
+                    ok: boolean;
+                    allowResearch?: boolean;
+                    trustedIdentity?: boolean;
+                    research?: ResearchResult;
+                    intelligenceContext?: any;
+                    error?: string;
+                }>('/api/intelligence/init-session', {
+                    sessionId,
+                    email,
+                    name,
+                    companyUrl,
+                    ...(locationData ? { location: locationData as LocationData } : {}),
+                    forceFresh: true
+                });
+
+                if (!response.ok) throw new Error(response.error || 'Init session failed');
+                applyServerResearchToContext(email, name, companyUrl, response);
+            } finally {
+                setIsResearching(false);
+            }
+        })();
 
         if (permissions?.voice) {
-            if (researchPromise) {
-                logger.debug('[App] Voice permission granted, waiting for research to complete before connecting...');
-                await researchPromise;
-                logger.debug('[App] Research complete, now connecting voice...');
-            }
+            logger.debug('[App] Voice permission granted, waiting for session init before connecting...');
+            await initPromise;
+            logger.debug('[App] Session init complete, now connecting voice...');
             onVoiceConnect();
-        } else if (researchPromise) {
-            void researchPromise;
+        } else {
+            void initPromise;
         }
     };
 

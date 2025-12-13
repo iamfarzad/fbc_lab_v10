@@ -208,7 +208,7 @@ export function registerWorkers(): void {
       
       // Type guard: ensure data is a valid partial context  
       // DatabaseConversationContext is an interface, import as type
-      const contextData = data as Partial<import('../context/context-types').DatabaseConversationContext>
+      const contextData = data as Partial<import('../context/context-types.js').DatabaseConversationContext>
       
       // Attempt with version check
       await storage.updateWithVersionCheck(sessionId, contextData, {
@@ -349,4 +349,3 @@ export function stopQueueProcessor(): void {
     logger.debug('🛑 Queue processor stopped')
   }
 }
-

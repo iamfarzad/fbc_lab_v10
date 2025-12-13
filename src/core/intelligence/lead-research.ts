@@ -91,7 +91,12 @@ export class LeadResearchService {
     companyUrl?: string,
     sessionId?: string,
     location?: LocationData,
-    options?: { contents?: any[]; linkedInUrl?: string; forceFresh?: boolean }
+    options?: {
+      contents?: any[]
+      linkedInUrl?: string
+      forceFresh?: boolean
+      allowedDomains?: string[]
+    }
   ) => Promise<ResearchResult>
 
   /**
@@ -209,9 +214,11 @@ export class LeadResearchService {
           companyUrl: string | undefined,
           _sessionId: string | undefined,
           location: LocationData | undefined,
-          options?: { contents?: any[] }
+          options?: { contents?: any[]; allowedDomains?: string[] }
         ) =>
-          `${email}|${name || ''}|${companyUrl || ''}|${location?.city || ''}|${options?.contents ? 'has-contents' : 'no-contents'}|temp-${LeadResearchService.RESEARCH_TEMPERATURE}`
+          `${email}|${name || ''}|${companyUrl || ''}|${location?.city || ''}|${
+            options?.allowedDomains?.length ? `domains-${options.allowedDomains.join(',')}` : 'domains-none'
+          }|${options?.contents ? 'has-contents' : 'no-contents'}|temp-${LeadResearchService.RESEARCH_TEMPERATURE}`
       }
     )
   }
@@ -222,7 +229,12 @@ export class LeadResearchService {
     companyUrl?: string,
     sessionId?: string,
     location?: LocationData,
-    options?: { contents?: any[]; linkedInUrl?: string; forceFresh?: boolean }
+    options?: {
+      contents?: any[]
+      linkedInUrl?: string
+      forceFresh?: boolean
+      allowedDomains?: string[]
+    }
   ): Promise<ResearchResult> {
     // Client-side Caching (localStorage)
     // This preserves the behavior from the old service for browser environments
@@ -293,7 +305,12 @@ export class LeadResearchService {
     companyUrl?: string,
     sessionId?: string,
     location?: LocationData,
-    options?: { contents?: any[]; linkedInUrl?: string; forceFresh?: boolean }
+    options?: {
+      contents?: any[]
+      linkedInUrl?: string
+      forceFresh?: boolean
+      allowedDomains?: string[]
+    }
   ): Promise<ResearchResult> {
     void sessionId
 
@@ -363,6 +380,16 @@ export class LeadResearchService {
         email
       )
 
+      const allowedDomains =
+        options?.allowedDomains?.map((d) => String(d).toLowerCase().trim()).filter(Boolean) || []
+
+      const allowedSourcesContext =
+        allowedDomains.length > 0
+          ? `ALLOWED SOURCES (CONSENTED): Prefer and cite sources from: ${allowedDomains.join(
+              ', '
+            )}. If you cannot find enough, say so and do not guess.`
+          : ''
+
       // Build location context for prompt
       const locationContext = location 
         ? `User Location: ${location.city || 'Unknown city'}, ${location.country || 'Unknown country'} (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`
@@ -375,10 +402,11 @@ export class LeadResearchService {
 Target:
 Email: ${email}
 Name: ${name || 'Unknown'}
-Domain: ${domain}
-Company URL: ${companyUrl || 'Use email domain to find company website'}
-${linkedInUrl ? `LinkedIn URL: ${linkedInUrl} (USE THIS AS PRIMARY PROFILE - verify current role/dates)` : ''}
-${locationContext ? `${locationContext}` : ''}
+	Domain: ${domain}
+	Company URL: ${companyUrl || 'Use email domain to find company website'}
+	${linkedInUrl ? `LinkedIn URL: ${linkedInUrl} (USE THIS AS PRIMARY PROFILE - verify current role/dates)` : ''}
+	${allowedSourcesContext ? `${allowedSourcesContext}` : ''}
+	${locationContext ? `${locationContext}` : ''}
 
 STRATEGIC QUERIES (Probe then Drill):
 - Q1 (LinkedIn Anchor): ${strategicQueries[0]}

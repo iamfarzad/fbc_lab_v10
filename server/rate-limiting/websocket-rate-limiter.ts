@@ -1,6 +1,6 @@
 import { MESSAGE_TYPES } from '../message-types.js'
 import { ensureWsAdmin } from '../utils/admin-check.js'
-import { serverLogger } from '../utils/env-setup'
+import { serverLogger } from '../utils/env-setup.js'
 
 // Connection state for rate limiting
 export type ConnectionState = {
@@ -133,4 +133,3 @@ export function checkRateLimit(
   st.lastMessageAt = now
   return { allowed: true }
 }
-

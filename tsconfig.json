@@ -26,8 +26,12 @@
     /* Path resolution - absolute imports from root */
     "baseUrl": ".",
     "paths": {
-      // No paths needed - absolute imports work from root
-      // Files can import: components/X, services/Y, src/Z
+      "types": ["./types.ts"],
+      "config": ["./config.ts"],
+      "utils/*": ["./utils/*"],
+      "components/*": ["./components/*"],
+      "services/*": ["./services/*"],
+      "src/*": ["./src/*"]
     },
 
     /* Type definitions */

@@ -3,6 +3,9 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"engines": {
+		"node": "22.x"
+	},
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc && vite build",
@@ -137,6 +140,10 @@
 	"pnpm": {
 		"overrides": {
 			"@vercel/node>typescript": "5.2.2"
-		}
+		},
+		"ignoredBuiltDependencies": [
+			"esbuild",
+			"puppeteer"
+		]
 	}
 }

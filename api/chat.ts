@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import type { ChatMessage, IntelligenceContext, MultimodalContextData, AgentMetadata, AgentResult } from '../src/core/agents/types.js';
 import type { FunnelStage } from '../src/core/types/funnel-stage.js';
 import type { ConversationFlowState } from '../src/types/conversation-flow-types.js';
+import type { Attachment, MessageMetadata } from '../src/types/core.js';
 // routeToAgent imported dynamically when needed
 import { logger } from '../src/lib/logger.js';
 import { multimodalContextManager } from '../src/core/context/multimodal-context.js';
@@ -31,6 +32,76 @@ interface ValidatedMessage {
   content?: string | undefined;
   attachments?: Array<{ mimeType?: string; data?: string; [key: string]: unknown }> | undefined;
   [key: string]: unknown;
+}
+
+function randomId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+}
+
+function inferAttachmentType(mimeType: string): Attachment['type'] {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('video/')) return 'video';
+  return 'document';
+}
+
+function toAttachment(
+  att: { mimeType?: string; data?: string; [key: string]: unknown },
+  index: number
+): Attachment | null {
+  const mimeType = typeof att.mimeType === 'string' ? att.mimeType : undefined;
+  const data = typeof att.data === 'string' ? att.data : undefined;
+  if (!mimeType || !data) return null;
+
+  const name = typeof att.name === 'string' ? att.name : undefined;
+  const size = typeof att.size === 'number' ? att.size : undefined;
+
+  const attachment: Attachment = {
+    id: `att-${Date.now()}-${index}-${randomId()}`,
+    type: inferAttachmentType(mimeType),
+    mimeType,
+    url: `data:${mimeType};base64,${data}`
+  };
+
+  if (name) attachment.name = name;
+  if (size !== undefined) attachment.size = size;
+
+  return attachment;
+}
+
+function toChatMessages(messages: ValidatedMessage[]): ChatMessage[] {
+  const now = new Date();
+  return messages.map((msg: ValidatedMessage, index: number): ChatMessage => {
+    const attachments = (msg.attachments || [])
+      .map((att, attIndex) => toAttachment(att, attIndex))
+      .filter((att): att is Attachment => att !== null);
+
+    const metadataIn =
+      msg.metadata && typeof msg.metadata === 'object' ? (msg.metadata as MessageMetadata) : undefined;
+
+    const mergedMetadata =
+      attachments.length > 0
+        ? {
+            ...(metadataIn ? metadataIn : {}),
+            attachments: [
+              ...((metadataIn?.attachments as unknown as Attachment[] | undefined) || []),
+              ...attachments
+            ]
+          }
+        : metadataIn;
+
+    return {
+      id: typeof (msg as any).id === 'string' ? (msg as any).id : `msg-${Date.now()}-${index}-${randomId()}`,
+      role: msg.role,
+      content: msg.content || '',
+      timestamp: (msg as any).timestamp ? new Date((msg as any).timestamp) : now,
+      ...(mergedMetadata ? { metadata: mergedMetadata } : {})
+    };
+  });
 }
 
 /**
@@ -433,11 +504,7 @@ export default async function handler(
                         })
                     
                     await routeToAgentStream({
-                        messages: validMessages.map(msg => ({
-                            role: msg.role,
-                            content: msg.content || '',
-                            ...(msg.attachments && { attachments: msg.attachments })
-                        })) as ChatMessage[],
+                        messages: toChatMessages(validMessages),
                         sessionId: sessionId || `session-${Date.now()}`,
                         currentStage,
                         intelligenceContext: sanitizedIntelligenceContext || undefined,
@@ -537,11 +604,7 @@ export default async function handler(
             const sanitizedIntelligenceContext =
                 sanitizeIntelligenceContextForAgents(finalIntelligenceContext) || undefined
             const result = await routeToAgent({
-                messages: validMessages.map(msg => ({
-                    role: msg.role,
-                    content: msg.content || '',
-                    ...(msg.attachments && { attachments: msg.attachments })
-                })) as ChatMessage[],
+                messages: toChatMessages(validMessages),
                 sessionId: sessionId || `session-${Date.now()}`,
                 currentStage,
                 intelligenceContext: sanitizedIntelligenceContext,

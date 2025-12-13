@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { VisualShape } from 'types';
 import { CONTACT_CONFIG } from 'src/config/constants';
 import AntigravityCanvas from './AntigravityCanvas';
+import MultimodalShowcase from './MultimodalShowcase';
 import { ServiceIcon } from './ServiceIcon';
 import { useTheme } from '../context/ThemeContext';
 
@@ -394,6 +395,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
 
                 </div>
             </section>
+
+            {/* MULTIMODAL SHOWCASE SECTION */}
+            <MultimodalShowcase {...(onSectionChange ? { onShapeChange: onSectionChange } : {})} />
 
             {/* SERVICES SECTION */}
             <section ref={servicesRef} id="services" className={`w-full py-24 px-6 md:px-12 backdrop-blur-md border-t ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white/40 border-white/20'}`}>

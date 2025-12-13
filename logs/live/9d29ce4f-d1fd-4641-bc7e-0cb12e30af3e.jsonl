@@ -1,3 +1,0 @@
-{"ts":"2025-12-01T15:10:37.892Z","event":"connected","connectionId":"9d29ce4f-d1fd-4641-bc7e-0cb12e30af3e"}
-{"ts":"2025-12-01T15:10:37.893Z","event":"client_start","connectionId":"9d29ce4f-d1fd-4641-bc7e-0cb12e30af3e","data":{"payload":{}}}
-{"ts":"2025-12-01T15:10:37.895Z","event":"session_closed","connectionId":"9d29ce4f-d1fd-4641-bc7e-0cb12e30af3e","data":{"source":"websocket","code":1005,"reason":""}}

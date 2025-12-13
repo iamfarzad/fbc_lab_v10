@@ -56,14 +56,8 @@ export function useGeminiLive({
             return;
         }
 
-        const storedKey = localStorage.getItem('fbc_api_key');
-        const apiKey = storedKey || process.env.API_KEY;
-
-        if (!apiKey || apiKey.includes('INSERT_API_KEY')) {
-            showToast("API Key not configured. Please set it in Admin Dashboard or configure GEMINI_API_KEY in Vercel.", 'error');
-            setConnectionState(LiveConnectionState.ERROR);
-            return;
-        }
+        // Live voice connects to our WebSocket server which handles credentials server-side.
+        // Do not gate voice behind a client-side API key.
 
         const liveModelId = GEMINI_MODELS.DEFAULT_VOICE;
         setActiveRoute({
@@ -151,7 +145,7 @@ export function useGeminiLive({
         }
 
         liveServiceRef.current = new GeminiLiveService({
-            apiKey: apiKey,
+            apiKey: '',
             modelId: liveModelId,
             tools: tools,
             systemInstruction: systemInstruction,

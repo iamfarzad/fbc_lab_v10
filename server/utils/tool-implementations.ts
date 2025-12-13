@@ -1,12 +1,12 @@
-import { serverLogger } from '../utils/env-setup'
-import { searchWeb } from 'src/core/intelligence/search.js'
+import { serverLogger } from '../utils/env-setup.js'
+import { searchWeb } from '../../src/core/intelligence/search.js'
 import { 
   extractActionItems, 
   generateSummary, 
   draftFollowUpEmail, 
   generateProposal 
-} from 'src/core/intelligence/analysis.js'
-import { isAdmin } from '../rate-limiting/websocket-rate-limiter'
+} from '../../src/core/intelligence/analysis.js'
+import { isAdmin } from '../rate-limiting/websocket-rate-limiter.js'
 
 export interface ToolResult {
     success: boolean
@@ -54,7 +54,7 @@ export async function executeExtractActionItems(_args: any, sessionId?: string):
         }
 
         // Load conversation history
-        const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+        const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
         const history = await multimodalContextManager.getConversationHistory(sessionId, 50)
 
         // Extract text from conversation
@@ -162,7 +162,7 @@ export async function executeGenerateSummaryPreview(args: any, sessionId?: strin
             return Promise.resolve({ success: false, error: 'Session ID required' })
         }
 
-        const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+        const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
         const history = await multimodalContextManager.getConversationHistory(sessionId, 50)
         
         const conversationText = history
@@ -199,7 +199,7 @@ export async function executeDraftFollowUpEmail(args: any, sessionId?: string): 
         
         const { recipient = 'client', tone = 'professional' } = args
         
-        const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+        const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
         const history = await multimodalContextManager.getConversationHistory(sessionId, 50)
         
         const conversationText = history
@@ -234,7 +234,7 @@ export async function executeGenerateProposalDraft(_args: any, sessionId?: strin
             return Promise.resolve({ success: false, error: 'Session ID required' })
         }
 
-        const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+        const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
         const history = await multimodalContextManager.getConversationHistory(sessionId, 50)
         
         const conversationText = history
@@ -554,7 +554,7 @@ export async function executeGetDashboardStats(args: any, sessionId: string): Pr
         }
 
         const period = args?.period || '7d'
-        const { supabaseService } = await import('src/core/supabase/client.js')
+        const { supabaseService } = await import('../../src/core/supabase/client.js')
         
         const now = new Date()
         const daysBack = period === '1d' ? 1 : period === '30d' ? 30 : period === '90d' ? 90 : 7

@@ -1,2 +1,0 @@
-{"ts":"2025-12-01T17:00:26.972Z","event":"connected","connectionId":"aa5b2875-8706-401a-86cf-85f513162ea4"}
-{"ts":"2025-12-01T17:00:26.987Z","event":"session_closed","connectionId":"aa5b2875-8706-401a-86cf-85f513162ea4","data":{"source":"websocket","code":1005,"reason":""}}

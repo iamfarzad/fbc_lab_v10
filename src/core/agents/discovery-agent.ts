@@ -314,17 +314,26 @@ ${generateSalesConstraintInstructions()}`
 
   // Step 2: Check for question fatigue
   const consecutiveQuestions = countConsecutiveQuestions(messages);
-  const shouldOfferRecap = consecutiveQuestions >= 3 || (conversationFlow?.shouldOfferRecap === true);
+  const lastAssistantContent = [...messages].reverse().find((m) => m.role === 'assistant')?.content || ''
+  const recentlyRecapped =
+    typeof lastAssistantContent === 'string' &&
+    (lastAssistantContent.includes("Let me recap what I've learned:") ||
+      lastAssistantContent.includes("I've asked quite a few questions. Let me recap"))
+  const shouldOfferRecap =
+    !recentlyRecapped &&
+    (consecutiveQuestions >= 3 || (conversationFlow?.shouldOfferRecap === true));
 
   if (shouldOfferRecap) {
     const recap = generateRecap(conversationFlow);
+    const updatedFlow = conversationFlow ? { ...conversationFlow, shouldOfferRecap: false } : undefined
     return {
       output: `I've asked quite a few questions. Let me recap what I've learned: ${recap}. Does this sound right? And would you like to schedule a deeper dive with Farzad?`,
       agent: 'Discovery Agent (Recap Mode)',
       metadata: {
         stage: 'DISCOVERY',
         triggerBooking: true,
-        recapProvided: true
+        recapProvided: true,
+        ...(updatedFlow ? { enhancedConversationFlow: updatedFlow } : {})
       }
     };
   }

@@ -9,16 +9,12 @@ export function useServiceRegistry(sessionId: string) {
 
     // Initialize Services
     useEffect(() => {
-        const storedKey = localStorage.getItem('fbc_api_key');
-        const envKey = process.env.API_KEY;
-        const apiKey = storedKey || envKey;
+        // AIBrainService only talks to our server `/api/chat` and does not need a client-side API key.
+        aiBrainRef.current = new AIBrainService();
 
-        if (!apiKey || apiKey.includes('INSERT_API_KEY')) {
-            console.warn("API_KEY is missing. Admin configuration required.");
-        } else {
-            researchServiceRef.current = new LeadResearchService();
-            aiBrainRef.current = new AIBrainService();
-        }
+        // Lead research runs server-side (via `/api/intelligence/*`) to avoid client-side keys and hallucination.
+        // Keep this ref for backward compatibility, but do not initialize it by default in the browser.
+        researchServiceRef.current = null;
     }, []);
 
     // Sync Session ID

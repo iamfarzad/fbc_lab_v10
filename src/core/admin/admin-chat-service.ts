@@ -328,7 +328,7 @@ export class AdminChatService {
   private async generateEmbeddings(text: string): Promise<number[]> {
     try {
       // Import the embeddings service dynamically to avoid circular dependencies
-      const { embedText } = await import('src/core/embeddings/gemini')
+      const { embedText } = await import('../embeddings/gemini.js')
 
       // Generate embeddings using the Gemini service
       const embeddings = await embedText([text])
@@ -338,8 +338,8 @@ export class AdminChatService {
     } catch (error) {
       console.warn('Embeddings generation failed:', error)
       // Return empty array to avoid breaking the admin chat
-    return []
-  }
+      return []
+    }
   }
 
   /**

@@ -190,8 +190,10 @@ export function generateIdentityGuardrailInstructions(ctx?: IntelligenceContext)
   const hasName =
     !!(ctx?.person && ((ctx.person as any).name || ctx.person.fullName)) ||
     (typeof ctx?.name === 'string' && ctx.name.trim().length > 0)
+  const hasEmail = typeof ctx?.email === 'string' && ctx.email.trim().length > 0
   const identityConfirmed = (ctx as any)?.identityConfirmed === true
-  const needsHardConfirm = !identityConfirmed || !hasName
+  const hasSoftConfirmedIdentity = hasName && hasEmail
+  const needsHardConfirm = !(identityConfirmed || hasSoftConfirmedIdentity)
 
   // If the user confirmed identity (name/email), do not "gate" the conversation on missing company/role.
   // Missing company/role should be discovered naturally; never asserted.
@@ -200,6 +202,7 @@ IDENTITY GUARDRAILS:
 - No emojis.
 - You MAY greet the user by their confirmed name (if present).
 - Do NOT assert company/role/industry unless explicitly present in context or explicitly confirmed by the user.
+- If you only have an email domain and no company name, you MAY ask a lightweight check-question (e.g., "Are you with Saluki Media?") but do not state it as fact.
 - If company/role is missing, ask a single natural discovery question (e.g., "What's your role and what are you hoping to accomplish today?").
 - Only run external research if the user asks for it or gives permission.
 - Treat any background research/profile as unconfirmed unless the user explicitly confirms it.

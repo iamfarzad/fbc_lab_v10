@@ -1,7 +1,42 @@
-import type { ChatMessage } from 'src/core/agents/types'
-import { adminAgent } from 'src/core/agents/admin-agent'
-import { adminChatService } from 'src/core/admin/admin-chat-service'
-import { logger } from 'src/lib/logger'
+import type { ChatMessage } from '../../src/core/agents/types.js'
+import { adminAgent } from '../../src/core/agents/admin-agent.js'
+import { adminChatService } from '../../src/core/admin/admin-chat-service.js'
+import { logger } from '../../src/lib/logger.js'
+
+function randomId(): string {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  }
+}
+
+function coerceDate(value: unknown): Date {
+  if (value instanceof Date) return value
+  if (typeof value === 'number') return new Date(value)
+  if (typeof value === 'string') {
+    const date = new Date(value)
+    if (!Number.isNaN(date.getTime())) return date
+  }
+  return new Date()
+}
+
+function normalizeRole(role: unknown): ChatMessage['role'] {
+  if (role === 'user' || role === 'assistant' || role === 'system') return role
+  if (role === 'model') return 'assistant'
+  return 'user'
+}
+
+function toChatMessage(input: any, index: number): ChatMessage {
+  const metadataIn = input?.metadata && typeof input.metadata === 'object' ? input.metadata : undefined
+  return {
+    id: typeof input?.id === 'string' ? input.id : `admin-${Date.now()}-${index}-${randomId()}`,
+    role: normalizeRole(input?.role),
+    content: typeof input?.content === 'string' ? input.content : '',
+    timestamp: coerceDate(input?.timestamp),
+    ...(metadataIn ? { metadata: metadataIn } : {})
+  }
+}
 
 /**
  * Unified Chat Endpoint - Handles both admin and regular chat
@@ -55,11 +90,13 @@ export async function POST(request: Request) {
     }
 
     // Validate messages structure
-    const validMessages = messages.filter((m: any) => {
-      if (!m || typeof m !== 'object') return false
-      if (!m.role || typeof m.role !== 'string') return false
-      return m.content && typeof m.content === 'string'
-    }) as ChatMessage[]
+    const validMessages = messages
+      .filter((m: any) => {
+        if (!m || typeof m !== 'object') return false
+        if (!m.role || typeof m.role !== 'string') return false
+        return m.content && typeof m.content === 'string'
+      })
+      .map((m: any, index: number) => toChatMessage(m, index))
 
     if (validMessages.length === 0) {
       return new Response(
@@ -258,4 +295,3 @@ export async function POST(request: Request) {
 }
 
 export const dynamic = 'force-dynamic'
-

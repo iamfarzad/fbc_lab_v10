@@ -220,6 +220,28 @@ describe('GeminiLiveService', () => {
     })
   })
 
+  describe('output_transcript suppression', () => {
+    it('suppresses output_transcript when output is muted', async () => {
+      const service = new GeminiLiveService(mockConfig)
+      await connectReady(service)
+
+      service.setOutputMuted(true)
+      mockLiveClient.trigger('output_transcript', 'Hello from live model', true)
+
+      expect(mockConfig.onTranscript).not.toHaveBeenCalledWith('Hello from live model', false, true)
+    })
+
+    it('forwards output_transcript when output is not muted', async () => {
+      const service = new GeminiLiveService(mockConfig)
+      await connectReady(service)
+
+      service.setOutputMuted(false)
+      mockLiveClient.trigger('output_transcript', 'Hello from live model', true)
+
+      expect(mockConfig.onTranscript).toHaveBeenCalledWith('Hello from live model', false, true)
+    })
+  })
+
   describe('sendRealtimeMedia()', () => {
     it('formats media correctly', async () => {
       const service = new GeminiLiveService(mockConfig)
