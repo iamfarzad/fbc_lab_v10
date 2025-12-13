@@ -1,38 +1,34 @@
 /**
  * Text Input During Voice Mode Tests
  * 
- * Tests for hybrid input mode (text + voice simultaneously)
- * Tests actual App.tsx routing logic and ChatInputDock component
+ * Tests for hybrid input mode (text + voice simultaneously).
+ *
+ * Invariants:
+ * - Text routes through agents (AIBrainService)
+ * - Live WebSocket only receives realtime media (audio/video/image)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { LiveConnectionState } from '../../types'
 
-// Mock services
-const mockSendMessage = vi.fn().mockResolvedValue({
-  text: 'Response from standard chat service',
-  reasoning: undefined,
-  groundingMetadata: undefined,
-  toolCalls: undefined
+// Mocks
+const mockSendRealtimeMedia = vi.fn()
+const mockChatStream = vi.fn().mockResolvedValue({
+  success: true,
+  output: 'Response from agents',
+  agent: 'Discovery Agent',
+  model: 'test-model',
+  metadata: {}
 })
 
-const mockSendRealtimeMedia = vi.fn()
-const mockSendText = vi.fn().mockRejectedValue(new Error('sendRealtimeInput only accepts audio/video'))
-
-vi.mock('../../services/standardChatService.js', () => ({
-  StandardChatService: vi.fn().mockImplementation(() => ({
-    sendMessage: mockSendMessage
-  }))
-}))
-
-vi.mock('../../services/geminiLiveService.js', () => ({
-  GeminiLiveService: vi.fn().mockImplementation(() => ({
-    sendText: mockSendText,
-    sendRealtimeMedia: mockSendRealtimeMedia,
-    sendRealtimeInput: vi.fn(),
-    isConnected: () => true
-  }))
-}))
+function isLiveRealtimeMediaMime(mimeType?: string): boolean {
+  if (!mimeType) return false
+  if (mimeType.startsWith('image/')) return true
+  if (mimeType.startsWith('audio/')) return true
+  if (mimeType.startsWith('video/')) return true
+  if (mimeType.includes('pcm') || mimeType.includes('rate=')) return true
+  return false
+}
 
 describe('Text Input During Voice Mode', () => {
   beforeEach(() => {
@@ -40,155 +36,61 @@ describe('Text Input During Voice Mode', () => {
   })
 
   describe('App.tsx handleSendMessage Routing Logic', () => {
-    it('should route text to standardChatService when voice is connected', async () => {
-      // Simulate App.tsx routing logic (lines 404-445)
+    it('routes text to agents when voice is connected', async () => {
       const connectionState = LiveConnectionState.CONNECTED
       const liveServiceRef = { current: { sendRealtimeMedia: mockSendRealtimeMedia } }
-      const standardChatRef = { current: { sendMessage: mockSendMessage } }
-      const transcriptRef = { current: [] }
-      const setTranscript = vi.fn()
-      const showToast = vi.fn()
-      const sessionId = 'test-session'
+      const aiBrainRef = { current: { chatStream: mockChatStream } }
       
-      // Simulate handleSendMessage logic
       const shouldUseVoice = connectionState === LiveConnectionState.CONNECTED && !!liveServiceRef.current
       
       expect(shouldUseVoice).toBe(true)
       
-      if (shouldUseVoice) {
-        const text = 'This is a text message during voice mode'
-        const userItem = {
-          id: Date.now().toString(),
-          role: 'user' as const,
-          text: text,
-          timestamp: new Date(),
-          isFinal: true,
-          status: 'complete' as const
-        }
-        
-        const currentHistory = [...transcriptRef.current, userItem]
-        
-        // This is what App.tsx does: routes to standardChatService
-        if (text.trim() && standardChatRef.current) {
-          const response = await standardChatRef.current.sendMessage(
-            currentHistory,
-            text,
-            undefined
-          )
-          
-          expect(mockSendMessage).toHaveBeenCalledWith(
-            currentHistory,
-            text,
-            undefined
-          )
-          expect(response.text).toBeDefined()
-          expect(mockSendText).not.toHaveBeenCalled()
-        }
+      const text = 'This is a text message during voice mode'
+      const messages = [{ role: 'user' as const, content: text }]
+
+      if (text.trim() && aiBrainRef.current) {
+        await aiBrainRef.current.chatStream(messages as any, {})
       }
+
+      expect(mockChatStream).toHaveBeenCalled()
     })
 
-    it('should NOT call liveService.sendText for text messages', async () => {
-      const { GeminiLiveService } = await import('../../services/geminiLiveService.js')
-      const liveService = new GeminiLiveService('test-session')
-      
-      const text = 'Text message'
-      
-      // Attempting to send text via Live API should fail
-      try {
-        await liveService.sendText(text)
-        expect.fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error)
-        expect((error as Error).message).toContain('sendRealtimeInput only accepts audio/video')
-      }
-    })
-
-    it('should handle text with attachments during voice mode', async () => {
+    it('does not send realtime media for non-media files', () => {
       const connectionState = LiveConnectionState.CONNECTED
-      const standardChatRef = { current: { sendMessage: mockSendMessage } }
-      const transcriptRef = { current: [] }
-      
-      const shouldUseVoice = connectionState === LiveConnectionState.CONNECTED
-      
-      if (shouldUseVoice) {
-        const text = 'Message with attachment'
-        const file = {
-          mimeType: 'image/jpeg',
-          data: 'base64-image-data'
-        }
-        const userItem = {
-          id: Date.now().toString(),
-          role: 'user' as const,
-          text: text,
-          timestamp: new Date(),
-          isFinal: true,
-          status: 'complete' as const,
-          attachment: {
-            type: 'image' as const,
-            url: `data:${file.mimeType};base64,${file.data}`,
-            mimeType: file.mimeType,
-            data: file.data,
-            name: 'Image'
-          }
-        }
-        
-        const currentHistory = [...transcriptRef.current, userItem]
-        
-        if (text.trim() && standardChatRef.current) {
-          const response = await standardChatRef.current.sendMessage(
-            currentHistory,
-            text,
-            { mimeType: file.mimeType, data: file.data }
-          )
-          
-          expect(mockSendMessage).toHaveBeenCalledWith(
-            currentHistory,
-            text,
-            { mimeType: file.mimeType, data: file.data }
-          )
-          expect(response.text).toBeDefined()
-        }
+      const liveServiceRef = { current: { sendRealtimeMedia: mockSendRealtimeMedia } }
+
+      const shouldUseVoice = connectionState === LiveConnectionState.CONNECTED && !!liveServiceRef.current
+      expect(shouldUseVoice).toBe(true)
+
+      const file = {
+        mimeType: 'application/pdf',
+        data: 'base64-pdf-data'
       }
+
+      if (shouldUseVoice && isLiveRealtimeMediaMime(file.mimeType)) {
+        liveServiceRef.current.sendRealtimeMedia(file)
+      }
+
+      expect(mockSendRealtimeMedia).not.toHaveBeenCalled()
     })
 
-    it('should handle errors when standardChatService.sendMessage fails', async () => {
+    it('sends realtime media for image attachments when voice is connected', () => {
       const connectionState = LiveConnectionState.CONNECTED
-      const standardChatRef = { current: { sendMessage: mockSendMessage } }
-      const showToast = vi.fn()
-      const transcriptRef = { current: [] }
-      
-      const shouldUseVoice = connectionState === LiveConnectionState.CONNECTED
-      
-      if (shouldUseVoice) {
-        const text = 'Test message'
-        const userItem = {
-          id: Date.now().toString(),
-          role: 'user' as const,
-          text: text,
-          timestamp: new Date(),
-          isFinal: true,
-          status: 'complete' as const
-        }
-        
-        // Mock error
-        mockSendMessage.mockRejectedValueOnce(new Error('Failed to send message'))
-        
-        if (text.trim() && standardChatRef.current) {
-          try {
-            await standardChatRef.current.sendMessage(
-              [...transcriptRef.current, userItem],
-              text,
-              undefined
-            )
-            expect.fail('Should have thrown an error')
-          } catch (err) {
-            expect(err).toBeInstanceOf(Error)
-            expect((err as Error).message).toBe('Failed to send message')
-            // In App.tsx, this would call showToast
-            // showToast('Failed to send text message. Please try again.', 'error')
-          }
-        }
+      const liveServiceRef = { current: { sendRealtimeMedia: mockSendRealtimeMedia } }
+
+      const shouldUseVoice = connectionState === LiveConnectionState.CONNECTED && !!liveServiceRef.current
+      expect(shouldUseVoice).toBe(true)
+
+      const file = {
+        mimeType: 'image/jpeg',
+        data: 'base64-image-data'
       }
+
+      if (shouldUseVoice && isLiveRealtimeMediaMime(file.mimeType)) {
+        liveServiceRef.current.sendRealtimeMedia(file)
+      }
+
+      expect(mockSendRealtimeMedia).toHaveBeenCalledWith(file)
     })
   })
 
@@ -231,113 +133,7 @@ describe('Text Input During Voice Mode', () => {
     })
   })
 
-  describe('Real Service Integration', () => {
-    it('should integrate with StandardChatService.sendMessage', async () => {
-      const { StandardChatService } = await import('../../services/standardChatService.js')
-      const standardChatService = new StandardChatService('test-session')
-      
-      const text = 'Test message'
-      const history = [
-        { role: 'user' as const, content: 'Previous message' },
-        { role: 'assistant' as const, content: 'Previous response' }
-      ]
-      
-      const response = await standardChatService.sendMessage(
-        history,
-        text,
-        undefined
-      )
-      
-      expect(mockSendMessage).toHaveBeenCalledWith(
-        history,
-        text,
-        undefined
-      )
-      expect(response.text).toBe('Response from standard chat service')
-    })
-
-    it('should handle service response and update transcript', async () => {
-      const { StandardChatService } = await import('../../services/standardChatService.js')
-      const standardChatService = new StandardChatService('test-session')
-      const transcriptRef = { current: [] }
-      const setTranscript = vi.fn()
-      
-      const text = 'Test message'
-      const userItem = {
-        id: Date.now().toString(),
-        role: 'user' as const,
-        text: text,
-        timestamp: new Date(),
-        isFinal: true,
-        status: 'complete' as const
-      }
-      
-      transcriptRef.current = [...transcriptRef.current, userItem]
-      
-      const response = await standardChatService.sendMessage(
-        transcriptRef.current.map(item => ({
-          role: item.role === 'user' ? 'user' : 'assistant',
-          content: item.text
-        })),
-        text,
-        undefined
-      )
-      
-      // Simulate App.tsx response handling
-      const responseItem = {
-        id: (Date.now() + 1).toString(),
-        role: 'model' as const,
-        text: response.text,
-        timestamp: new Date(),
-        isFinal: true,
-        status: 'complete' as const
-      }
-      
-      setTranscript((prev: any[]) => [...prev, responseItem])
-      
-      expect(setTranscript).toHaveBeenCalled()
-      expect(responseItem.text).toBe('Response from standard chat service')
-    })
-
-    it('should process text messages independently of voice stream', async () => {
-      const { StandardChatService } = await import('../../services/standardChatService.js')
-      const standardChatService = new StandardChatService('test-session')
-      
-      // Simulate voice is active
-      const voiceActive = true
-      
-      // Text message should still work
-      if (voiceActive) {
-        const response = await standardChatService.sendMessage(
-          [],
-          'Text during voice',
-          undefined
-        )
-        
-        expect(response).toBeDefined()
-        expect(response.text).toBeTruthy()
-        expect(mockSendMessage).toHaveBeenCalled()
-      }
-    })
-  })
-
   describe('Error Handling', () => {
-    it('should handle errors gracefully when sending text during voice mode', async () => {
-      const { StandardChatService } = await import('../../services/standardChatService.js')
-      const standardChatService = new StandardChatService('test-session')
-      
-      // Mock error
-      mockSendMessage.mockRejectedValueOnce(new Error('Failed to send message'))
-      
-      try {
-        await standardChatService.sendMessage([], 'Test message', undefined)
-        expect.fail('Should have thrown an error')
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error)
-        expect((error as Error).message).toBe('Failed to send message')
-      }
-    })
-
     it('should continue voice session if text send fails', () => {
       const voiceSessionActive = true
       const textSendFailed = true

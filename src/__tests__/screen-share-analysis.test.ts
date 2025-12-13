@@ -6,9 +6,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock dependencies
-vi.mock('../../server/handlers/context-update-handler.js', () => ({
-  handleContextUpdate: vi.fn().mockResolvedValue(undefined)
+// Avoid side effects from injection scheduling in handler tests
+vi.mock('../../server/context/injection', () => ({
+  scheduleDebouncedInjection: vi.fn()
 }))
 
 // Mock context storage if needed by context update handler
@@ -27,7 +27,7 @@ vi.mock('@/core/context/context-storage', () => ({
   }))
 }))
 
-vi.mock('../../src/core/context/multimodal-context.js', () => ({
+vi.mock('src/core/context/multimodal-context', () => ({
   multimodalContextManager: {
     addVisualAnalysis: vi.fn().mockResolvedValue(undefined),
     getVoiceMultimodalSummary: vi.fn().mockResolvedValue({
@@ -51,17 +51,12 @@ describe('Screen Share Analysis', () => {
   describe('Analysis Injection', () => {
     it('should trigger context update with analysis text', async () => {
       const { handleContextUpdate } = await import('../../server/handlers/context-update-handler.js')
+      const { connectionStates } = await import('../../server/rate-limiting/websocket-rate-limiter.js')
       
       const mockClient = {
-        ws: {},
+        ws: { readyState: 1, bufferedAmount: 0, send: vi.fn() },
         sessionId: 'test-session',
-        latestContext: {
-          screen: {
-            analysis: 'User is working on a React application',
-            capturedAt: Date.now(),
-            imageData: 'base64-image-data'
-          }
-        },
+        latestContext: {},
         intelligenceData: {},
         injectionTimers: {},
         session: {
@@ -79,16 +74,24 @@ describe('Screen Share Analysis', () => {
         imageData: 'base64-image-data'
       }
 
-      await handleContextUpdate('connection-1', mockClient as any, payload as any)
+      const now = Date.now()
+      connectionStates.set('connection-1', {
+        isReady: true,
+        lastPing: now,
+        messageCount: 0,
+        lastMessageAt: now,
+        audioCount: 0,
+        audioLastAt: now,
+        mediaCount: 0,
+        mediaLastAt: now
+      })
 
-      expect(handleContextUpdate).toHaveBeenCalledWith(
-        'connection-1',
-        expect.any(Object),
-        expect.objectContaining({
-          analysis: 'User is working on a React application',
-          modality: 'screen'
-        })
-      )
+      handleContextUpdate('connection-1', mockClient as any, payload as any)
+
+      expect(mockClient.latestContext.screen?.analysis).toBe('User is working on a React application')
+      expect(mockClient.latestContext.screen?.imageData).toBe('base64-image-data')
+
+      connectionStates.delete('connection-1')
     })
 
     it('should include analysis in context update payload', async () => {
@@ -113,7 +116,7 @@ describe('Screen Share Analysis', () => {
 
   describe('Visual Analysis Persistence', () => {
     it('should persist visual analysis via multimodalContextManager', async () => {
-      const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
+      const { multimodalContextManager } = await import('src/core/context/multimodal-context')
 
       await multimodalContextManager.addVisualAnalysis(
         'test-session',
@@ -135,7 +138,7 @@ describe('Screen Share Analysis', () => {
     })
 
     it('should include confidence score in visual analysis', async () => {
-      const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
+      const { multimodalContextManager } = await import('src/core/context/multimodal-context')
 
       const confidence = 0.9
       await multimodalContextManager.addVisualAnalysis(
@@ -160,7 +163,7 @@ describe('Screen Share Analysis', () => {
 
   describe('SystemInstruction Rebuild', () => {
     it('should include visual analysis in voice multimodal summary', async () => {
-      const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
+      const { multimodalContextManager } = await import('src/core/context/multimodal-context')
 
       const summary = await multimodalContextManager.getVoiceMultimodalSummary('test-session')
 
@@ -170,7 +173,7 @@ describe('Screen Share Analysis', () => {
     })
 
     it('should include screen analysis in systemInstruction', async () => {
-      const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
+      const { multimodalContextManager } = await import('src/core/context/multimodal-context')
 
       // First add visual analysis
       await multimodalContextManager.addVisualAnalysis(
@@ -190,7 +193,7 @@ describe('Screen Share Analysis', () => {
     })
 
     it('should update systemInstruction when new analysis arrives', async () => {
-      const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
+      const { multimodalContextManager } = await import('src/core/context/multimodal-context')
 
       // Add initial analysis
       await multimodalContextManager.addVisualAnalysis(
@@ -221,9 +224,10 @@ describe('Screen Share Analysis', () => {
   describe('Context Update Flow', () => {
     it('should handle context update for screen modality', async () => {
       const { handleContextUpdate } = await import('../../server/handlers/context-update-handler.js')
+      const { connectionStates } = await import('../../server/rate-limiting/websocket-rate-limiter.js')
 
       const mockClient = {
-        ws: {},
+        ws: { readyState: 1, bufferedAmount: 0, send: vi.fn() },
         sessionId: 'test-session',
         latestContext: {},
         intelligenceData: {},
@@ -239,14 +243,30 @@ describe('Screen Share Analysis', () => {
         imageData: 'base64-data'
       }
 
-      await handleContextUpdate('connection-1', mockClient as any, payload as any)
+      const now = Date.now()
+      connectionStates.set('connection-1', {
+        isReady: true,
+        lastPing: now,
+        messageCount: 0,
+        lastMessageAt: now,
+        audioCount: 0,
+        audioLastAt: now,
+        mediaCount: 0,
+        mediaLastAt: now
+      })
 
-      expect(handleContextUpdate).toHaveBeenCalled()
+      handleContextUpdate('connection-1', mockClient as any, payload as any)
+
+      expect(mockClient.latestContext.screen?.analysis).toBe('Screen analysis')
+      expect(mockClient.latestContext.screen?.imageData).toBe('base64-data')
+
+      connectionStates.delete('connection-1')
     })
 
     it('should persist analysis after context update', async () => {
       const { handleContextUpdate } = await import('../../server/handlers/context-update-handler.js')
-      const { multimodalContextManager } = await import('../../src/core/context/multimodal-context.js')
+      const { multimodalContextManager } = await import('src/core/context/multimodal-context')
+      const { connectionStates } = await import('../../server/rate-limiting/websocket-rate-limiter.js')
 
       const mockClient = {
         ws: {},
@@ -268,6 +288,19 @@ describe('Screen Share Analysis', () => {
         }
       }
 
+      // Context updates are ignored until the connection is marked ready.
+      const now = Date.now()
+      connectionStates.set('connection-1', {
+        isReady: true,
+        lastPing: now,
+        messageCount: 0,
+        lastMessageAt: now,
+        audioCount: 0,
+        audioLastAt: now,
+        mediaCount: 0,
+        mediaLastAt: now
+      })
+
       await handleContextUpdate('connection-1', mockClient as any, payload as any)
 
       // Wait a bit for async operations (addVisualAnalysis is called in async IIFE)
@@ -275,14 +308,17 @@ describe('Screen Share Analysis', () => {
 
       // Analysis should be persisted via multimodal context manager
       // handleContextUpdate calls multimodalContextManager.addVisualAnalysis asynchronously
+      const expectedImageBytes = Math.floor('base64-data'.length * 0.75)
       expect(multimodalContextManager.addVisualAnalysis).toHaveBeenCalledWith(
         'test-session',
         'Screen shows code editor',
         'screen',
-        undefined, // imageSize
+        expectedImageBytes, // imageSize
         'base64-data', // imageData
         0.85 // confidence
       )
+
+      connectionStates.delete('connection-1')
     })
   })
 })

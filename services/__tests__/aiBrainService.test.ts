@@ -153,7 +153,8 @@ describe('AIBrainService', () => {
 
       const service = new AIBrainService()
       const conversationFlow = { stage: 'DISCOVERY' }
-      const intelligenceContext = { research: 'test' }
+      // Intelligence context is only forwarded when identity is present (name or email)
+      const intelligenceContext = { email: 'test@example.com', research: 'test' }
 
       await service.chat([{ role: 'user', content: 'Hello' }], {
         conversationFlow,
@@ -250,4 +251,3 @@ describe('AIBrainService', () => {
     })
   })
 })
-

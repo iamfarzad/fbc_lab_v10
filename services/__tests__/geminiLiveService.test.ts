@@ -16,6 +16,15 @@ describe('GeminiLiveService', () => {
   let mockLiveClient: ReturnType<typeof createMockLiveClientWS>
   let audioMocks: ReturnType<typeof setupAudioMocks>
 
+  const connectReady = async (service: GeminiLiveService) => {
+    // Avoid timer-driven connection in tests; explicitly drive readiness.
+    mockLiveClient.connect.mockImplementation(() => {})
+    mockLiveClient.start.mockImplementation(() => {})
+    await service.connect()
+    mockLiveClient.trigger('connected', 'mock-connection-id')
+    mockLiveClient.trigger('session_started', { connectionId: 'mock-connection-id' })
+  }
+
   beforeEach(() => {
     audioMocks = setupAudioMocks()
     mockLiveClient = createMockLiveClientWS()
@@ -95,29 +104,21 @@ describe('GeminiLiveService', () => {
 
     it('calls start() after connection established', async () => {
       const service = new GeminiLiveService(mockConfig)
-      await service.connect()
-
-      // Wait for async connection
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await connectReady(service)
 
       expect(mockLiveClient.start).toHaveBeenCalled()
     })
 
     it('handles session_started event', async () => {
       const service = new GeminiLiveService(mockConfig)
-      await service.connect()
-
-      // Wait for events
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await connectReady(service)
 
       expect(mockConfig.onStateChange).toHaveBeenCalledWith('CONNECTED')
     })
 
     it('sets up audio processing after session started', async () => {
       const service = new GeminiLiveService(mockConfig)
-      await service.connect()
-
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await connectReady(service)
 
       expect(audioMocks.mockScriptProcessor.onaudioprocess).toBeDefined()
     })
@@ -150,8 +151,7 @@ describe('GeminiLiveService', () => {
   describe('sendContext()', () => {
     it('formats transcript history correctly', async () => {
       const service = new GeminiLiveService(mockConfig)
-      await service.connect()
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await connectReady(service)
 
       await service.sendContext(mockTranscript)
 
@@ -164,8 +164,7 @@ describe('GeminiLiveService', () => {
     it('includes location and research in metadata', async () => {
       const service = new GeminiLiveService(mockConfig)
       service.setResearchContext(mockResearchResult)
-      await service.connect()
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await connectReady(service)
 
       await service.sendContext(mockTranscript, {
         location: { latitude: 40.7128, longitude: -74.0060 },
@@ -188,8 +187,7 @@ describe('GeminiLiveService', () => {
 
     it('filters system messages', async () => {
       const service = new GeminiLiveService(mockConfig)
-      await service.connect()
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await connectReady(service)
 
       const transcriptWithSystem = [
         ...mockTranscript,
@@ -207,8 +205,7 @@ describe('GeminiLiveService', () => {
   describe('sendText()', () => {
     it('sends text via LiveClient', async () => {
       const service = new GeminiLiveService(mockConfig)
-      await service.connect()
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await connectReady(service)
 
       service.sendText('Hello')
 
@@ -226,8 +223,7 @@ describe('GeminiLiveService', () => {
   describe('sendRealtimeMedia()', () => {
     it('formats media correctly', async () => {
       const service = new GeminiLiveService(mockConfig)
-      await service.connect()
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await connectReady(service)
 
       service.sendRealtimeMedia({ mimeType: 'audio/pcm', data: 'base64data' })
 
@@ -285,4 +281,3 @@ describe('GeminiLiveService', () => {
     })
   })
 })
-

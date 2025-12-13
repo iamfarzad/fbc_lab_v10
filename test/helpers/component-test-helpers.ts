@@ -72,9 +72,8 @@ export function setupBrowserMocks() {
  */
 export function createMockServiceRefs() {
   return {
-    standardChatRef: { current: { sendMessage: vi.fn() } },
     liveServiceRef: { current: { sendRealtimeMedia: vi.fn(), sendText: vi.fn() } },
-    aiBrainRef: { current: { chat: vi.fn() } },
+    aiBrainRef: { current: { chat: vi.fn(), chatStream: vi.fn() } },
     researchServiceRef: { current: {} }
   }
 }

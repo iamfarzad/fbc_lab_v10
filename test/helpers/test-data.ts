@@ -26,6 +26,11 @@ export const mockResearchResult: ResearchResult = {
   },
   role: 'CTO',
   confidence: 0.95,
+  groundingMetadata: {
+    groundingChunks: [
+      { retrievedUri: 'https://example.com/article' }
+    ]
+  },
   citations: [
     {
       uri: 'https://example.com/article',
@@ -90,4 +95,3 @@ export const mockTranscriptWithAttachment: TranscriptItem = {
     data: 'base64encodeddata'
   }
 }
-

@@ -183,18 +183,6 @@ vi.mock('@/core/analytics/tool-analytics', () => ({
   }
 }))
 
-// Mock services
-vi.mock('../../services/standardChatService.js', () => ({
-  StandardChatService: vi.fn().mockImplementation(() => ({
-    sendMessage: vi.fn().mockResolvedValue({
-      text: 'Response text',
-      reasoning: undefined,
-      groundingMetadata: undefined,
-      toolCalls: undefined
-    })
-  }))
-}))
-
 vi.mock('../../services/geminiLiveService.js', () => ({
   GeminiLiveService: vi.fn().mockImplementation(() => ({
     connect: vi.fn().mockResolvedValue(undefined),
@@ -546,23 +534,12 @@ describe('Integration E2E Tests', () => {
     it('should handle full conversation with all features', async () => {
       const sessionId = 'test-session-full-' + Date.now()
       
-      // 1. User sends text message
-      const { StandardChatService } = await import('../../services/standardChatService.js')
-      const chatService = new StandardChatService('test-session')
-      
-      const response1 = await chatService.sendMessage(
-        [],
-        'Hello, I need help with my business',
-        undefined
-      )
-      expect(response1.text).toBeDefined()
-      
-      // 2. URL detected and analyzed
+      // 1. URL detected and analyzed
       const { detectAndAnalyzeUrls } = await import('../core/utils/url-analysis.js')
       const urlContext = await detectAndAnalyzeUrls('Check https://mycompany.com')
       expect(urlContext).toBeTruthy()
       
-      // 3. Intelligence context loaded and validated
+      // 2. Intelligence context loaded and validated
       const { validateIntelligenceContext } = await import('../../server/utils/validate-intelligence-context.js')
       const context = createMockIntelligenceContext({
         email: 'user@example.com',
@@ -571,7 +548,7 @@ describe('Integration E2E Tests', () => {
       const validation = validateIntelligenceContext(context, sessionId)
       expect(validation.valid).toBe(true)
       
-      // 4. Agent orchestration
+      // 3. Agent orchestration
       const agentResult = await routeToAgent({
         messages: createMockMessages([{ content: 'Hello' }]),
         sessionId,

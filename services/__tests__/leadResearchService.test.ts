@@ -36,6 +36,9 @@ describe('LeadResearchService', () => {
         confidence: 0.9
       },
       response: {
+        groundingMetadata: {
+          groundingChunks: [{ retrievedUri: 'https://example.com' }]
+        },
         headers: new Headers({
           'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
         }),
@@ -60,15 +63,22 @@ describe('LeadResearchService', () => {
       const cachedResult = JSON.stringify(mockResearchResult)
       // Cache key format: lead_research_${email}_${name || ''}_${location?.city || ''}
       const cacheKey = `lead_research_test@example.com__` // Two underscores for empty name and location
-      vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key: string) => {
-        return key === cacheKey ? cachedResult : null
-      })
+      const mockLocalStorage = {
+        getItem: vi.fn((key: string) => (key === cacheKey ? cachedResult : null)),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      }
+      ;(globalThis as any).localStorage = mockLocalStorage
+      ;(globalThis as any).window = {} as any
 
       const result = await service.researchLead('test@example.com')
 
       // Should return cached result without calling AI
         expect(result).toEqual(mockResearchResult)
       expect(generateObject).not.toHaveBeenCalled()
+
+      delete (globalThis as any).localStorage
+      delete (globalThis as any).window
     })
 
     it('calls generateObject for farzad@talktoeve.com email', async () => {
@@ -83,6 +93,9 @@ describe('LeadResearchService', () => {
           confidence: 0.9
         },
         response: {
+          groundingMetadata: {
+            groundingChunks: [{ retrievedUri: 'https://example.com' }]
+          },
           headers: new Headers({
             'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
           }),
@@ -106,6 +119,9 @@ describe('LeadResearchService', () => {
           confidence: 0.9
         },
         response: {
+          groundingMetadata: {
+            groundingChunks: [{ retrievedUri: 'https://example.com' }]
+          },
           headers: new Headers({
             'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
           }),
@@ -116,6 +132,28 @@ describe('LeadResearchService', () => {
       // Use an email that's not the hardcoded fallback
       await service.researchLead('newlead@testcompany.com')
       expect(generateObject).toHaveBeenCalled()
+    })
+
+    it('downranks confidence when ungrounded or mismatched', async () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
+      ;(generateObject as any).mockResolvedValue({
+        object: {
+          company: { name: 'Other Co', domain: 'other.com' },
+          person: { fullName: 'Someone Else', company: 'Other Co' },
+          role: 'Founder',
+          confidence: 0.9
+        },
+        response: {
+          groundingMetadata: { groundingChunks: [] },
+          headers: new Headers({
+            'x-goog-ai-generative-usage': JSON.stringify({ promptTokenCount: 100 })
+          }),
+          rawResponse: new Response(null, { status: 200 })
+        }
+      })
+
+      const result = await service.researchLead('test@example.com', 'Test Person')
+      expect(result.confidence).toBeLessThan(0.5)
     })
 
     it('handles API errors gracefully', async () => {
