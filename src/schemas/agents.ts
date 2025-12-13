@@ -21,7 +21,7 @@ export const AgentMetadata = z.object({
   conversationsAnalyzed: z.number().optional(),
   leadsAnalyzed: z.number().optional(),
   analyticsFetched: z.boolean().optional(),
-  toolsUsed: z.number().optional(),
+  toolsUsed: z.union([z.number(), z.array(z.string())]).optional(),
   summary: z.record(z.string(), z.unknown()).nullable().optional(),
 })
 
@@ -60,4 +60,3 @@ export const IntelligenceContext = z.object({
 })
 
 export type IntelligenceContext = z.infer<typeof IntelligenceContext>
-

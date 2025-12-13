@@ -171,6 +171,9 @@ export const WEBSOCKET_CONFIG = {
 } as const
 
 // Gemini Model Names
+const AUDIO_2025_09 = 'gemini-2.5-flash-native-audio-preview-09-2025' as const
+const AUDIO_2025_12 = 'gemini-2.5-flash-native-audio-preview-12-2025' as const
+
 export const GEMINI_MODELS = {
   // NEW: Google's latest models (auto-update to newest)
   FLASH_LATEST: 'gemini-2.5-flash',              // Auto-updates to latest Flash
@@ -179,7 +182,8 @@ export const GEMINI_MODELS = {
   // NEW: Specific versions (predictable behavior)
   FLASH_2025_09: 'gemini-2.5-flash',
   FLASH_LITE_2025_09: 'gemini-2.5-flash-lite',
-  AUDIO_2025_09: 'gemini-2.5-flash-native-audio-preview-09-2025', // Live API native audio model
+  AUDIO_2025_09, // Legacy Live API native audio model
+  AUDIO_2025_12, // Live API native audio model (December 2025)
 
   // NEW: Gemini 3.0
   GEMINI_3_PRO_PREVIEW: 'gemini-3-pro-preview',
@@ -193,8 +197,8 @@ export const GEMINI_MODELS = {
   DEFAULT_CHAT: 'gemini-2.5-flash',                   // Standard Chat (was gemini-3-pro-preview)
   DEFAULT_LIVE: 'gemini-2.5-flash',                   // Live sessions
   DEFAULT_VISION: 'gemini-2.5-flash',                 // Vision/Webcam analysis
-  DEFAULT_AUDIO: 'gemini-2.5-flash',                  // Audio processing
-  DEFAULT_VOICE: 'gemini-2.5-flash-native-audio-preview-09-2025', // Live Voice
+  DEFAULT_AUDIO: AUDIO_2025_12,                       // Audio processing (native-audio)
+  DEFAULT_VOICE: AUDIO_2025_12,                       // Live Voice (native-audio)
   DEFAULT_MULTIMODAL: 'gemini-2.5-flash',             // Vision (was gemini-3-pro-preview)
   DEFAULT_WEBCAM: 'gemini-2.5-flash',                 // Webcam analysis (was gemini-3-pro-preview)
   FALLBACK: 'gemini-2.5-flash',                       // Fallback model
@@ -343,7 +347,7 @@ const schedulingEmbedScript =
   process.env.NEXT_PUBLIC_SCHEDULING_EMBED_SCRIPT || 'https://app.cal.com/embed/embed.js'
 
 export const CONTACT_CONFIG = {
-  SUPPORT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'farzad@fbc.ai',
+  SUPPORT_EMAIL: process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@farzadbayat.com',
   WEBSITE_URL: process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://fbc.ai',
   DEFAULT_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || 'F.B/c <contact@farzadbayat.com>',
   SCHEDULING: {
@@ -407,8 +411,8 @@ export const GEMINI_CONFIG = {
 - Speak concisely (2 sentences max by default).
 - Ask one focused question when you need more context.
 - Keep a natural voice tone; avoid lists unless asked.
-- You have VISUAL CAPABILITIES: You can see webcam and screen share video frames in real-time.
-- When you receive video input, acknowledge what you see and provide relevant insights.
+- Vision: You only see webcam/screen frames when the user enabled them AND you received recent frames. If you haven't received frames, say you can't see it and ask them to enable sharing.
+- Accuracy: Do not invent personal facts (company, role, location). Only use details the user provided or that you can cite from explicit sources; otherwise ask to confirm.
 Pronunciation: "Farzad Bayat" ~ "Fahr–zahd Bye–yaht" (soft 'a' in Farzad).`,
 } as const
 

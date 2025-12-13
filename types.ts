@@ -26,8 +26,23 @@ export interface GroundingChunk {
 
 export interface GroundingMetadata {
   groundingChunks: GroundingChunk[];
+  /**
+   * Claim-level grounding supports from Gemini.
+   * Each support links a text segment (by character indices) to one or more grounding chunks.
+   */
+  groundingSupports?: Array<{
+    segment?: { startIndex?: number; endIndex?: number };
+    groundingChunkIndices?: number[];
+  }>;
   webSearchQueries?: string[];
   searchEntryPoint?: any;
+}
+
+export interface ChainOfThoughtStep {
+  label: string;
+  description?: string;
+  status: 'complete' | 'active' | 'pending';
+  timestamp?: number;
 }
 
 export interface TranscriptItem {
@@ -37,6 +52,17 @@ export interface TranscriptItem {
   timestamp: Date;
   isFinal: boolean;
   reasoning?: string; // For Chain of Thought UI
+  chainOfThought?: { steps: ChainOfThoughtStep[] }; // Safe, high-level reasoning steps
+  tools?: Array<{
+    name: string;
+    type?: string;
+    state?: 'running' | 'complete' | 'error';
+    input?: unknown;
+    output?: unknown;
+    error?: string;
+    startedAt?: number;
+    finishedAt?: number;
+  }>; // Per-message tool timeline
   status?: 'streaming' | 'complete' | 'error'; // For Shimmer UI and error states
   processingTime?: number; // Response time in milliseconds
   error?: {
@@ -62,7 +88,7 @@ export interface TranscriptItem {
   groundingMetadata?: GroundingMetadata;
 }
 
-export type VisualShape = 'orb' | 'wave' | 'dna' | 'rect' | 'face' | 'planet' | 'heart' | 'grid' | 'atom' | 'hourglass' | 'shield' | 'star' | 'globe' | 'brain' | 'constellation' | 'weather' | 'chart' | 'map' | 'clock' | 'code' | 'text' | 'scanner' | 'vortex' | 'fireworks' | 'lightning' | 'flower' | 'discovery' | 'scoring' | 'workshop' | 'consulting' | 'closer' | 'summary' | 'proposal' | 'admin' | 'retargeting';
+export type VisualShape = 'orb' | 'wave' | 'dna' | 'rect' | 'face' | 'planet' | 'heart' | 'grid' | 'atom' | 'hourglass' | 'shield' | 'star' | 'globe' | 'brain' | 'constellation' | 'weather' | 'chart' | 'map' | 'clock' | 'code' | 'text' | 'scanner' | 'vortex' | 'fireworks' | 'lightning' | 'flower' | 'discovery' | 'scoring' | 'workshop' | 'consulting' | 'closer' | 'summary' | 'proposal' | 'admin' | 'retargeting' | 'oscilloscope' | 'spectrum' | 'toolCall' | 'functionPulse' | 'dataFlow' | 'insightBurst' | 'solarSystem' | 'network' | 'molecule' | 'mathGraph';
 
 export interface VisualState {
   isActive: boolean;
@@ -98,11 +124,73 @@ export interface VisualState {
       lng: number;
     }
   };
+  // New context-driven data properties
+  solarSystemData?: {
+    focusPlanet?: string;
+    showOrbits?: boolean;
+    scale?: 'realistic' | 'educational';
+  };
+  networkData?: {
+    nodes: string[];
+    connections: Array<{from: string, to: string, strength: number}>;
+    layout: 'force' | 'circular' | 'hierarchical';
+  };
+  moleculeData?: {
+    formula?: string;
+    structure?: 'ball-stick' | 'space-filling' | 'wireframe';
+    animate?: boolean;
+  };
+  mathData?: {
+    equation?: string;
+    graph3d?: boolean;
+    domain?: [number, number];
+    range?: [number, number];
+  };
   // Metadata visualizations
   citationCount?: number; // Number of citations/sources
   reasoningComplexity?: number; // 0.0 to 1.0 based on reasoning length/complexity
   researchActive?: boolean; // Whether research queries are active
   sourceCount?: number; // Number of verified sources
+
+  // New visual enhancement properties
+  // Trails & Effects
+  trailsEnabled?: boolean;
+  bloomEnabled?: boolean;
+  bloomIntensity?: number; // 0.0-2.0
+  bloomRadius?: number; // 4-16px
+
+  // Audio visualization
+  waveformEnabled?: boolean;
+  waveformMode?: 'oscilloscope' | 'spectrum';
+
+  // Gesture & Interaction
+  gestureMode?: 'shapes' | 'effects' | 'themes';
+
+  // Morphing
+  morphingTo?: VisualShape | null;
+  morphProgress?: number; // 0.0-1.0
+
+  // Tool calling
+  toolCallData?: {
+    name: string;
+    progress: number; // 0.0-1.0
+    state: 'running' | 'complete' | 'error';
+  };
+
+  // Research activity
+  researchData?: {
+    activeQueries: number;
+    intensity: number; // 0.0-1.0
+    insightFound?: number; // timestamp
+  };
+
+  // Theme overrides
+  theme?: string;
+  particleColors?: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
 }
 
 export interface LiveServiceConfig {
@@ -170,4 +258,3 @@ export interface GeminiSession {
   sendToolResponse: (response: any) => Promise<void>;
   close: () => Promise<void>;
 }
-

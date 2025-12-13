@@ -28,12 +28,18 @@ describe('constants', () => {
     it('should have model definitions', () => {
       expect(GEMINI_MODELS.FLASH_LATEST).toBeDefined()
       expect(GEMINI_MODELS.FLASH_LITE_LATEST).toBeDefined()
+      expect(GEMINI_MODELS.AUDIO_2025_12).toBeDefined()
     })
 
     it('should have model names as strings', () => {
       expect(typeof GEMINI_MODELS.FLASH_LATEST).toBe('string')
       expect(typeof GEMINI_MODELS.FLASH_LITE_LATEST).toBe('string')
     })
+
+    it('should default voice/audio to the December 2025 native-audio model', () => {
+      expect(GEMINI_MODELS.DEFAULT_VOICE).toBe('gemini-2.5-flash-native-audio-preview-12-2025')
+      expect(GEMINI_MODELS.DEFAULT_AUDIO).toBe('gemini-2.5-flash-native-audio-preview-12-2025')
+      expect(GEMINI_MODELS.DEFAULT_VOICE).toContain('audio')
+    })
   })
 })
-

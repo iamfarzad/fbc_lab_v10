@@ -29,7 +29,7 @@ function validateEnv(value: string | undefined, name: string): string {
     console.error(`[Supabase] Missing required env var: ${name}. Add it to Vercel environment variables.`);
     return '';
   } else {
-    console.warn(`⚠️ Missing env: ${name} (using placeholder for development)`);
+    console.warn(`Missing env: ${name} (using placeholder for development)`);
     console.warn(`   Add ${name} to .env.local for full functionality`);
     return name === 'NEXT_PUBLIC_SUPABASE_URL' ? 'https://placeholder.supabase.co' : 'placeholder-key';
   }
@@ -77,7 +77,7 @@ export function getSupabaseServer(): SupabaseClient<Database> {
     const anon = validateEnv(SUPABASE_ANON_KEY, "NEXT_PUBLIC_SUPABASE_ANON_KEY");
     
     if (!url || url === 'https://placeholder.supabase.co') {
-      console.warn('⚠️ Supabase not configured - using placeholder. Data persistence disabled.');
+      console.warn('Supabase not configured - using placeholder. Data persistence disabled.');
       return null as unknown as SupabaseClient<Database>;
     }
     
@@ -112,7 +112,7 @@ export function getSupabaseService(): SupabaseClient<Database> {
     const svc = validateEnv(SUPABASE_SERVICE_KEY, "SUPABASE_SERVICE_ROLE_KEY");
     
     if (!url || url === 'https://placeholder.supabase.co') {
-      console.warn('⚠️ Supabase not configured - using placeholder. WAL logging disabled.');
+      console.warn('Supabase not configured - using placeholder. WAL logging disabled.');
       return null as unknown as SupabaseClient<Database>;
     }
     
