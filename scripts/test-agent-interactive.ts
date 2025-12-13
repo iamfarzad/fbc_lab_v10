@@ -29,6 +29,7 @@ let messages: ChatMessage[] = []
 let currentStage: FunnelStage = 'DISCOVERY'
 let sessionId = `test-${Date.now()}`
 let intelligenceContext: any = {} // Store research results here
+let shouldExit = false // Only exit when /exit is used
 
 // Colors for terminal output
 const colors = {
@@ -50,7 +51,7 @@ function printHeader() {
     ? ` | Intel: ${intelligenceContext.name || intelligenceContext.email || 'Loaded'}` 
     : ''
   console.log(`\n${colors.cyan}${'='.repeat(60)}${colors.reset}`)
-  console.log(`${colors.bright}${colors.cyan}🤖 Agent Flow Tester${colors.reset}`)
+  console.log(`${colors.bright}${colors.cyan}Agent Flow Tester${colors.reset}`)
   console.log(`${colors.dim}Session: ${sessionId} | Stage: ${currentStage}${intelInfo}${colors.reset}`)
   console.log(`${colors.cyan}${'='.repeat(60)}${colors.reset}\n`)
 }
@@ -140,7 +141,7 @@ async function processMessage(input: string) {
         messages,
         sessionId,
         currentStage,
-        intelligenceContext: {},
+        intelligenceContext: intelligenceContext,
         multimodalContext: {
           hasRecentImages: false,
           hasRecentAudio: false,
@@ -149,6 +150,7 @@ async function processMessage(input: string) {
           recentUploads: []
         },
         trigger,
+        thinkingLevel: 'low',
         conversationFlow: {
           covered: {
             goals: messages.length > 2,
@@ -181,15 +183,15 @@ async function processMessage(input: string) {
         currentStage = 'DISCOVERY'
         sessionId = `test-${Date.now()}`
         intelligenceContext = {}
-        console.log(`${colors.green}✓ Conversation reset${colors.reset}\n`)
+        console.log(`${colors.green}OK: conversation reset${colors.reset}\n`)
         return
         
       case 'stage':
         if (args[0]) {
           currentStage = args[0] as FunnelStage
-          console.log(`${colors.green}✓ Stage set to: ${currentStage}${colors.reset}\n`)
+          console.log(`${colors.green}OK: stage set to: ${currentStage}${colors.reset}\n`)
         } else {
-          console.log(`${colors.red}✗ Usage: /stage <STAGE_NAME>${colors.reset}\n`)
+          console.log(`${colors.red}ERR: usage: /stage <STAGE_NAME>${colors.reset}\n`)
         }
         return
         
@@ -243,7 +245,7 @@ async function processMessage(input: string) {
         
       case 'research':
         if (!args[0]) {
-          console.log(`${colors.red}✗ Usage: /research <email> [name] [companyUrl]${colors.reset}`)
+          console.log(`${colors.red}ERR: usage: /research <email> [name] [companyUrl]${colors.reset}`)
           console.log(`${colors.dim}Example: /research john@example.com "John Doe" https://example.com${colors.reset}\n`)
           return
         }
@@ -268,7 +270,7 @@ async function processMessage(input: string) {
         if (name) name = name.replace(/^["']|["']$/g, '')
         if (companyUrl) companyUrl = companyUrl.replace(/^["']|["']$/g, '')
         
-        console.log(`${colors.dim}🔍 Starting Lead Intelligence research...${colors.reset}`)
+        console.log(`${colors.dim}Starting Lead Intelligence research...${colors.reset}`)
         console.log(`${colors.dim}   Email: ${email}${colors.reset}`)
         if (name) console.log(`${colors.dim}   Name: ${name}${colors.reset}`)
         if (companyUrl) console.log(`${colors.dim}   Company URL: ${companyUrl}${colors.reset}`)
@@ -322,7 +324,7 @@ async function processMessage(input: string) {
           if (result.metadata?.chainOfThought?.steps) {
             console.log(`\n${colors.bright}${colors.cyan}Research Steps:${colors.reset}`)
             result.metadata.chainOfThought.steps.forEach((step: any, i: number) => {
-              const status = step.status === 'complete' ? '✓' : step.status === 'active' ? '⟳' : '○'
+              const status = step.status === 'complete' ? 'DONE' : step.status === 'active' ? 'ACTIVE' : 'PENDING'
               const color = step.status === 'complete' ? colors.green : step.status === 'active' ? colors.yellow : colors.dim
               console.log(`  ${color}${status}${colors.reset} ${step.label}${step.description ? ` - ${step.description}` : ''}`)
             })
@@ -343,7 +345,7 @@ async function processMessage(input: string) {
               leadScore: research.leadScore,
               researchConfidence: research.confidence
             }
-            console.log(`${colors.green}✓ Intelligence context updated - will be used in conversations${colors.reset}\n`)
+            console.log(`${colors.green}OK: intelligence context updated (used in conversations)${colors.reset}\n`)
           }
           
         } catch (error) {
@@ -367,11 +369,11 @@ async function processMessage(input: string) {
         
       case 'pdf':
         if (messages.length === 0) {
-          console.log(`${colors.red}✗ No conversation to summarize. Have a conversation first.${colors.reset}\n`)
+          console.log(`${colors.red}ERR: no conversation to summarize. Have a conversation first.${colors.reset}\n`)
           return
         }
         
-        console.log(`${colors.dim}📄 Generating PDF summary...${colors.reset}`)
+        console.log(`${colors.dim}Generating PDF summary...${colors.reset}`)
         console.log(`${colors.dim}   Messages: ${messages.length}${colors.reset}`)
         console.log(`${colors.dim}   Session: ${sessionId}${colors.reset}\n`)
         
@@ -405,7 +407,7 @@ async function processMessage(input: string) {
           try {
             summaryJson = JSON.parse(summaryResult.output)
           } catch {
-            console.log(`${colors.yellow}⚠️  Summary agent returned non-JSON, using fallback${colors.reset}`)
+            console.log(`${colors.yellow}WARN: summary agent returned non-JSON, using fallback${colors.reset}`)
             summaryJson = {
               executiveSummary: summaryResult.output.substring(0, 200),
               keyFindings: {},
@@ -470,7 +472,7 @@ async function processMessage(input: string) {
           await writeFile(fullPath, pdfBuffer)
           
           console.log(`\n${colors.blue}${'─'.repeat(60)}${colors.reset}`)
-          console.log(`${colors.bright}${colors.green}✓ PDF Summary Generated${colors.reset}`)
+          console.log(`${colors.bright}${colors.green}OK: PDF summary generated${colors.reset}`)
           console.log(`${colors.bright}${colors.cyan}File:${colors.reset} ${fullPath}`)
           console.log(`${colors.bright}${colors.cyan}Size:${colors.reset} ${(pdfBuffer.length / 1024).toFixed(2)} KB`)
           console.log(`${colors.bright}${colors.cyan}Summary:${colors.reset} ${summaryJson.executiveSummary?.substring(0, 100) || 'N/A'}...`)
@@ -493,7 +495,7 @@ async function processMessage(input: string) {
         console.log(`   ${colors.yellow}Key Rules:${colors.reset}`)
         console.log(`     - Be conversational, friendly, relaxed`)
         console.log(`     - Handle off-topic questions gracefully`)
-        console.log(`     - ALWAYS use company name and role when available`)
+        console.log(`     - Only use company name/role when the user explicitly confirms them`)
         console.log(`     - Detect and acknowledge user corrections`)
         console.log(`     - Cover 6 categories: goals, pain, data, readiness, budget, success\n`)
         
@@ -562,9 +564,10 @@ async function processMessage(input: string) {
         return
         
       case 'exit':
+        shouldExit = true
         console.log(`${colors.yellow}Goodbye!${colors.reset}\n`)
         rl.close()
-        process.exit(0)
+        return
         
       default:
         console.log(`${colors.red}Unknown command: ${cmd}. Type /help for commands.${colors.reset}\n`)
@@ -591,6 +594,7 @@ async function processMessage(input: string) {
         recentUploads: []
       },
       trigger: 'chat',
+      thinkingLevel: 'low',
       conversationFlow: {
         covered: {
           goals: messages.length > 2,
@@ -620,15 +624,39 @@ async function main() {
   
   rl.setPrompt(`${colors.green}>${colors.reset} `)
   rl.prompt()
+
+  // Ensure inputs are processed sequentially (important for piped tests).
+  let processing: Promise<void> = Promise.resolve()
   
-  rl.on('line', async (input) => {
-    await processMessage(input)
-    rl.prompt()
+  rl.on('line', (input) => {
+    processing = processing
+      .then(() => processMessage(input))
+      .then(() => {
+        if (!(rl as any).closed && process.stdin.isTTY) {
+          rl.prompt()
+        }
+      })
+      .catch((err) => {
+        console.error(`${colors.red}Unhandled error:${colors.reset}`, err)
+        if (!(rl as any).closed && process.stdin.isTTY) {
+          rl.prompt()
+        }
+      })
   })
   
-  rl.on('close', () => {
-    console.log(`${colors.yellow}Goodbye!${colors.reset}\n`)
-    process.exit(0)
+  rl.on('close', async () => {
+    try {
+      await processing
+    } catch {
+      // already logged
+    }
+    if (shouldExit) {
+      process.exit(0)
+    }
+    if (!process.stdin.isTTY) {
+      process.exit(0)
+    }
+    console.log(`${colors.dim}Input closed. Use /exit to terminate.${colors.reset}\n`)
   })
 }
 

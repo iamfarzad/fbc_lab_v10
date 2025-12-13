@@ -19,7 +19,7 @@ Complete list of all Gemini API and Live API functions, their file paths, functi
 #### `createLiveApiClient()`
 - **File:** `server/live-api/session-manager.ts`
 - **Function:** Creates a GoogleGenAI instance for Live API with proper authentication handling
-- **Model:** Uses `getLiveApiModel()` which returns `gemini-2.5-flash-native-audio-preview-09-2025` (DEFAULT_VOICE)
+- **Model:** Uses `getLiveApiModel()` which returns `gemini-2.5-flash-native-audio-preview-12-2025` (DEFAULT_VOICE)
 - **What it does:**
   - Tries service account first (from `GOOGLE_APPLICATION_CREDENTIALS` environment variable)
   - Falls back to API key if service account not available
@@ -29,7 +29,7 @@ Complete list of all Gemini API and Live API functions, their file paths, functi
 #### `getLiveApiModel()`
 - **File:** `server/live-api/session-manager.ts`
 - **Function:** Returns the model name for Live API
-- **Model:** `gemini-2.5-flash-native-audio-preview-09-2025` (DEFAULT_VOICE)
+- **Model:** `gemini-2.5-flash-native-audio-preview-12-2025` (DEFAULT_VOICE)
 - **What it does:**
   - Reads from `GEMINI_LIVE_MODEL` env var or uses default
   - Validates model is audio-capable (must include 'audio' in name)
@@ -38,7 +38,7 @@ Complete list of all Gemini API and Live API functions, their file paths, functi
 #### `buildLiveConfig()`
 - **File:** `server/live-api/config-builder.ts`
 - **Function:** Builds Live API session configuration
-- **Model:** Uses model from `getLiveApiModel()` (default: `gemini-2.5-flash-native-audio-preview-09-2025`)
+- **Model:** Uses model from `getLiveApiModel()` (default: `gemini-2.5-flash-native-audio-preview-12-2025`)
 - **What it does:**
   - Constructs system instruction with personalization context
   - Loads session context from database
@@ -50,7 +50,7 @@ Complete list of all Gemini API and Live API functions, their file paths, functi
 #### `handleStart()`
 - **File:** `server/handlers/start-handler.ts`
 - **Function:** Handles WebSocket START message to initialize Live API session
-- **Model:** `gemini-2.5-flash-native-audio-preview-09-2025` (via `getLiveApiModel()`)
+- **Model:** `gemini-2.5-flash-native-audio-preview-12-2025` (via `getLiveApiModel()`)
 - **What it does:**
   - Creates Live API client
   - Builds session configuration
@@ -287,17 +287,19 @@ Complete list of all Gemini API and Live API functions, their file paths, functi
 ### Model Constants
 - **File:** `src/config/constants.ts`
 - **GEMINI_MODELS:**
-  - `DEFAULT_CHAT`: `gemini-3-pro-preview`
-  - `DEFAULT_VOICE`: `gemini-2.5-flash-native-audio-preview-09-2025`
-  - `DEFAULT_MULTIMODAL`: `gemini-3-pro-preview`
-  - `DEFAULT_WEBCAM`: `gemini-3-pro-preview`
-  - `DEFAULT_SCREEN`: `gemini-3-pro-preview`
+  - `DEFAULT_CHAT`: `gemini-2.5-flash`
+  - `DEFAULT_VOICE`: `gemini-2.5-flash-native-audio-preview-12-2025`
+  - `DEFAULT_AUDIO`: `gemini-2.5-flash-native-audio-preview-12-2025`
+  - `DEFAULT_MULTIMODAL`: `gemini-2.5-flash`
+  - `DEFAULT_WEBCAM`: `gemini-2.5-flash`
+  - `DEFAULT_SCREEN`: `gemini-2.5-flash`
   - `DEFAULT_FAST`: `gemini-2.5-flash-lite`
   - `DEFAULT_RELIABLE`: `gemini-2.5-flash`
   - `GEMINI_3_PRO_PREVIEW`: `gemini-3-pro-preview`
   - `FLASH_LATEST`: `gemini-2.5-flash`
   - `FLASH_LITE_LATEST`: `gemini-2.5-flash-lite`
-  - `AUDIO_2025_09`: `gemini-2.5-flash-native-audio-preview-09-2025`
+  - `AUDIO_2025_12`: `gemini-2.5-flash-native-audio-preview-12-2025`
+  - `AUDIO_2025_09`: `gemini-2.5-flash-native-audio-preview-09-2025` (legacy)
 
 ### API Endpoints
 - **File:** `src/config/constants.ts`
@@ -319,7 +321,7 @@ Used by:
 - Webcam/screen analysis
 - Multimodal operations
 
-### `gemini-2.5-flash-native-audio-preview-09-2025`
+### `gemini-2.5-flash-native-audio-preview-12-2025`
 Used by:
 - Live API voice sessions (DEFAULT_VOICE)
 - Real-time audio streaming
@@ -400,4 +402,3 @@ Used by:
   - `server/live-api/`: **0 Tests** for WebSocket handlers
   - `LiveClientWS`: **0 Tests** for client-side connectivity
 - **Recommendation:** Prioritize unit tests for `multimodal-context.ts` and integration smoke tests for the Live API connection.
-
