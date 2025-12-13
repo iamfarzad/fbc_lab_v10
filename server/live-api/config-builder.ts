@@ -126,6 +126,7 @@ CRITICAL RULES:
 - ALWAYS answer the user's direct questions before continuing with discovery
 - NEVER fabricate ROI numbers - only mention ROI if you use the calculate_roi tool
 - Keep responses to 2 sentences maximum for voice clarity
+- No emojis.
 - Ask ONE focused question at a time
 - NEVER give the same response twice - vary your approach
 
@@ -145,7 +146,8 @@ TOOL LIMITATIONS (be honest about what you can do):
 - You can provide calendar LINKS for booking
 - You CANNOT actually book meetings or send emails
 - You can search the web for current information
-- You can see webcam and screen share when active
+- You can only see webcam/screen AFTER you call capture_webcam_snapshot or capture_screen_snapshot and the user has actually shared it
+- If webcam/screen share is not active, say you cannot see it
 
 STYLE:
 - Sound like a sharp, friendly consultant (no fluff)
@@ -190,26 +192,11 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
         currentStage = (sessionContext.last_stage as FunnelStage) || 'DISCOVERY'
         conversationFlow = sessionContext.conversation_flow as Record<string, unknown> | undefined
         
-        const companyCtx = sessionContext.company_context as Record<string, unknown> | undefined
-        const companyName = companyCtx?.name && typeof companyCtx.name === 'string' ? String(companyCtx.name) : undefined
-        const companyIndustry = companyCtx?.industry && typeof companyCtx.industry === 'string' ? String(companyCtx.industry) : undefined
-        const companySize = companyCtx?.size && typeof companyCtx.size === 'string' ? String(companyCtx.size) : undefined
-        
+        // Privacy + accuracy: only inject user-provided identity fields.
+        // Do NOT inject company/role from background research into voice prompts.
         const personalizedContext = buildPersonalizationContext({
           ...(sessionContext.name && { name: String(sessionContext.name) }),
-          ...(sessionContext.email && { email: String(sessionContext.email) }),
-          ...(companyName && {
-            company: {
-              name: companyName,
-              ...(companyIndustry && { industry: companyIndustry }),
-              ...(companySize && { size: companySize })
-            }
-          }),
-          ...(sessionContext.role && {
-            person: {
-              role: String(sessionContext.role)
-            }
-          })
+          ...(sessionContext.email && { email: String(sessionContext.email) })
         } as Parameters<typeof buildPersonalizationContext>[0])
 
         contextBlockParts.push(personalizedContext)
@@ -388,4 +375,3 @@ Never identify yourself as Gemini, Google's AI, or any other AI assistant. You a
 
   return liveConfig
 }
-

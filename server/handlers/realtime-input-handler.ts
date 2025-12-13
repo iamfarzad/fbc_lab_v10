@@ -117,11 +117,23 @@ export async function handleRealtimeInput(
     
     const isImage = mimeType.startsWith('image/')
     const isText = mimeType === 'text/plain' || mimeType.startsWith('text/')
+    const isAudio = mimeType.startsWith('audio/') || mimeType.includes('pcm') || mimeType.includes('rate=')
+    const isVideo = mimeType.startsWith('video/')
+    const isSupportedMedia = isImage || isAudio || isVideo
     
     // CRITICAL FIX: Reject text chunks - Live API's sendRealtimeInput() only accepts audio/video media
     // Sending text via sendRealtimeInput causes error 1007 "Request contains an invalid argument"
     if (isText) {
       serverLogger.warn('REALTIME_INPUT: Rejecting text chunk - Live API does not accept text via sendRealtimeInput (causes 1007 error)', {
+        connectionId,
+        mimeType: chunk.mimeType
+      })
+      return
+    }
+
+    // Reject any non-media chunk types (e.g., application/pdf) to prevent Live API invalid-argument errors.
+    if (!isSupportedMedia) {
+      serverLogger.warn('REALTIME_INPUT: Rejecting unsupported mimeType (Live API expects audio/video/image)', {
         connectionId,
         mimeType: chunk.mimeType
       })
@@ -195,4 +207,3 @@ export async function handleRealtimeInput(
     client.logger?.log('error', { where: 'realtime_input', message: errorMessage })
   }
 }
-

@@ -7,6 +7,7 @@ import { logger } from '../src/lib/logger.js';
 import { multimodalContextManager } from '../src/core/context/multimodal-context.js';
 import { rateLimit } from '../src/lib/rate-limiter.js';
 import { supabaseService } from '../src/core/supabase/client.js';
+import { sanitizeIntelligenceContextForAgents } from '../server/utils/sanitize-intelligence-context.js';
 
 interface ChatRequestBody {
   messages?: unknown[];
@@ -163,34 +164,55 @@ export default async function handler(
                             loadIntelligenceContextFromDB
                         )
                         
-                        if (finalIntelligenceContext) {
-                            // Validate provided context
-                            const validation = validateIntelligenceContext(finalIntelligenceContext, sessionId)
-                            if (!validation.valid) {
+	                        if (finalIntelligenceContext) {
+	                            // Validate provided context
+	                            const validation = validateIntelligenceContext(finalIntelligenceContext, sessionId)
+	                            if (!validation.valid) {
                                 logger.warn('[API /chat] Invalid intelligence context provided', {
                                     sessionId,
                                     errors: validation.errors
                                 })
                                 // Use fresh context instead
                                 finalIntelligenceContext = freshContext || undefined
-                            } else if (freshContext) {
-                                // Compare provided context with fresh context
-                                // Use JSON.stringify for deep comparison (simple but effective)
-                                const providedStr = JSON.stringify(finalIntelligenceContext)
-                                const freshStr = JSON.stringify(freshContext)
-                                if (providedStr !== freshStr) {
-                                    logger.warn('[API /chat] Intelligence context mismatch, using fresh context', { 
-                                        sessionId,
-                                        providedEmail: finalIntelligenceContext?.email,
-                                        freshEmail: freshContext?.email
-                                    })
-                                    finalIntelligenceContext = freshContext
-                                }
-                            }
-                        } else {
-                            // No context provided - use fresh
-                            finalIntelligenceContext = freshContext || undefined
-                        }
+	                            } else if (freshContext) {
+	                                const providedEmail =
+	                                    typeof finalIntelligenceContext?.email === 'string'
+	                                        ? finalIntelligenceContext.email.trim().toLowerCase()
+	                                        : ''
+	                                const freshEmail =
+	                                    typeof (freshContext as any)?.email === 'string'
+	                                        ? String((freshContext as any).email).trim().toLowerCase()
+	                                        : ''
+	                                const isUnknown = (email: string) => !email || email === 'unknown@example.com'
+	                                const providedConfirmed = (finalIntelligenceContext as any)?.identityConfirmed === true
+	                                const freshConfirmed = (freshContext as any)?.identityConfirmed === true
+
+	                                // Never replace a user-provided identity with an "unknown" placeholder from storage/cache.
+	                                // Prefer the context that has a real, confirmed identity.
+	                                const shouldReplaceWithFresh =
+	                                    !isUnknown(freshEmail) &&
+	                                    (isUnknown(providedEmail) ||
+	                                        (!providedConfirmed && freshConfirmed && providedEmail !== freshEmail))
+
+	                                if (shouldReplaceWithFresh) {
+	                                    logger.warn('[API /chat] Intelligence context mismatch, using fresh context', {
+	                                        sessionId,
+	                                        providedEmail,
+	                                        freshEmail
+	                                    })
+	                                    finalIntelligenceContext = freshContext
+	                                } else if (providedEmail && freshEmail && providedEmail !== freshEmail) {
+	                                    logger.warn('[API /chat] Intelligence context mismatch, keeping provided context', {
+	                                        sessionId,
+	                                        providedEmail,
+	                                        freshEmail
+	                                    })
+	                                }
+	                            }
+	                        } else {
+	                            // No context provided - use fresh
+	                            finalIntelligenceContext = freshContext || undefined
+	                        }
                         
                         // Load semantic memory (facts) for this lead
                         if (finalIntelligenceContext?.email) {
@@ -388,9 +410,11 @@ export default async function handler(
                 try {
                     // For streaming: Use provided context immediately (may be updated by background loading)
                     // For non-streaming: Use final context after loading completes
-                    const agentIntelligenceContext = shouldStream 
-                        ? (finalIntelligenceContext || intelligenceContext as IntelligenceContext | undefined || {})
-                        : (finalIntelligenceContext || {})
+                    const agentIntelligenceContext: IntelligenceContext | undefined = shouldStream
+                      ? (finalIntelligenceContext || (intelligenceContext as IntelligenceContext | undefined))
+                      : finalIntelligenceContext
+                    const sanitizedIntelligenceContext =
+                      sanitizeIntelligenceContextForAgents(agentIntelligenceContext)
                     
                     const agentMultimodalContext = shouldStream
                         ? (finalMultimodalContext || multimodalContext || {
@@ -416,7 +440,7 @@ export default async function handler(
                         })) as ChatMessage[],
                         sessionId: sessionId || `session-${Date.now()}`,
                         currentStage,
-                        intelligenceContext: agentIntelligenceContext,
+                        intelligenceContext: sanitizedIntelligenceContext || undefined,
                         multimodalContext: agentMultimodalContext,
                         trigger: trigger || 'chat',
                         conversationFlow
@@ -460,6 +484,7 @@ export default async function handler(
                             });
                             res.write(`data: ${JSON.stringify({
                                 type: 'done',
+                                output: result.output,
                                 agent: result.agent,
                                 model: result.model,
                                 metadata: result.metadata
@@ -509,6 +534,8 @@ export default async function handler(
             // Non-streaming path (existing behavior)
             // Route to appropriate agent with validated messages
             const { routeToAgent } = await import('../src/core/agents/orchestrator.js')
+            const sanitizedIntelligenceContext =
+                sanitizeIntelligenceContextForAgents(finalIntelligenceContext) || undefined
             const result = await routeToAgent({
                 messages: validMessages.map(msg => ({
                     role: msg.role,
@@ -517,7 +544,7 @@ export default async function handler(
                 })) as ChatMessage[],
                 sessionId: sessionId || `session-${Date.now()}`,
                 currentStage,
-                intelligenceContext: finalIntelligenceContext || {},
+                intelligenceContext: sanitizedIntelligenceContext,
                 multimodalContext: finalMultimodalContext || {
                     hasRecentImages: false,
                     hasRecentAudio: false,

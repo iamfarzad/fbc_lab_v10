@@ -147,7 +147,7 @@ export function handleContextUpdate(
     ...(prev?.lastInjected !== undefined && { lastInjected: prev.lastInjected }),
     ...(prev?.lastPersisted !== undefined && { lastPersisted: prev.lastPersisted })
   }
-  client.logger?.log('context_update', { modality, analysis, capturedAt, hasImage: Boolean(imageData), imageBytes: typeof imageData === 'string' ? Math.floor(imageData.length * 0.75) : 0, hasMetadata: Boolean(metadata) })
+  client.logger?.log?.('context_update', { modality, analysis, capturedAt, hasImage: Boolean(imageData), imageBytes: typeof imageData === 'string' ? Math.floor(imageData.length * 0.75) : 0, hasMetadata: Boolean(metadata) })
 
   if (client.sessionId) {
     const snapRef = client.latestContext[modalityKey]
@@ -191,7 +191,7 @@ export function handleContextUpdate(
                 contextParts: contextParts.length 
               })
               
-              client.logger?.log('context_persisted', { modality, analysisLength: analysis.length })
+              client.logger?.log?.('context_persisted', { modality, analysisLength: analysis.length })
             } else {
               const imageBytes = typeof imageData === 'string' ? Math.floor(imageData.length * 0.75) : undefined
               // Extract confidence from payload metadata if available
@@ -204,11 +204,11 @@ export function handleContextUpdate(
                 imageData,
                 confidence
               )
-              client.logger?.log('context_persisted', { modality, imageBytes, analysisLength: analysis.length, ownerSessionId: client.sessionId })
+              client.logger?.log?.('context_persisted', { modality, imageBytes, analysisLength: analysis.length, ownerSessionId: client.sessionId })
             }
           } catch (err) {
             serverLogger.error('Failed to persist context', err instanceof Error ? err : undefined, { connectionId, modality })
-            client.logger?.log('error', { where: 'context_persist', modality, message: err instanceof Error ? err.message : String(err) })
+            client.logger?.log?.('error', { where: 'context_persist', modality, message: err instanceof Error ? err.message : String(err) })
           }
         })().catch(() => {
           // handled in logger
@@ -224,4 +224,3 @@ export function handleContextUpdate(
   // Schedule debounced injection using context/injection module
   scheduleDebouncedInjection(client, modalityKey, connectionId)
 }
-
