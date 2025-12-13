@@ -82,6 +82,8 @@ export interface LocationData {
 }
 
 export class LeadResearchService {
+  private static readonly RESEARCH_TEMPERATURE = 0.4
+
   // Cached research function
   private cachedResearch: (
     email: string,
@@ -122,6 +124,77 @@ export class LeadResearchService {
     ]
   }
 
+  /**
+   * Post-process model confidence with basic grounding + identity checks.
+   * This prevents high-confidence hallucinations when search results are thin or mismatched.
+   */
+  private adjustConfidence(params: {
+    rawConfidence: number
+    citationsCount: number
+    emailDomain: string
+    parsedCompanyDomain?: string
+    parsedPersonName?: string
+    parsedPersonCompany?: string
+    providedName?: string
+    inferredFirstName?: string
+    inferredLastName?: string
+  }): number {
+    const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+    let confidence = clamp01(params.rawConfidence ?? 0)
+
+    // No grounding → treat as mostly unverified.
+    if (params.citationsCount === 0) {
+      confidence *= 0.25
+    }
+
+    const stripTld = (d: string) =>
+      d
+        .toLowerCase()
+        .replace(/^www\./, '')
+        .replace(/\.(com|org|net|io|co|ai|app|dev|agency|media)$/i, '')
+
+    const emailRoot = stripTld(params.emailDomain || '')
+    const parsedRoot = stripTld(params.parsedCompanyDomain || '')
+
+    if (!parsedRoot || !emailRoot || !(emailRoot.includes(parsedRoot) || parsedRoot.includes(emailRoot))) {
+      confidence *= 0.4
+    }
+
+    const candidateName =
+      params.providedName ||
+      [params.inferredFirstName, params.inferredLastName].filter(Boolean).join(' ')
+
+    if (candidateName && params.parsedPersonName) {
+      const wantedTokens = candidateName
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+      const parsedTokens = params.parsedPersonName
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+
+      if (wantedTokens.length > 0 && parsedTokens.length > 0) {
+        const matches = wantedTokens.every(token =>
+          parsedTokens.some(p => p.startsWith(token) || token.startsWith(p))
+        )
+        if (!matches) {
+          confidence *= 0.35
+        }
+      }
+    }
+
+    if (params.parsedPersonCompany) {
+      const personCompanyRoot = stripTld(params.parsedPersonCompany.replace(/\s+/g, ''))
+      if (personCompanyRoot && emailRoot && !(personCompanyRoot.includes(emailRoot) || emailRoot.includes(personCompanyRoot))) {
+        confidence *= 0.6
+      }
+    }
+
+    // Round to 2 decimals for stable UX/logging.
+    return Math.round(clamp01(confidence) * 100) / 100
+  }
+
   constructor() {
     // Wrap the internal method with caching (24 hour TTL)
     // This handles server-side/memory caching via the stub or future implementation
@@ -138,7 +211,7 @@ export class LeadResearchService {
           location: LocationData | undefined,
           options?: { contents?: any[] }
         ) =>
-          `${email}|${name || ''}|${companyUrl || ''}|${location?.city || ''}|${options?.contents ? 'has-contents' : 'no-contents'}|temp-1.0`
+          `${email}|${name || ''}|${companyUrl || ''}|${location?.city || ''}|${options?.contents ? 'has-contents' : 'no-contents'}|temp-${LeadResearchService.RESEARCH_TEMPERATURE}`
       }
     )
   }
@@ -533,7 +606,7 @@ Use this website analysis to enhance the company profile. Cross-reference with G
                 ])
           ],
           schema: ResearchResultSchema,
-          temperature: 1.0 // Explicit to match cache key
+          temperature: LeadResearchService.RESEARCH_TEMPERATURE // Keep in sync with cache key
         }
         
         const paramsWithTools = {
@@ -564,6 +637,18 @@ Use this website analysis to enhance the company profile. Cross-reference with G
             }))
             ?.filter((c: any) => c?.uri) || []
 
+        const adjustedConfidence = this.adjustConfidence({
+          rawConfidence: typedParsed.confidence,
+          citationsCount: citations.length as number,
+          emailDomain: domain,
+          parsedCompanyDomain: typedParsed.company.domain,
+          parsedPersonName: typedParsed.person.fullName,
+          ...(typedParsed.person.company ? { parsedPersonCompany: typedParsed.person.company } : {}),
+          ...(name ? { providedName: name } : {}),
+          inferredFirstName,
+          inferredLastName
+        })
+
         // Build ResearchResult from parsed object
         const researchResult: ResearchResult = {
           company: {
@@ -592,7 +677,7 @@ Use this website analysis to enhance the company profile. Cross-reference with G
              }
           }),
           role: typedParsed.role,
-          confidence: typedParsed.confidence,
+          confidence: adjustedConfidence,
           citations,
           ...(groundingMetadata ? { groundingMetadata } : {})
         }
@@ -600,6 +685,7 @@ Use this website analysis to enhance the company profile. Cross-reference with G
         logger.debug('✅ [Lead Research] Completed', {
             company: researchResult.company.name,
             person: researchResult.person.fullName,
+            rawConfidence: typedParsed.confidence,
             confidence: researchResult.confidence,
             citations: researchResult.citations?.length || 0
         })

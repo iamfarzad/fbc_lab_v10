@@ -159,7 +159,7 @@ export class LiveClientWS {
         const timeSinceLastPong = Date.now() - this.lastPongTime;
         if (timeSinceLastPong > this.HEARTBEAT_TIMEOUT_MS) {
           this.heartbeatFailureCount++;
-          console.warn('🔌 [LiveClient] Heartbeat timeout, reconnecting...', {
+          console.warn('[LiveClient] Heartbeat timeout, reconnecting...', {
             timeSinceLastPong,
             timeout: this.HEARTBEAT_TIMEOUT_MS,
             bufferedAmount: this.socket.bufferedAmount,
@@ -201,7 +201,7 @@ export class LiveClientWS {
     }
 
     if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
-      console.error(`🔌 [LiveClient] Max reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}) reached`);
+      console.error(`[LiveClient] Max reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}) reached`);
       this.emit('error', 'Max reconnection attempts reached');
       return;
     }
@@ -217,7 +217,7 @@ export class LiveClientWS {
       maxDelay: 30000,
       backoffMultiplier: DEFAULT_BACKOFF_MULTIPLIER
     });
-    logger.debug(`🔌 [LiveClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${this.MAX_RECONNECT_ATTEMPTS})`);
+    logger.debug(`[LiveClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${this.MAX_RECONNECT_ATTEMPTS})`);
 
     this.reconnectTimerId = setTimeout(() => {
       this.reconnectTimerId = null;
@@ -231,13 +231,13 @@ export class LiveClientWS {
   connect() {
     // Prevent multiple simultaneous connection attempts - check AND set atomically
     if (this.isConnecting) {
-      logger.debug('🔌 [LiveClient] Connection already in progress, skipping');
+      logger.debug('[LiveClient] Connection already in progress, skipping');
       return;
     }
 
     // If socket is already open, skip
     if (this.socket?.readyState === WebSocket.OPEN) {
-      logger.debug('🔌 [LiveClient] Socket already open, skipping connect');
+      logger.debug('[LiveClient] Socket already open, skipping connect');
       return;
     }
 
@@ -250,7 +250,7 @@ export class LiveClientWS {
       const stuck = this.connectStartTime &&
         (Date.now() - this.connectStartTime) > this.CONNECT_TIMEOUT_MS;
       if (stuck) {
-        console.warn('🔌 [LiveClient] Connection stuck in CONNECTING, forcing cleanup');
+        console.warn('[LiveClient] Connection stuck in CONNECTING, forcing cleanup');
         try { this.socket.close() } catch { /* ignore */ }
         this.socket = null
         this.connectStartTime = null
@@ -260,7 +260,7 @@ export class LiveClientWS {
         }
       } else {
         // Still connecting within timeout, skip
-        logger.debug('🔌 [LiveClient] Socket already exists and is connecting, skipping connect');
+        logger.debug('[LiveClient] Socket already exists and is connecting, skipping connect');
         this.isConnecting = false;
         return
       }
@@ -297,7 +297,7 @@ export class LiveClientWS {
     // Add timeout for stuck connections
     this.connectTimeoutId = setTimeout(() => {
       if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
-        console.warn('🔌 [LiveClient] Connection timeout, aborting stuck connection');
+        console.warn('[LiveClient] Connection timeout, aborting stuck connection');
         try { this.socket.close() } catch { /* ignore */ }
         this.socket = null
         this.emit('error', 'Connection timeout')
@@ -307,12 +307,12 @@ export class LiveClientWS {
     }, this.CONNECT_TIMEOUT_MS)
 
     const url = WEBSOCKET_CONFIG.URL
-    logger.debug('🔌 [LiveClient] Connecting to:', { url });
+    logger.debug('[LiveClient] Connecting to:', { url });
     const ws = new WebSocket(url)
     this.socket = ws
 
     ws.onopen = () => {
-      logger.debug('🔌 [LiveClient] WebSocket opened successfully');
+      logger.debug('[LiveClient] WebSocket opened successfully');
       this.isConnecting = false;
       this.onOpen();
     }
@@ -384,20 +384,20 @@ export class LiveClientWS {
 
       // Always log errors with full context
       if (hasUsefulError) {
-        console.error('🔌 [LiveClient] WebSocket error:', {
+        console.error('[LiveClient] WebSocket error:', {
           ...errorContext,
           errorMessage,
         })
       } else if (isBadState) {
         // Bad state with no error message - this is concerning
-        console.warn('🔌 [LiveClient] WebSocket error (socket in bad state):', errorContext)
+        console.warn('[LiveClient] WebSocket error (socket in bad state):', errorContext)
       } else {
         // Transient error on open/connecting socket - log at debug level
-        console.debug('🔌 [LiveClient] WebSocket error (transient):', errorContext)
+        console.debug('[LiveClient] WebSocket error (transient):', errorContext)
       }
 
       // Always log the raw error object for debugging (even if empty)
-      console.error('🔌 [LiveClient] Raw WebSocket error event:', {
+      console.error('[LiveClient] Raw WebSocket error event:', {
         error,
         errorType: error?.constructor?.name,
         errorKeys: error && typeof error === 'object' ? Object.keys(error) : [],
@@ -406,7 +406,7 @@ export class LiveClientWS {
 
       // Check if this might be related to API errors (429, etc.)
       if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
-        console.warn('⚠️ [LiveClient] WebSocket error may be related to API rate limiting. Check Google Gemini API quota.')
+        console.warn('[LiveClient] WebSocket error may be related to API rate limiting. Check Google Gemini API quota.')
       }
 
       // Always emit error event so hooks can handle it
@@ -636,16 +636,10 @@ export class LiveClientWS {
       }
       case 'input_transcript':
         if (!msg.payload) {
-          console.warn('⚠️ [LiveClient] INPUT_TRANSCRIPT message has no payload');
+          console.warn('[LiveClient] INPUT_TRANSCRIPT message has no payload');
           return
         }
-        console.log('🔵 [LiveClient] 📝 INPUT_TRANSCRIPT message received from server', {
-          text: msg.payload.text?.substring(0, 100),
-          isFinal: msg.payload.isFinal,
-          fullLength: msg.payload.text?.length,
-          payloadKeys: Object.keys(msg.payload || {})
-        });
-        logger.debug('[LiveClient] 📝 Received INPUT_TRANSCRIPT', {
+        logger.debug('[LiveClient] Received INPUT_TRANSCRIPT', {
           text: msg.payload.text?.substring(0, 50),
           isFinal: msg.payload.isFinal,
           fullLength: msg.payload.text?.length
@@ -654,16 +648,10 @@ export class LiveClientWS {
         break
       case 'output_transcript':
         if (!msg.payload) {
-          console.warn('⚠️ [LiveClient] OUTPUT_TRANSCRIPT message has no payload');
+          console.warn('[LiveClient] OUTPUT_TRANSCRIPT message has no payload');
           return
         }
-        console.log('🟢 [LiveClient] 📝 OUTPUT_TRANSCRIPT message received from server', {
-          text: msg.payload.text?.substring(0, 100),
-          isFinal: msg.payload.isFinal,
-          fullLength: msg.payload.text?.length,
-          payloadKeys: Object.keys(msg.payload || {})
-        });
-        logger.debug('[LiveClient] 📝 Received OUTPUT_TRANSCRIPT', {
+        logger.debug('[LiveClient] Received OUTPUT_TRANSCRIPT', {
           text: msg.payload.text?.substring(0, 50),
           isFinal: msg.payload.isFinal,
           fullLength: msg.payload.text?.length
@@ -728,7 +716,7 @@ export class LiveClientWS {
 
     // Always queue the start message until we receive 'connected' from server
     if (!this.connectionId) {
-      logger.debug('🔌 [LiveClient] Queueing start message until server sends connected event');
+      logger.debug('[LiveClient] Queueing start message until server sends connected event');
       this.pendingStartOpts = startOptions
       this.startSendAttempts = 0
       this.scheduleStartRetry()
@@ -737,7 +725,7 @@ export class LiveClientWS {
 
     // If socket is not open yet, queue it anyway (will be sent when socket opens)
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      logger.debug('🔌 [LiveClient] Queueing start message until socket is OPEN');
+      logger.debug('[LiveClient] Queueing start message until socket is OPEN');
       this.pendingStartOpts = startOptions
       this.startSendAttempts = 0
       this.scheduleStartRetry()
@@ -871,7 +859,7 @@ export class LiveClientWS {
 
     // Check buffer before sending non-priority messages
     if (this.socket.bufferedAmount > this.MAX_BUFFERED_AMOUNT) {
-      console.warn('🔌 [LiveClient] Buffer full, dropping message', {
+      console.warn('[LiveClient] Buffer full, dropping message', {
         bufferedAmount: this.socket.bufferedAmount,
         threshold: this.MAX_BUFFERED_AMOUNT,
         messageType: (message as { type?: string }).type
@@ -935,7 +923,7 @@ export class LiveClientWS {
         ? (this.heartbeatSuccessCount / (this.heartbeatSuccessCount + this.heartbeatFailureCount)) * 100
         : 100;
 
-      logger.debug('🔌 [LiveClient] Connection health metrics', {
+      logger.debug('[LiveClient] Connection health metrics', {
         avgBufferedAmount: Math.round(avgBuffer),
         maxBufferedAmount: maxBuffer,
         currentBufferedAmount: bufferedAmount,

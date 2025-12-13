@@ -16,7 +16,7 @@ export function buildLeadProfile(
   name?: string
 ): LeadProfile {
   const emailDomain = email.split('@')[1] || ''
-  const personName = research.person?.fullName || name || 'Unknown'
+  const personName = name || research.person?.fullName || 'Unknown'
   const companyName = research.company?.name || 'Unknown Company'
   const currentRole = research.person?.role || research.role || 'Unknown Role'
   const industry = research.company?.industry || 'Unknown Industry'
@@ -26,32 +26,67 @@ export function buildLeadProfile(
   let verified = false
   let confidenceScore = research.confidence * 100 // Start with research confidence
 
+  const normalizeToken = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const isTokenMatch = (needle: string, haystack: string[]) => {
+    const n = normalizeToken(needle)
+    if (!n) return false
+    return haystack.some(h => {
+      const hh = normalizeToken(h)
+      return hh === n || hh.startsWith(n) || n.startsWith(hh)
+    })
+  }
+
+  const personTokens = (research.person?.fullName || personName).split(/\s+/).filter(Boolean)
+  const providedTokens = (name || '').trim().split(/\s+/).filter(Boolean)
+  const emailPrefixTokens = (email.split('@')[0] || '').split(/[._-]+/).filter(Boolean)
+
+  const strongNameMatch =
+    (providedTokens.length >= 2 && providedTokens.every(t => isTokenMatch(t, personTokens))) ||
+    (emailPrefixTokens.length >= 2 && emailPrefixTokens.every(t => isTokenMatch(t, personTokens)))
+
+  const weakNameMatch =
+    (providedTokens.length === 1 && isTokenMatch(providedTokens[0] || '', personTokens)) ||
+    (emailPrefixTokens.length === 1 && isTokenMatch(emailPrefixTokens[0] || '', personTokens))
+
   if (research.person?.profileUrl) {
     // LinkedIn profile exists - verify company match
     const linkedInCompany = research.person?.company || research.company?.name || ''
-    const companyDomain = research.company?.domain || emailDomain
-    
-    // Check if LinkedIn company matches email domain
-    // Normalize: "Acme Corp" vs "acme.com" - check if domain contains company name or vice versa
+    const emailDomainRoot = normalizeToken(emailDomain.replace(/\.(com|org|net|io|co|ai|app|dev|agency|media)$/i, ''))
+    const researchDomainRoot = normalizeToken((research.company?.domain || '').replace(/\.(com|org|net|io|co|ai|app|dev|agency|media)$/i, ''))
+
     const normalizedLinkedInCompany = linkedInCompany.toLowerCase().replace(/\s+/g, '')
-    const normalizedDomain = companyDomain.toLowerCase().replace(/\.(com|org|net|io|co|ai)$/, '')
-    
-    // Match if:
-    // 1. Domain name is in company name (e.g., "acme" in "Acme Corp")
-    // 2. Company name is in domain (e.g., "acme" in "acme.com")
-    // 3. Company website domain matches email domain
-    if (
+    const normalizedDomain = emailDomainRoot
+
+    // Fail closed on explicit domain mismatch between email and research result.
+    // Email domain is the canonical anchor for identity verification.
+    const domainMismatch =
+      !!emailDomainRoot &&
+      !!researchDomainRoot &&
+      !(emailDomainRoot.includes(researchDomainRoot) || researchDomainRoot.includes(emailDomainRoot))
+
+    const companyMatch = !domainMismatch && (
       normalizedLinkedInCompany.includes(normalizedDomain) ||
       normalizedDomain.includes(normalizedLinkedInCompany) ||
-      (research.company?.website && research.company.website.includes(companyDomain))
-    ) {
+      (research.company?.website && research.company.website.includes(emailDomain))
+    )
+
+    // Only mark identity verified when we have BOTH company + strong name alignment.
+    if (companyMatch && strongNameMatch) {
       verified = true
-      confidenceScore = Math.min(100, confidenceScore + 20) // Bonus for verification
+      confidenceScore = Math.min(100, confidenceScore + 20)
+    } else if (companyMatch && weakNameMatch) {
+      // Weak name signal (e.g., first name only) is not sufficient for verification.
+      confidenceScore = Math.min(100, confidenceScore + 5)
+    } else if (providedTokens.length >= 2 && !strongNameMatch) {
+      // Explicit name provided but doesn't match research → strongly downrank.
+      confidenceScore = Math.max(0, confidenceScore * 0.4)
+    } else if (domainMismatch) {
+      confidenceScore = Math.max(0, confidenceScore * 0.4)
     }
   }
 
   // If we have high research confidence and profile URL, boost score
-  if (research.person?.profileUrl && research.confidence > 0.7) {
+  if (research.person?.profileUrl && research.confidence > 0.85 && strongNameMatch) {
     confidenceScore = Math.min(100, confidenceScore + 10)
   }
 
@@ -117,34 +152,33 @@ export function buildLeadProfile(
   // === CONTEXT HOOKS GENERATION ===
   const contexthooks: string[] = []
 
-  // From recent company news
-  if (strategic?.latest_news && strategic.latest_news.length > 0) {
-    const latestNews = strategic.latest_news[0]
-    if (latestNews && latestNews.length > 0) {
-      contexthooks.push(`Noticed ${companyName} recently ${latestNews.toLowerCase()}`)
+  // Only generate specific hooks when identity is verified.
+  if (verified) {
+    if (strategic?.latest_news && strategic.latest_news.length > 0) {
+      const latestNews = strategic.latest_news[0]
+      if (latestNews && latestNews.length > 0) {
+        contexthooks.push(`Noticed ${companyName} recently ${latestNews.toLowerCase()}`)
+      }
     }
-  }
 
-  // From professional background
-  if (currentRole && currentRole !== 'Unknown Role') {
-    if (industry && industry !== 'Unknown Industry') {
-      contexthooks.push(`Given your background as ${currentRole} in ${industry}`)
-    } else {
-      contexthooks.push(`Given your role as ${currentRole}`)
+    if (currentRole && currentRole !== 'Unknown Role') {
+      if (industry && industry !== 'Unknown Industry') {
+        contexthooks.push(`Given your background as ${currentRole} in ${industry}`)
+      } else {
+        contexthooks.push(`Given your role as ${currentRole}`)
+      }
     }
-  }
 
-  // From industry trends
-  if (strategic?.market_trends && strategic.market_trends.length > 0) {
-    const trend = strategic.market_trends[0]
-    if (trend) {
-      contexthooks.push(`Seeing how ${industry} is moving toward ${trend.toLowerCase()}`)
+    if (strategic?.market_trends && strategic.market_trends.length > 0) {
+      const trend = strategic.market_trends[0]
+      if (trend) {
+        contexthooks.push(`Seeing how ${industry} is moving toward ${trend.toLowerCase()}`)
+      }
     }
-  }
 
-  // Fallback if no hooks generated
-  if (contexthooks.length === 0 && companyName && companyName !== 'Unknown Company') {
-    contexthooks.push(`With ${companyName} being in ${industry}`)
+    if (contexthooks.length === 0 && companyName && companyName !== 'Unknown Company') {
+      contexthooks.push(`With ${companyName} being in ${industry}`)
+    }
   }
 
   const profile: LeadProfile = {

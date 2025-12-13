@@ -270,7 +270,7 @@ describe('Profile Builder', () => {
       expect(profile.identity.name).toBe('Unknown Person')
       expect(profile.professional.company).toBe('Unknown Company')
       expect(profile.identity.verified).toBe(false)
-      expect(profile.contexthooks.length).toBeGreaterThan(0) // Should have fallback hook
+      expect(profile.contexthooks.length).toBe(0) // Hooks only generated when identity is verified
     })
 
     it('should handle partial data', () => {
