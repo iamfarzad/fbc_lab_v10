@@ -6,13 +6,15 @@ import {
   FileText,
   Search
 } from 'lucide-react'
-import { ICON_SIZE, TEXT_SIZE, RADIUS, BORDER, BG, TRANSITION, DURATION } from './design-tokens'
+import { ICON_SIZE, TEXT_SIZE, RADIUS, BORDER, TRANSITION, DURATION } from './design-tokens'
+import { useTheme } from '../../context/ThemeContext'
 
 interface EmptyStateProps {
   onSuggest: (query: string) => void
 }
 
 const EmptyState: React.FC<EmptyStateProps> = ({ onSuggest }) => {
+  const { isDarkMode } = useTheme();
   
   const SUGGESTIONS = [
     { label: "Audit my AI strategy", icon: <Zap className={ICON_SIZE.md} />, category: "Consulting" },
@@ -22,12 +24,12 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onSuggest }) => {
   ]
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in-up md:-mt-20">
+    <div className={`flex-1 flex flex-col items-center justify-center p-6 animate-fade-in-up md:-mt-20 text-zinc-900 dark:text-white ${isDarkMode ? 'bg-black' : ''}`}>
 
       {/* 1. Minimal Logo Element */}
       <div className="mb-8 relative group cursor-default animate-fade-in-scale" style={{ animationDelay: '100ms' }}>
          <div className="absolute inset-0 bg-gradient-to-tr from-zinc-200 to-zinc-100 dark:from-zinc-800 dark:to-zinc-900 rounded-[32px] rotate-3 blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500"></div>
-         <div className={`relative w-20 h-20 ${BG.default} ${RADIUS.lg} flex items-center justify-center shadow-2xl ${BORDER.subtle}`}>
+         <div className={`relative w-20 h-20 ${isDarkMode ? 'bg-black' : 'bg-gray-50'} ${RADIUS.lg} flex items-center justify-center shadow-2xl ${BORDER.subtle}`} style={{ fontFamily: '"Dot Matrix"' }}>
             <span className="font-matrix text-2xl tracking-tighter italic font-bold text-black dark:text-white">
                F.B<span className="text-black dark:text-white">/</span>c
             </span>
@@ -53,8 +55,8 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onSuggest }) => {
             aria-label={`Start conversation: ${s.label}`}
             className={`
               group flex items-center gap-2 px-4 py-2
-              ${BG.default} ${BORDER.default} ${RADIUS.full}
-              ${BORDER.hover} hover:bg-zinc-50 dark:hover:bg-zinc-800
+              bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 ${RADIUS.full}
+              ${BORDER.hover} hover:bg-zinc-50 dark:hover:bg-zinc-900
               ${TRANSITION.all} ${DURATION.normal}
             `}
           >

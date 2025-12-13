@@ -58,7 +58,7 @@ const ERROR_CONFIG: Record<ErrorType, {
   rate_limit: {
     icon: <Clock className="w-4 h-4" />,
     title: 'Too Many Requests',
-    color: 'text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-900/20 dark:border-orange-800',
+    color: 'text-zinc-700 bg-zinc-100 border-zinc-300 dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700',
     suggestion: 'Please wait a moment before trying again.'
   },
   auth: {
@@ -70,13 +70,13 @@ const ERROR_CONFIG: Record<ErrorType, {
   quota: {
     icon: <AlertTriangle className="w-4 h-4" />,
     title: 'Usage Limit Reached',
-    color: 'text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-900/20 dark:border-orange-800',
+    color: 'text-zinc-700 bg-zinc-100 border-zinc-300 dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700',
     suggestion: 'Daily usage limit reached. Try again tomorrow or upgrade your plan.'
   },
   timeout: {
     icon: <Clock className="w-4 h-4" />,
     title: 'Request Timeout',
-    color: 'text-orange-600 bg-orange-50 border-orange-200 dark:text-orange-400 dark:bg-orange-900/20 dark:border-orange-800',
+    color: 'text-zinc-700 bg-zinc-100 border-zinc-300 dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700',
     suggestion: 'The request took too long. Try again with a simpler query.'
   },
   server: {
@@ -288,4 +288,3 @@ export const InlineError: React.FC<{
 )
 
 export default ErrorMessage
-

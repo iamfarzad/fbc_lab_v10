@@ -83,7 +83,7 @@ const MarkdownTable: React.FC<MarkdownTableProps> = ({
   }
 
   return (
-    <div className={`overflow-x-auto rounded-xl border ${isDarkMode ? 'border-zinc-800 bg-zinc-900/50 backdrop-blur-sm' : 'border-zinc-200 bg-white/50 backdrop-blur-sm'} ${className}`}>
+    <div className={`overflow-x-auto rounded-xl border ${isDarkMode ? 'border-zinc-800 bg-black/50 backdrop-blur-sm' : 'border-zinc-200 bg-white/50 backdrop-blur-sm'} ${className}`}>
       <table className="min-w-full border-collapse text-sm">
         <thead>
           <tr className={`${isDarkMode ? 'bg-white/5 border-zinc-700' : 'bg-gray-50/80 border-gray-200'} border-b`}>

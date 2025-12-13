@@ -168,7 +168,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer
           transition-all duration-200
           ${isDragging 
-            ? 'border-orange-400 bg-orange-50' 
+            ? 'border-zinc-400 bg-zinc-50 dark:bg-zinc-900/20' 
             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
           }
         `}
@@ -185,7 +185,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         <div className="flex flex-col items-center gap-2">
           <div className={`
             w-12 h-12 rounded-xl flex items-center justify-center
-            ${isDragging ? 'bg-orange-100 text-orange-500' : 'bg-gray-100 text-gray-400'}
+            ${isDragging ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200' : 'bg-gray-100 text-gray-400'}
           `}>
             <FileUp className="w-6 h-6" />
           </div>
@@ -211,7 +211,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 key={file.id}
                 className={`
                   flex items-center gap-3 p-3 rounded-lg border
-                  ${file.status === 'error' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}
+                  ${file.status === 'error' ? 'border-red-200 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 bg-white dark:bg-black'}
                 `}
               >
                 {/* Icon */}
@@ -235,7 +235,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                   {file.status === 'uploading' && (
                     <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-orange-500 transition-all duration-300"
+                        className="h-full bg-zinc-700 dark:bg-zinc-300 transition-all duration-300"
                         style={{ width: `${file.progress}%` }}
                       />
                     </div>
@@ -312,4 +312,3 @@ export const UploadButton: React.FC<{
 }
 
 export default FileUpload
-

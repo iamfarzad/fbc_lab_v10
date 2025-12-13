@@ -81,7 +81,7 @@ class ClientLogger {
 
   logRequest(method: string, url: string, data?: any) {
     if (this.isDevelopment) {
-      this.group(`🚀 API Request: ${method} ${url}`);
+      this.group(`API Request: ${method} ${url}`);
       if (data) this.log('Data:', data);
       this.groupEnd();
     }
@@ -89,8 +89,8 @@ class ClientLogger {
 
   logResponse(method: string, url: string, status: number, data?: any) {
     if (this.isDevelopment) {
-      const icon = status >= 200 && status < 300 ? '✅' : '❌';
-      this.group(`${icon} API Response: ${method} ${url} (${status})`);
+      const tag = status >= 200 && status < 300 ? 'OK' : 'ERR';
+      this.group(`[${tag}] API Response: ${method} ${url} (${status})`);
       if (data) this.log('Data:', data);
       this.groupEnd();
     }

@@ -13,25 +13,25 @@ const THEMES = {
   light: {
     background: 'bg-gray-50',
     text: 'text-gray-800',
-    keyword: 'text-purple-600',
-    string: 'text-green-600',
+    keyword: 'text-gray-700',
+    string: 'text-gray-700',
     comment: 'text-gray-500',
-    number: 'text-blue-600',
-    function: 'text-amber-600',
-    operator: 'text-pink-600',
-    property: 'text-cyan-600',
+    number: 'text-gray-700',
+    function: 'text-gray-700',
+    operator: 'text-gray-700',
+    property: 'text-gray-700',
     lineNumber: 'text-gray-400',
   },
   dark: {
     background: 'bg-gray-900',
     text: 'text-gray-200',
-    keyword: 'text-purple-400',
-    string: 'text-green-400',
+    keyword: 'text-gray-300',
+    string: 'text-gray-300',
     comment: 'text-gray-500',
-    number: 'text-blue-400',
-    function: 'text-yellow-400',
-    operator: 'text-pink-400',
-    property: 'text-cyan-400',
+    number: 'text-gray-300',
+    function: 'text-gray-300',
+    operator: 'text-gray-300',
+    property: 'text-gray-300',
     lineNumber: 'text-gray-600',
   }
 }
@@ -228,4 +228,3 @@ export const InlineCode: React.FC<{
 )
 
 export default CodeBlock
-

@@ -67,7 +67,7 @@ const ScreenSharePreview: React.FC<ScreenSharePreviewProps> = ({
                     <div className="flex gap-2 mt-2">
                         <button 
                             onClick={onToggle} 
-                            className="px-4 py-1.5 bg-purple-600 text-white text-xs rounded-full hover:bg-purple-500 transition-colors"
+                            className="px-4 py-1.5 bg-black text-white text-xs rounded-full hover:bg-zinc-800 transition-colors"
                         >
                             Retry
                         </button>
@@ -82,8 +82,8 @@ const ScreenSharePreview: React.FC<ScreenSharePreviewProps> = ({
             ) : isInitializing ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-white gap-3">
                     <div className="relative">
-                        <Monitor className="w-10 h-10 text-purple-400 animate-pulse" />
-                        <div className="absolute -inset-2 bg-purple-500/20 rounded-full animate-ping" />
+                        <Monitor className="w-10 h-10 text-white/70 animate-pulse" />
+                        <div className="absolute -inset-2 bg-white/10 rounded-full animate-ping" />
                     </div>
                     <p className="text-sm text-white/60">Starting screen share...</p>
                 </div>
@@ -98,7 +98,7 @@ const ScreenSharePreview: React.FC<ScreenSharePreviewProps> = ({
                     />
                     
                     {/* Live indicator */}
-                    <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-purple-600/80 backdrop-blur-md px-2 py-1 rounded-full z-10 border border-purple-400/30 shadow-lg">
+                    <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-2 py-1 rounded-full z-10 border border-white/10 shadow-lg">
                         <Monitor className="w-3 h-3 text-white" />
                         <span className="text-[8px] font-mono text-white tracking-widest uppercase">Screen</span>
                     </div>
@@ -107,7 +107,7 @@ const ScreenSharePreview: React.FC<ScreenSharePreviewProps> = ({
                     <div className="absolute bottom-2 right-2 flex items-center gap-2 pointer-events-none">
                         <div 
                             ref={frameIndicatorRef} 
-                            className="w-1.5 h-1.5 bg-purple-400 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)] opacity-50" 
+                            className="w-1.5 h-1.5 bg-white/70 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.6)] opacity-50" 
                         />
                     </div>
 
@@ -144,4 +144,3 @@ const ScreenSharePreview: React.FC<ScreenSharePreviewProps> = ({
 };
 
 export default ScreenSharePreview;
-

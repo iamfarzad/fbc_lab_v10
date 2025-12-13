@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { ThemeProvider } from '../../../context/ThemeContext'
+import type React from 'react'
 
 // Import all components to test
 import MultimodalChat from '../../MultimodalChat'
@@ -58,6 +60,14 @@ describe('Chat Components', () => {
     vi.clearAllMocks()
   })
 
+  const renderWithTheme = (ui: React.ReactElement) => render(<ThemeProvider>{ui}</ThemeProvider>)
+  const renderWithThemeAndRouter = (ui: React.ReactElement) =>
+    render(
+      <ThemeProvider>
+        <MemoryRouter>{ui}</MemoryRouter>
+      </ThemeProvider>
+    )
+
   describe('MultimodalChat', () => {
     const defaultProps = {
       items: [],
@@ -71,20 +81,12 @@ describe('Chat Components', () => {
     }
 
     it('renders without crashing', () => {
-      render(
-        <MemoryRouter>
-          <MultimodalChat {...defaultProps} />
-        </MemoryRouter>
-      )
+      renderWithThemeAndRouter(<MultimodalChat {...defaultProps} />)
       expect(document.body).toBeTruthy()
     })
 
     it('renders empty state when no items', () => {
-      render(
-        <MemoryRouter>
-          <MultimodalChat {...defaultProps} />
-        </MemoryRouter>
-      )
+      renderWithThemeAndRouter(<MultimodalChat {...defaultProps} />)
       // Should show empty state or chat input
       expect(document.body).toBeTruthy()
     })
@@ -96,23 +98,24 @@ describe('Chat Components', () => {
         id: '1',
         role: 'user' as const,
         text: 'Test message',
-        timestamp: new Date().toISOString()
+        timestamp: new Date(),
+        isFinal: true
       },
       onPreview: vi.fn()
     }
 
     it('renders user message', () => {
-      render(<ChatMessage {...defaultProps} />)
+      renderWithTheme(<ChatMessage {...defaultProps} />)
       expect(screen.getByText('Test message')).toBeInTheDocument()
     })
 
     it('renders assistant message', () => {
-      render(
+      renderWithTheme(
         <ChatMessage
           {...defaultProps}
           item={{
             ...defaultProps.item,
-            role: 'assistant',
+            role: 'model',
             text: 'Assistant response'
           }}
         />
@@ -133,19 +136,19 @@ describe('Chat Components', () => {
     }
 
     it('renders input dock', () => {
-      render(<ChatInputDock {...defaultProps} />)
+      renderWithTheme(<ChatInputDock {...defaultProps} />)
       expect(document.body).toBeTruthy()
     })
 
     it('renders with webcam active', () => {
-      render(<ChatInputDock {...defaultProps} isWebcamActive={true} />)
+      renderWithTheme(<ChatInputDock {...defaultProps} isWebcamActive={true} />)
       expect(document.body).toBeTruthy()
     })
   })
 
   describe('EmptyState', () => {
     it('renders empty state', () => {
-      render(<EmptyState onSuggest={vi.fn()} />)
+      renderWithTheme(<EmptyState onSuggest={vi.fn()} />)
       expect(document.body).toBeTruthy()
     })
   })
@@ -200,14 +203,13 @@ describe('Chat Components', () => {
   })
 
   describe('DiscoveryReportPreview', () => {
-    const reportData = {
-      title: 'Test Report',
-      summary: 'Test summary',
-      sections: []
-    }
-
     it('renders discovery report preview', () => {
-      render(<DiscoveryReportPreview report={reportData} />)
+      render(
+        <DiscoveryReportPreview
+          htmlContent="<div>Test Report</div>"
+          bookingUrl="https://example.com/book"
+        />
+      )
       expect(document.body).toBeTruthy()
     })
   })
@@ -281,7 +283,7 @@ describe('Chat Components', () => {
 
   describe('ResponseTimeBadge', () => {
     it('renders response time badge', () => {
-      render(<ResponseTimeBadge latency={100} />)
+      render(<ResponseTimeBadge ms={100} />)
       expect(document.body).toBeTruthy()
     })
   })
@@ -313,4 +315,3 @@ describe('Chat Components', () => {
     })
   })
 })
-

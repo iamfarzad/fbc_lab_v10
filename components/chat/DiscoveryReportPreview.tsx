@@ -128,8 +128,8 @@ export function DiscoveryReportPreview({
   // SHARED BUTTONS COMPONENT for consistency
   const ActionButtons = ({ isOverlay = false }) => (
     <div className={`flex items-center gap-2 ${isOverlay 
-      ? 'px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-full shadow-xl border border-zinc-200 dark:border-zinc-800' 
-      : 'px-4 py-3 border-t ' + (isDarkMode ? 'border-zinc-800 bg-zinc-900/50' : 'border-zinc-100 bg-zinc-50')
+      ? 'px-4 py-2 bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-full shadow-xl border border-zinc-200 dark:border-zinc-800' 
+      : 'px-4 py-3 border-t ' + (isDarkMode ? 'border-zinc-800 bg-black/50' : 'border-zinc-100 bg-zinc-50')
     }`}>
       <button
         onClick={handleDownload}
@@ -157,7 +157,9 @@ export function DiscoveryReportPreview({
       )}
       <button
         onClick={handleBookCall}
-        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full text-xs font-medium transition-colors"
+        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-colors ${
+          isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-black hover:bg-zinc-800 text-white'
+        }`}
       >
         <Calendar className="w-3.5 h-3.5" />
         Book Call
@@ -231,16 +233,16 @@ export function DiscoveryReportPreview({
   return (
     <div className={`w-full max-w-[500px] rounded-xl overflow-hidden border transition-all duration-300 ${
       isDarkMode 
-        ? 'bg-zinc-900/50 border-zinc-800 backdrop-blur-md' 
+        ? 'bg-black/50 border-zinc-800 backdrop-blur-md' 
         : 'bg-white/60 border-zinc-200 backdrop-blur-md'
     } shadow-lg hover:shadow-xl`}>
       {/* Header */}
       <div className={`flex items-center justify-between px-4 py-3 border-b ${
-        isDarkMode ? 'border-zinc-800 bg-zinc-900/50' : 'border-zinc-100 bg-zinc-50'
+        isDarkMode ? 'border-zinc-800 bg-black/50' : 'border-zinc-100 bg-zinc-50'
       }`}>
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-orange-500/20' : 'bg-orange-100'}`}>
-            <FileText className="w-4 h-4 text-orange-500" />
+          <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-white/10' : 'bg-zinc-100'}`}>
+            <FileText className={`w-4 h-4 ${isDarkMode ? 'text-white/80' : 'text-zinc-700'}`} />
           </div>
           <div>
             <h4 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-zinc-900'}`}>
@@ -314,4 +316,3 @@ export function DiscoveryReportPreview({
 }
 
 export default DiscoveryReportPreview
-

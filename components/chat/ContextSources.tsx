@@ -55,11 +55,11 @@ const SOURCE_ICONS: Record<ContextSource['type'], React.ReactNode> = {
 const SOURCE_COLORS: Record<ContextSource['type'], string> = {
   company: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
   person: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
-  location: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800',
+  location: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
   conversation: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
   file: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
-  webcam: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800',
-  screen: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800',
+  webcam: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
+  screen: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
   web: 'bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700',
 }
 
@@ -98,22 +98,22 @@ const ContextSources: React.FC<ContextSourcesProps> = ({
   }
 
   return (
-    <div className={`rounded-lg border border-gray-200/50 dark:border-zinc-800/50 bg-white/50 dark:bg-black/40 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:bg-white/80 dark:hover:bg-black/60 ${className}`}>
+    <div className={`rounded-lg border border-zinc-200/50 dark:border-zinc-800/50 bg-white/50 dark:bg-black/40 backdrop-blur-sm overflow-hidden transition-all duration-300 hover:bg-white/80 dark:hover:bg-black/60 ${className}`}>
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-3 py-2 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Info className="w-4 h-4 text-gray-400" />
-          <span className="text-xs font-medium text-gray-700">
+          <Info className="w-4 h-4 text-zinc-400" />
+          <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
             Context Sources ({sources.length})
           </span>
         </div>
         {expanded ? (
-          <ChevronUp className="w-4 h-4 text-gray-400" />
+          <ChevronUp className="w-4 h-4 text-zinc-400" />
         ) : (
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+          <ChevronDown className="w-4 h-4 text-zinc-400" />
         )}
       </button>
 
@@ -282,4 +282,3 @@ export function buildContextSources(context: {
 }
 
 export default ContextSources
-

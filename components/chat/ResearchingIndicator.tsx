@@ -94,7 +94,7 @@ export const ResearchingIndicator: React.FC<ResearchingIndicatorProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 group/btn select-none w-full"
       >
-        <div className={`p-1 rounded-md transition-colors ${isOpen ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-500' : 'text-zinc-400 group-hover/btn:text-zinc-600 dark:group-hover/btn:text-zinc-300'}`}>
+        <div className={`p-1 rounded-md transition-colors ${isOpen ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-200' : 'text-zinc-400 group-hover/btn:text-zinc-600 dark:group-hover/btn:text-zinc-300'}`}>
           <Search className="w-3.5 h-3.5" />
         </div>
         <span className="text-[10px] sm:text-[11px] font-medium text-zinc-500 dark:text-zinc-400 tracking-wide">
@@ -107,11 +107,11 @@ export const ResearchingIndicator: React.FC<ResearchingIndicatorProps> = ({
         className={`grid transition-[grid-template-rows] duration-300 ease-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
       >
         <div className="overflow-hidden">
-          <div className="mt-3 text-[10px] sm:text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 font-mono bg-zinc-50/50 dark:bg-zinc-900/50 p-3 sm:p-4 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm relative">
+          <div className="mt-3 text-[10px] sm:text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 font-mono bg-zinc-50/50 dark:bg-black/50 p-3 sm:p-4 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm relative">
             <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-400/50 to-transparent"></div>
             {content || (isResearching ? "Initializing research..." : "")}
             {isResearching && (
-              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full ml-1 animate-pulse"></span>
+              <span className="inline-block w-2 h-2 bg-zinc-500 dark:bg-zinc-400 rounded-full ml-1 animate-pulse"></span>
             )}
           </div>
         </div>
@@ -119,4 +119,3 @@ export const ResearchingIndicator: React.FC<ResearchingIndicatorProps> = ({
     </div>
   );
 };
-

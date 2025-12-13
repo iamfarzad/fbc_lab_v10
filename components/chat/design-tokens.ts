@@ -74,10 +74,10 @@ export const EASING = {
 
 // Background Colors
 export const BG = {
-  default: 'bg-white dark:bg-zinc-900',
-  subtle: 'bg-zinc-50 dark:bg-zinc-900',
-  card: 'bg-white/80 dark:bg-zinc-900/80',
-  glass: 'bg-white/90 dark:bg-zinc-950/90',
+  default: 'bg-white dark:bg-black',
+  subtle: 'bg-zinc-50 dark:bg-black',
+  card: 'bg-white/80 dark:bg-black/80',
+  glass: 'bg-white/90 dark:bg-black/90',
   hover: 'hover:bg-zinc-100 dark:hover:bg-white/10',
   active: 'bg-zinc-200 dark:bg-white/20',
 } as const;
@@ -135,23 +135,23 @@ export const PATTERNS = {
 // Semantic Colors
 export const SEMANTIC = {
   // Status colors
-  orange: 'bg-orange-500',
-  blue: 'bg-blue-500',
-  purple: 'bg-purple-500',
+  orange: 'bg-zinc-700 dark:bg-zinc-300',
+  blue: 'bg-zinc-700 dark:bg-zinc-300',
+  purple: 'bg-zinc-700 dark:bg-zinc-300',
   green: 'bg-green-500',
   red: 'bg-red-500',
 
   // Status text
-  orangeText: 'text-orange-500',
-  blueText: 'text-blue-500',
-  purpleText: 'text-purple-500',
+  orangeText: 'text-zinc-700 dark:text-zinc-300',
+  blueText: 'text-zinc-700 dark:text-zinc-300',
+  purpleText: 'text-zinc-700 dark:text-zinc-300',
   greenText: 'text-green-500',
   redText: 'text-red-500',
 
   // Status backgrounds
-  orangeBg: 'bg-orange-50 dark:bg-orange-900/20',
-  blueBg: 'bg-blue-50 dark:bg-blue-900/20',
-  purpleBg: 'bg-purple-50 dark:bg-purple-900/20',
+  orangeBg: 'bg-zinc-100 dark:bg-zinc-900/20',
+  blueBg: 'bg-zinc-100 dark:bg-zinc-900/20',
+  purpleBg: 'bg-zinc-100 dark:bg-zinc-900/20',
   greenBg: 'bg-green-50 dark:bg-green-900/20',
   redBg: 'bg-red-50 dark:bg-red-900/20',
 } as const;

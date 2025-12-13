@@ -46,7 +46,7 @@ export const Badge: React.FC<BadgeProps> = ({
         ${variant === 'tool' ? 'rounded-lg' : RADIUS.full}
         ${TRANSITION.colors} ${DURATION.normal}
         ${variantStyles[variant]}
-        ${active ? 'ring-1 ring-orange-400/30' : ''}
+        ${active ? 'ring-1 ring-zinc-400/30 dark:ring-white/20' : ''}
         ${className}
       `}
     >
@@ -54,7 +54,7 @@ export const Badge: React.FC<BadgeProps> = ({
         <div className="relative flex items-center justify-center">
           {icon}
           {pulse && (
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse shadow-sm" />
+            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-zinc-500 dark:bg-zinc-300 rounded-full animate-pulse shadow-sm" />
           )}
         </div>
       )}

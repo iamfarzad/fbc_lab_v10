@@ -54,6 +54,9 @@ export function extractGeminiMetadata(
       if (candidate?.groundingMetadata) {
         metadata.groundingMetadata = {
           groundingChunks: candidate.groundingMetadata.groundingChunks || [],
+          ...(candidate.groundingMetadata.groundingSupports && {
+            groundingSupports: candidate.groundingMetadata.groundingSupports
+          }),
           ...(candidate.groundingMetadata.webSearchQueries && {
             webSearchQueries: candidate.groundingMetadata.webSearchQueries
           }),
