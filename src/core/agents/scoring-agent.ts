@@ -225,10 +225,10 @@ ${context.systemPromptSupplement || ''}`
     metadata: {
       stage: 'SCORING' as FunnelStage,
       chainOfThought: { steps },
+      toolsUsed: [],
       leadScore: scores.leadScore,
       fitScore: scores.fitScore,
       reasoning: scores.reasoning
     }
   }
 }
-

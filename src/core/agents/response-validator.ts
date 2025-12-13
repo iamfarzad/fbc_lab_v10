@@ -18,7 +18,13 @@ export interface ValidationResult {
 }
 
 export interface ValidationIssue {
-  type: 'fabricated_roi' | 'false_booking_claim' | 'skipped_question' | 'hallucinated_action' | 'identity_leak'
+  type:
+    | 'fabricated_roi'
+    | 'false_booking_claim'
+    | 'skipped_question'
+    | 'hallucinated_action'
+    | 'hallucinated_identity_fact'
+    | 'identity_leak'
   severity: 'warning' | 'error' | 'critical'
   message: string
   suggestion?: string
@@ -29,6 +35,12 @@ interface ValidationContext {
   userQuestion?: string
   agentName: string
   stage: string
+  identity?: {
+    confirmed: boolean
+    name?: string
+    company?: string
+    role?: string
+  }
 }
 
 // Patterns that indicate fabricated ROI
@@ -59,6 +71,81 @@ const HALLUCINATED_ACTION_PATTERNS = [
   /\b(?:I'?(?:ve|ll)|I have|I will)\s+(?:emailed?|contacted?|notified?)\s+(?:you|your team|the team)/gi,
   /\b(?:I'?(?:ve|ll)|I have|I will)\s+(?:created?|generated?|prepared?)\s+(?:a|the|your)?\s*(?:proposal|contract|invoice|report)/gi,
 ]
+
+// Patterns that indicate ungrounded personalization about the user (role/company).
+const HALLUCINATED_IDENTITY_PATTERNS = [
+  // e.g. "you're the Managing Partner at Saluki Media"
+  /\byou(?:'re| are)\s+(?:the\s+)?([^\n.]{0,80}?)\s+(?:at|over at|with)\s+([A-Z][\w&.'-]+(?:\s+[A-Z][\w&.'-]+){0,6})/i,
+  // e.g. "over at Saluki Media"
+  /\bover\s+at\s+([A-Z][\w&.'-]+(?:\s+[A-Z][\w&.'-]+){0,6})\b/i,
+]
+
+function normalizeText(v: string): string {
+  return v.toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+function detectIdentityHallucination(
+  response: string,
+  identity: ValidationContext['identity'] | undefined
+): ValidationIssue | null {
+  if (!identity) return null
+
+  const normalizedCompany = identity.company ? normalizeText(identity.company) : undefined
+  const normalizedRole = identity.role ? normalizeText(identity.role) : undefined
+  const confirmed = identity.confirmed === true
+
+  for (const pattern of HALLUCINATED_IDENTITY_PATTERNS) {
+    const match = response.match(pattern)
+    if (!match) continue
+
+    // Pattern 1 includes role + company; pattern 2 includes company only.
+    const roleClaim = match.length >= 3 ? match[1] : undefined
+    const companyClaim = match.length >= 3 ? match[2] : match[1]
+
+    const normalizedCompanyClaim = companyClaim ? normalizeText(companyClaim) : undefined
+    const normalizedRoleClaim = roleClaim ? normalizeText(roleClaim) : undefined
+
+    // If identity isn't user-confirmed, any "you are X at Y" is a hard stop.
+    if (!confirmed) {
+      return {
+        type: 'hallucinated_identity_fact',
+        severity: 'critical',
+        message: 'Response asserts the user’s role/company without user confirmation',
+        suggestion: 'Ask the user to confirm name/company/role before personalizing'
+      }
+    }
+
+    // If the user confirmed identity (name/email) but company/role isn't confirmed in context,
+    // treat this as an error (do not hard-block). The agent prompt should prevent these assertions.
+    if (!normalizedCompany || !normalizedCompanyClaim) {
+      return {
+        type: 'hallucinated_identity_fact',
+        severity: 'error',
+        message: 'Response references a company without a confirmed company in context',
+        suggestion: 'Avoid asserting company; ask a lightweight confirmation question if needed'
+      }
+    }
+    if (normalizedCompanyClaim && normalizedCompany && !normalizedCompanyClaim.includes(normalizedCompany)) {
+      return {
+        type: 'hallucinated_identity_fact',
+        severity: 'critical',
+        message: 'Response references a company that does not match confirmed context',
+        suggestion: 'Remove the claim and ask the user to confirm their company'
+      }
+    }
+
+    if (roleClaim && (!normalizedRole || !normalizedRoleClaim || (normalizedRole && !normalizedRoleClaim.includes(normalizedRole)))) {
+      return {
+        type: 'hallucinated_identity_fact',
+        severity: 'error',
+        message: 'Response asserts a role that is not confirmed in context',
+        suggestion: 'Avoid asserting role; ask naturally as part of discovery'
+      }
+    }
+  }
+
+  return null
+}
 
 /**
  * Validate an agent response against critical rules
@@ -126,6 +213,12 @@ export function validateAgentResponse(
     }
   }
 
+  // Check for hallucinated identity personalization (role/company) not backed by user confirmation.
+  const identityIssue = detectIdentityHallucination(response, context.identity)
+  if (identityIssue) {
+    issues.push(identityIssue)
+  }
+
   // Check if direct question was answered (if provided)
   if (context.userQuestion && isDirectQuestion(context.userQuestion)) {
     if (!containsAnswer(response, context.userQuestion)) {
@@ -153,10 +246,16 @@ export function validateAgentResponse(
     })
   }
 
+  const correctedResponse =
+    shouldBlock && issues.some(i => i.type === 'hallucinated_identity_fact')
+      ? `I don't want to guess details about you or your company from an email domain or background assumptions. Can you confirm your company name and your role? Then tell me what you want to achieve today.`
+      : undefined
+
   return {
     isValid: issues.length === 0,
     issues,
-    shouldBlock
+    shouldBlock,
+    ...(correctedResponse ? { correctedResponse } : {})
   }
 }
 
@@ -211,14 +310,14 @@ export function sanitizeResponse(response: string): string {
  */
 export function generateValidationReport(result: ValidationResult, context: ValidationContext): string {
   if (result.isValid) {
-    return `✅ Response validated: Agent=${context.agentName}, Stage=${context.stage}`
+    return `Response validated: Agent=${context.agentName}, Stage=${context.stage}`
   }
 
   const issueList = result.issues
     .map(i => `  - [${i.severity.toUpperCase()}] ${i.type}: ${i.message}`)
     .join('\n')
 
-  return `⚠️ Response validation failed: Agent=${context.agentName}, Stage=${context.stage}
+  return `Response validation failed: Agent=${context.agentName}, Stage=${context.stage}
 Issues:
 ${issueList}
 ShouldBlock: ${result.shouldBlock}`
@@ -228,7 +327,11 @@ ShouldBlock: ${result.shouldBlock}`
  * Quick validation check for critical issues only
  * Faster version for performance-sensitive paths
  */
-export function quickValidate(response: string, toolsUsed: string[]): { hasCriticalIssue: boolean; issue?: string } {
+export function quickValidate(
+  response: string,
+  toolsUsed: string[],
+  identity?: ValidationContext['identity']
+): { hasCriticalIssue: boolean; issue?: string } {
   // Check fabricated ROI without tool
   if (!toolsUsed.includes('calculate_roi')) {
     for (const pattern of FABRICATED_ROI_PATTERNS) {
@@ -247,6 +350,10 @@ export function quickValidate(response: string, toolsUsed: string[]): { hasCriti
     }
   }
 
+  const identityIssue = detectIdentityHallucination(response, identity)
+  if (identityIssue && identityIssue.severity === 'critical') {
+    return { hasCriticalIssue: true, issue: identityIssue.type }
+  }
+
   return { hasCriticalIssue: false }
 }
-

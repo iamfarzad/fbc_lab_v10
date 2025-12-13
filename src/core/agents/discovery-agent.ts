@@ -10,6 +10,7 @@ import { PHRASE_BANK } from '../chat/conversation-phrases.js'
 import { extractCompanySize, extractBudgetSignals, extractTimelineUrgency } from './utils/index.js'
 // analyzeUrl no longer used - using shared detectAndAnalyzeUrls utility instead
 import { extractGeminiMetadata } from '../../lib/extract-gemini-metadata.js'
+import { getAgentTools, extractToolNames } from './utils/agent-tools.js'
 import { logger } from '../../lib/logger.js'
 import type { LeadProfile } from '../intelligence/types.js'
 
@@ -113,31 +114,67 @@ export async function discoveryAgent(
       }
     }
   }
-
+  
   // === STRUCTURED EXTRACTION (parallel) ===
   if (intelligenceContext) {
     try {
-      const [companySize, budget, timeline] = await Promise.all([
-        extractCompanySize(conversationText),
-        extractBudgetSignals(conversationText),
-        extractTimelineUrgency(conversationText),
-      ])
+      const lower = conversationText.toLowerCase()
+      const hasCompanySizeCue =
+        /\b(employee|employees|headcount|staff)\b/i.test(conversationText) ||
+        /\bteam\s+of\s+\d+\b/i.test(conversationText) ||
+        /\b\d+\s+(people|employees|person)\b/i.test(conversationText)
+      const hasBudgetCue =
+        /\$/.test(conversationText) || /\b(budget|cost|price|pricing|expens|invest|spend)\b/i.test(conversationText)
+      const hasTimelineCue =
+        /\b(timeline|deadline|asap|soon|quarter|q[1-4])\b/i.test(conversationText) ||
+        /\b(next|this)\s+(week|month|quarter)\b/i.test(conversationText) ||
+        /\bin\s+\d+\s+(day|days|week|weeks|month|months)\b/i.test(conversationText) ||
+        /\bby\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|202\d)\b/i.test(lower)
 
-      // Update intelligence context with extracted data
-      if (!intelligenceContext.company) {
-        intelligenceContext.company = { domain: '' }
-      }
-      intelligenceContext.company.size = companySize.size
-      if (companySize.employeeCount !== undefined) {
-      intelligenceContext.company.employeeCount = companySize.employeeCount
+      const tasks: Array<Promise<void>> = []
+
+      // Company size: only extract when unknown and there's a cue.
+      const existingSize = (intelligenceContext.company as any)?.size
+      if ((!existingSize || existingSize === 'unknown') && hasCompanySizeCue) {
+        tasks.push(
+          extractCompanySize(conversationText).then((companySize) => {
+            if (!intelligenceContext.company) {
+              intelligenceContext.company = { domain: '' }
+            }
+            intelligenceContext.company.size = companySize.size
+            if (companySize.employeeCount !== undefined) {
+              intelligenceContext.company.employeeCount = companySize.employeeCount
+            }
+          })
+        )
       }
 
-      (intelligenceContext).budget = {
-        ...((intelligenceContext).budget || {}),
-        ...budget
+      // Budget: only extract when not explicit and there's a cue.
+      const hasExplicitBudget = Boolean((intelligenceContext as any)?.budget?.hasExplicit)
+      if (!hasExplicitBudget && hasBudgetCue) {
+        tasks.push(
+          extractBudgetSignals(conversationText).then((budget) => {
+            ;(intelligenceContext as any).budget = {
+              ...((intelligenceContext as any).budget || {}),
+              ...budget
+            }
+          })
+        )
       }
 
-      ;(intelligenceContext).timeline = timeline
+      // Timeline: only extract when missing and there's a cue.
+      const hasTimeline = typeof (intelligenceContext as any)?.timeline?.urgency === 'number'
+      if (!hasTimeline && hasTimelineCue) {
+        tasks.push(
+          extractTimelineUrgency(conversationText).then((timeline) => {
+            ;(intelligenceContext as any).timeline = timeline
+          })
+        )
+      }
+
+      if (tasks.length > 0) {
+        await Promise.all(tasks)
+      }
     } catch (err) {
       console.warn('Structured extraction failed', err)
       // Continue without extracted data
@@ -154,17 +191,24 @@ export async function discoveryAgent(
 
   // Extract profile for subtle personalization
   const profile: LeadProfile | undefined = intelligenceContext?.profile
+  const citationsCount = (((intelligenceContext as any)?.research?.citations?.length as number | undefined) || 0)
+  const identityVerified =
+    profile?.identity.verified === true &&
+    (intelligenceContext?.researchConfidence || 0) >= 0.85 &&
+    citationsCount > 0
+  const identityConfirmed = (intelligenceContext as any)?.identityConfirmed === true
+  const identityTrusted = identityConfirmed
 
   // Build context-first prompt, then anchor instructions at the end
   let contextSection = `CONTEXT:
 ${conversationFlow ? formatConversationStatus(conversationFlow) : 'Starting discovery'}
 
 INTELLIGENCE CONTEXT:
-${intelligenceContext?.company?.name ? `Company: ${(intelligenceContext.company).name} (USE THIS NAME IN YOUR RESPONSE!)` : '(No company identified yet)'}
+${intelligenceContext?.company?.name ? `Company: ${(intelligenceContext.company).name}${identityTrusted ? '' : ' (unverified)'}` : '(No company identified yet)'}
 ${(intelligenceContext?.company)?.industry ? `Industry: ${(intelligenceContext.company).industry}` : ''}
 ${(intelligenceContext?.company)?.size ? `Size: ${(intelligenceContext.company).size}` : ''}
-${intelligenceContext?.person?.fullName ? `Person: ${(intelligenceContext.person).fullName}` : ''}
-${intelligenceContext?.person?.role ? `Role: ${(intelligenceContext.person).role} (REFERENCE THIS ROLE IN YOUR RESPONSE!)` : ''}
+${intelligenceContext?.person?.fullName ? `Person: ${(intelligenceContext.person).fullName}${identityTrusted ? '' : ' (unverified)'}` : ''}
+${identityTrusted && intelligenceContext?.person?.role ? `Role: ${(intelligenceContext.person).role}` : ''}
 ${(intelligenceContext)?.budget?.hasExplicit ? `Budget: explicit (${(intelligenceContext).budget.minUsd ? `$${(intelligenceContext).budget.minUsd}k+` : 'mentioned'})` : 'Budget: none yet'}
 ${(intelligenceContext)?.timeline?.urgency ? `Timeline urgency: ${((intelligenceContext).timeline.urgency).toFixed(2)}` : ''}
 ${intelligenceContext?.leadScore ? `Lead Score: ${intelligenceContext.leadScore}` : ''}
@@ -177,12 +221,13 @@ ${urlContext ? `${urlContext}\nReference this naturally in your response.` : ''}
       ? 'High (Has GitHub/Publications)'
       : 'Business/Creative'
     
-    contextSection += `\n\n### DETECTED USER CONTEXT (Verified: ${profile.identity.verified ? 'Yes' : 'No'}, Confidence: ${profile.identity.confidenceScore}%):
-- Name: ${profile.identity.name}
-- Role: ${profile.professional.currentRole} at ${profile.professional.company}
-- Technical: ${technicalLevel}
-${profile.professional.yearsExperience ? `- Experience: ~${profile.professional.yearsExperience} years` : ''}
-${profile.contexthooks.length > 0 ? `- Key Context: ${profile.contexthooks.join(', ')}` : ''}`
+    contextSection += `\n\n### USER PROFILE:
+	- Verification: ${identityVerified ? 'High-confidence match (NOT user-confirmed)' : 'Unverified'} (score ${profile.identity.confidenceScore}%)
+	- Name: ${profile.identity.name}
+	- Do not use inferred role/company as facts. Ask the user to confirm their role/company before referencing it.
+	- Technical: ${technicalLevel}
+	${identityTrusted && profile.professional.yearsExperience ? `- Experience: ~${profile.professional.yearsExperience} years` : ''}
+	${identityTrusted && profile.contexthooks.length > 0 ? `- Context Hooks: ${profile.contexthooks.join(', ')}` : ''}`
   }
 
   if (multimodalContext?.hasRecentImages) {
@@ -201,41 +246,16 @@ ${profile.contexthooks.length > 0 ? `- Key Context: ${profile.contexthooks.join(
   }
 
   const instructionSection = `INSTRUCTIONS:
-You are F.B/c Discovery AI - a laidback, sharp consultant who builds rapport naturally.
+You are F.B/c Discovery AI. Your job is to understand the user's goals and constraints quickly.
 
-PERSONALITY & TONE:
-- Be conversational, friendly, and relaxed - like talking to a colleague
-- Don't be pushy or salesy - you're genuinely curious about their situation
-- If they ask off-topic questions or test you, handle it gracefully:
-  ✅ GOOD: "Haha, fair question! I'm an AI assistant helping with AI consulting. But yeah, I can chat about [their topic] too. What were you curious about?"
-  ❌ BAD: "That's not relevant to our conversation. Let's get back to your goals."
-- Show personality - you can be slightly witty, acknowledge when they're testing you, stay cool
-- If they're being playful or testing your intelligence, match their energy but stay professional
-- Remember: Building trust > Getting answers immediately
+	OUTPUT RULES:
+	- No emojis.
+	- Do not claim personal/company facts unless the user explicitly stated them OR the context indicates identity was user-confirmed (identityConfirmed).
+	- If identity is not user-confirmed, ask the user to confirm name, company, and role before referencing inferred details.
 
-CRITICAL PERSONALIZATION RULES:
-- ALWAYS use the company name and person's role in your responses when available
-- NEVER give generic responses - every response should reference specific context
-- If research shows company info, USE IT naturally (e.g., "Since [Company] is in [Industry]...")
-- Avoid generic phrases like "many leaders feel that way" - instead, personalize based on their role/industry
-
-${profile ? `PERSONALIZATION INSTRUCTIONS (Profile Available):
-1. **The "Warm" Start:** Use the user's name naturally in the first greeting (${profile.identity.name}).
-
-2. **Context, don't Dox:** Do NOT list everything you know. Instead, use the knowledge to *frame* your questions.
-   - ❌ BAD: "I see you work at ${profile.professional.company}."
-   - ✅ GOOD: "Given your background in ${profile.professional.industry} at ${profile.professional.company}, are you looking to use AI for [specific use case] or more for [alternative use case]?"
-
-3. **Maturity Assumption:**
-   - If 'Technical' is High: Skip basic "What is AI?" definitions. Talk implementation, APIs, technical architecture.
-   - If 'Technical' is Low: Focus on business value, strategy, ROI, and outcomes.
-
-4. **Context Hooks:** Use the provided context hooks naturally to frame questions, but don't list them explicitly.
-   - Example: If context hook mentions "recent funding", frame a question like: "With ${profile.professional.company} recently raising capital, are you looking to scale operations with AI?"
-   - Don't say: "I noticed you recently raised funding" (too explicit)
-   - Do say: "Given ${profile.professional.company}'s growth trajectory, what's your biggest operational challenge right now?"
-
-5. **Verification Status:** If profile shows verified=true, you can be more confident in using the information. If verified=false, be more cautious and let the user confirm details.` : ''}
+TONE:
+- Clear, direct, professional. No hype.
+- Ask one focused question per turn.
 
 USER CORRECTION DETECTION (CRITICAL):
 - If the user corrects any information about themselves:
@@ -249,11 +269,7 @@ USER CORRECTION DETECTION (CRITICAL):
 HANDLING OFF-TOPIC QUESTIONS:
 - If they ask something unrelated (testing you, random questions, etc.):
   - Answer briefly and naturally if it's quick
-  - Then gently steer back: "But hey, I'm curious - what brought you here today?"
-- If they're clearly testing your intelligence:
-  - Show you can handle it: "Nice try! 😄 I'm here to help with AI consulting, but I can chat about [topic] too. What's on your mind?"
-- Don't be rigid - if they want to chat, chat. But keep the goal in mind.
-- Balance: Be helpful and conversational, but don't lose sight of discovery
+  - Then steer back to discovery with one question
 
 MISSION (DISCOVERY CATEGORIES - guide naturally, don't force):
 1. GOALS - What are they trying to achieve?
@@ -272,22 +288,21 @@ LANGUAGE RULES:
 STYLE:
 - Sound like a sharp, friendly consultant who's easy to talk to
 ${voiceActive ? '- Two sentences max per turn (voice mode)' : ''}
-- Ask ONE focused question at a time (unless they're being conversational, then match their energy)
+- Ask ONE focused question at a time
 - Mirror user's language style (not language) and build on latest turn
-- If they shared a URL, act like you deeply read it
+- If they shared a URL, do NOT pretend you read it. Either reference the explicit analysis you have, or ask for the key points.
 - Natural integration of multimodal context:
-  ✅ GOOD: "I noticed your dashboard shows revenue declining..."
-  ❌ BAD: "Based on the screen share tool output..."
-- Be flexible - if they want to chat, chat. If they're direct, be direct.
+  Good: "I noticed your dashboard shows revenue declining..."
+  Bad: "Based on the screen share tool output..."
 
 NEXT QUESTION:
 ${conversationFlow?.recommendedNext ? `Focus on: ${conversationFlow.recommendedNext}` : 'Start with goals'}
 ${conversationFlow?.recommendedNext && PHRASE_BANK[conversationFlow.recommendedNext]
-      ? `Suggested phrasing: "${PHRASE_BANK[conversationFlow.recommendedNext][0]}"`
-      : ''}
+	      ? `Suggested phrasing: "${PHRASE_BANK[conversationFlow.recommendedNext][0]}"`
+	      : ''}
 ${conversationFlow?.shouldOfferRecap
-      ? 'Deliver a two-sentence recap of what you learned, then ask your next question.'
-      : ''}`
+	      ? 'Deliver a two-sentence recap of what you learned, then ask your next question.'
+	      : ''}`
 
   const { generateSalesConstraintInstructions } = await import('./utils/context-briefing.js')
   
@@ -343,6 +358,9 @@ ${generateSalesConstraintInstructions()}`
   let generatedText = ''
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let extractedMetadata: { groundingMetadata?: any; reasoning?: string } = {}
+  const sessionId = context.sessionId || 'anonymous'
+  const tools: any = getAgentTools(sessionId, 'Discovery Agent')
+  let toolsUsed: string[] = []
   const isStreaming = context.streaming === true && context.onChunk
 
   try {
@@ -353,7 +371,8 @@ ${generateSalesConstraintInstructions()}`
         model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
         system: systemPrompt,
         messages: formatMessagesForAI(messages),
-        temperature: 1.0
+        temperature: 1.0,
+        tools
       })
 
       // Stream all events (text, tool calls, reasoning, etc.) in real-time
@@ -401,6 +420,13 @@ ${generateSalesConstraintInstructions()}`
         // Note: streamResult may not have the exact same structure as GenerateTextResult
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         extractedMetadata = extractGeminiMetadata(streamResult as any)
+
+        try {
+          const tc = await streamResult.toolCalls
+          toolsUsed = extractToolNames(tc)
+        } catch {
+          toolsUsed = []
+        }
         
         // Stream tool calls if they occurred (from final result)
         if (context.onMetadata) {
@@ -439,13 +465,15 @@ ${generateSalesConstraintInstructions()}`
         messages: formatMessagesForAI(messages),
         temperature: 1.0,
         modelId: GEMINI_MODELS.GEMINI_3_PRO_PREVIEW,
-        modelSettings
+        modelSettings,
+        tools
       })
 
       generatedText = result.text || ''
       
       // Extract metadata (groundingMetadata, reasoning) from response
       extractedMetadata = extractGeminiMetadata(result)
+      toolsUsed = extractToolNames(result.toolCalls)
     }
 
     // If empty, use fallback
@@ -497,8 +525,9 @@ ${generateSalesConstraintInstructions()}`
 
   // Mark the currently active step as complete (guard against missing index)
   const activeIdx = steps.findIndex(s => s.status === 'active')
-  if (activeIdx >= 0 && steps[activeIdx]) {
-    steps[activeIdx].status = 'complete'
+  if (activeIdx >= 0) {
+    const activeStep = steps[activeIdx]
+    if (activeStep) activeStep.status = 'complete'
   }
 
   // Step 5: Incorporate multimodal context
@@ -541,6 +570,7 @@ ${generateSalesConstraintInstructions()}`
       stage: shouldFastTrack ? ('QUALIFIED' as FunnelStage) : ('DISCOVERY' as FunnelStage),
       chainOfThought: { steps },
       categoriesCovered,
+      toolsUsed,
       ...(((enhancedFlow as EnhancedFlow | null)?.recommendedNext !== undefined || conversationFlow?.recommendedNext !== undefined) && {
         recommendedNext: (enhancedFlow as EnhancedFlow | null)?.recommendedNext || conversationFlow?.recommendedNext || null
       }),

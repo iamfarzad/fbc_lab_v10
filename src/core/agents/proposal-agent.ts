@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { AgentContext, ChatMessage, ChainOfThoughtStep, AgentResult } from './types.js'
 import { GEMINI_MODELS } from '../../config/constants.js'
 import type { FunnelStage } from '../types/funnel-stage.js'
+import { getAgentTools, extractToolNames } from './utils/agent-tools.js'
 
 // Proposal interface for structured output
 export interface Proposal {
@@ -86,6 +87,7 @@ export async function proposalAgent(
 ): Promise<AgentResult> {
   const { intelligenceContext, conversationFlow } = context
   const steps: ChainOfThoughtStep[] = []
+  const tools: any = getAgentTools(context.sessionId || 'anonymous', 'Proposal Agent')
 
   // Step 1: Analyzing project complexity
   steps.push({
@@ -224,29 +226,31 @@ ${context.systemPromptSupplement || ''}`
       thinkingLevel: 'high',
       defaultMediaResolution: 'media_resolution_medium'
     })
-    result = await generateText({
-      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Generate the formal consulting proposal based on the conversation and context.' }
-      ],
-      temperature: 1.0
-    })
-  } catch (error) {
+	    result = await generateText({
+	      model: google(GEMINI_MODELS.GEMINI_3_PRO_PREVIEW, modelSettings),
+	      messages: [
+	        { role: 'system', content: systemPrompt },
+	        { role: 'user', content: 'Generate the formal consulting proposal based on the conversation and context.' }
+	      ],
+	      temperature: 1.0,
+	      tools
+	    })
+	  } catch (error) {
     console.warn('[Proposal Agent] Falling back to Flash model after error:', error)
     const modelSettings = buildModelSettings(context, messages, { 
       thinkingLevel: 'high',
       defaultMediaResolution: 'media_resolution_medium'
     })
-    result = await generateText({
-      model: google(GEMINI_MODELS.DEFAULT_RELIABLE, modelSettings),
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Generate the formal consulting proposal based on the conversation and context.' }
-      ],
-      temperature: 1.0
-    })
-  }
+	    result = await generateText({
+	      model: google(GEMINI_MODELS.DEFAULT_RELIABLE, modelSettings),
+	      messages: [
+	        { role: 'system', content: systemPrompt },
+	        { role: 'user', content: 'Generate the formal consulting proposal based on the conversation and context.' }
+	      ],
+	      temperature: 1.0,
+	      tools
+	    })
+	  }
 
   // Parse and validate JSON from response
   let proposal: Proposal
@@ -305,16 +309,16 @@ ${context.systemPromptSupplement || ''}`
     ? proposal.investment.total
     : 0
 
-  return {
-    output: JSON.stringify(proposal, null, 2),
-    agent: 'Proposal Agent',
-    model: GEMINI_MODELS.DEFAULT_RELIABLE,
-    metadata: {
-      stage: 'PROPOSAL' as FunnelStage,
-      chainOfThought: { steps },
-      proposal,
-      estimatedValue
-    }
-  }
-}
-
+	  return {
+	    output: JSON.stringify(proposal, null, 2),
+	    agent: 'Proposal Agent',
+	    model: GEMINI_MODELS.DEFAULT_RELIABLE,
+	    metadata: {
+	      stage: 'PROPOSAL' as FunnelStage,
+	      chainOfThought: { steps },
+	      toolsUsed: extractToolNames(result.toolCalls),
+	      proposal,
+	      estimatedValue
+	    }
+	  }
+	}

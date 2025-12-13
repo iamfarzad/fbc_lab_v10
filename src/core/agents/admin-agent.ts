@@ -13,6 +13,7 @@ import { getChatToolDefinitions } from '../tools/unified-tool-registry.js'
 import { asConversations, asLeadSummaries } from '../../lib/supabase-parsers.js'
 import { AnalyticsData } from '../../schemas/admin.js'
 import type { LeadSummaryRow, ConversationRow } from '../../schemas/supabase.js'
+import { extractToolNames } from './utils/agent-tools.js'
 
 /**
  * Admin AI Agent - Farzad's business intelligence assistant
@@ -461,7 +462,8 @@ ${instructionSection}`
   // Merge unified tools with admin-specific tools
   const tools: any = {
     ...unifiedTools,
-    ...adminTools
+    ...adminTools,
+    googleSearch: {} as any
   }
 
   const isStreaming = _context.streaming === true && _context.onChunk
@@ -559,7 +561,7 @@ ${instructionSection}`
       conversationsAnalyzed: recentConversations.length,
       leadsAnalyzed: totalLeads,
       analyticsFetched: true,
-      toolsUsed: result.toolCalls?.length || 0
+      toolsUsed: extractToolNames(result.toolCalls)
     }
   }
 }

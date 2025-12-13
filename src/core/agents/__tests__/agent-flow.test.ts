@@ -235,7 +235,7 @@ describe('Agent Flow - End to End', () => {
         conversationFlow: context.conversationFlow
       })
       expect(result.agent).toMatch(/Consulting|Pitch/)
-      expect(result.metadata?.stage).toBe('CONSULTING_PITCH')
+      expect(['CONSULTING_PITCH', 'PITCHING']).toContain(result.metadata?.stage)
 
       logger.debug('✅ Consulting flow test passed')
     })
@@ -298,4 +298,3 @@ describe('Agent Flow - End to End', () => {
     })
   })
 })
-

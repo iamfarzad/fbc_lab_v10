@@ -25,14 +25,6 @@ vi.mock('@/lib/gemini-safe', () => ({
   })
 }))
 
-vi.mock('../utils/calculate-roi', () => ({
-  calculateRoi: vi.fn().mockReturnValue({
-    projectedRoi: 2.5,
-    paybackMonths: 6,
-    annualSavings: 50000
-  })
-}))
-
 describe('Pitch Agent', () => {
   const sessionId = 'test-pitch-session'
 
@@ -103,7 +95,7 @@ describe('Pitch Agent', () => {
       expect(result.output).toBeTruthy()
     })
 
-    it('should calculate ROI dynamically', async () => {
+    it('should include ROI guardrails and tools', async () => {
       const messages: ChatMessage[] = createMockMessages()
       const context = createMockAgentContext({
         sessionId,
@@ -120,9 +112,14 @@ describe('Pitch Agent', () => {
       const result = await pitchAgent(messages, context)
 
       expect(result.agent).toBe('Pitch Agent')
-      // ROI should be calculated
-      const { calculateRoi } = await import('../utils/calculate-roi')
-      expect(calculateRoi).toHaveBeenCalled()
+
+      const { safeGenerateText } = await import('@/lib/gemini-safe')
+      expect(safeGenerateText).toHaveBeenCalled()
+      const call = (safeGenerateText as unknown as { mock: { calls: any[] } }).mock.calls[0]?.[0]
+      expect(call?.system).toContain('CRITICAL ROI RULES')
+      expect(call?.system).toContain('Do not invent ROI numbers')
+      expect(call?.tools).toBeTruthy()
+      expect('googleSearch' in (call.tools as Record<string, unknown>)).toBe(true)
     })
   })
 })

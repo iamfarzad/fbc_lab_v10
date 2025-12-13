@@ -1,4 +1,5 @@
 import { VisualShape, VisualState } from '../../types';
+import { contextDetector } from './contextDetection';
 
 export const agentToShape: Record<string, VisualShape> = {
     'Discovery Agent': 'discovery',
@@ -53,6 +54,33 @@ export interface IntentResult {
     weatherData?: VisualState['weatherData'];
     chartData?: VisualState['chartData'];
     mapData?: VisualState['mapData'];
+    // New context-driven properties
+    solarSystemData?: {
+        focusPlanet?: string;
+        showOrbits?: boolean;
+        scale?: 'realistic' | 'educational';
+    };
+    stockData?: {
+        symbol?: string;
+        timeframe?: '1D' | '1W' | '1M' | '3M' | '1Y';
+        showVolume?: boolean;
+    };
+    networkData?: {
+        nodes: string[];
+        connections: Array<{from: string, to: string, strength: number}>;
+        layout: 'force' | 'circular' | 'hierarchical';
+    };
+    moleculeData?: {
+        formula?: string;
+        structure?: 'ball-stick' | 'space-filling' | 'wireframe';
+        animate?: boolean;
+    };
+    mathData?: {
+        equation?: string;
+        graph3d?: boolean;
+        domain?: [number, number];
+        range?: [number, number];
+    };
 }
 
 export const extractWeatherData = (text: string): VisualState['weatherData'] | undefined => {
@@ -117,6 +145,12 @@ export const extractMapCoords = (uri: string): { lat: number, lng: number } | un
 };
 
 export const detectVisualIntent = (text: string): IntentResult | null => {
+    // First try advanced context detection
+    const contextResult = contextDetector.detectContext(text);
+    if (contextResult) {
+      return contextResult;
+    }
+
     const t = text.toLowerCase();
 
     if (hasPhrase(t, 'what is your name') || hasPhrase(t, 'who are you') || hasPhrase(t, 'your identity') || hasPhrase(t, 'f.b/c')) {

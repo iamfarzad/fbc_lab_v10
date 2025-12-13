@@ -29,8 +29,8 @@ describe('context-briefing', () => {
       }
 
       const briefing = generateAgentBriefing(context)
-      expect(briefing).toContain('Test User')
-      expect(briefing).toContain('CTO')
+      expect(briefing).toContain('IDENTITY STATUS: Not confirmed')
+      expect(briefing).toContain('DO NOT ASSUME ROLE/LOCATION')
       expect(briefing).toContain('Test Company')
       expect(briefing).toContain('Technology')
       expect(briefing).toContain('TECHNICAL')
@@ -101,8 +101,10 @@ describe('context-briefing', () => {
         }
       }
 
-      expect(generateSystemPromptSupplement(context)).toBe('')
-      expect(generateSystemPromptSupplement(undefined)).toBe('')
+      const supplement = generateSystemPromptSupplement(context)
+      expect(supplement).toContain('IDENTITY GUARDRAILS')
+      expect(supplement).toContain('No emojis')
+      expect(generateSystemPromptSupplement(undefined)).toContain('IDENTITY GUARDRAILS')
     })
 
     it('should generate HIGH privacy instructions', () => {

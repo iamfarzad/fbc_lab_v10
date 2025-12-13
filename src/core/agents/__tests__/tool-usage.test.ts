@@ -11,7 +11,7 @@ import { closerAgent } from '../closer-agent.js'
 import type { AgentContext, ChatMessage } from '../types.js'
 
 // Mock tool definitions
-vi.mock('../tools/unified-tool-registry', () => ({
+vi.mock('../../tools/unified-tool-registry.js', () => ({
   getChatToolDefinitions: vi.fn(() => ({
     analyze_website_tech_stack: {
       description: 'Analyze website tech stack',
@@ -21,12 +21,36 @@ vi.mock('../tools/unified-tool-registry', () => ({
         data: { stack: ['WordPress'], message: 'Analyzed' }
       })
     },
+    analyze_competitor_gap: {
+      description: 'Analyze competitor gap',
+      parameters: {} as any,
+      execute: vi.fn().mockResolvedValue({
+        success: true,
+        data: { gaps: [], message: 'Analyzed' }
+      })
+    },
     generate_custom_syllabus: {
       description: 'Generate custom syllabus',
       parameters: {} as any,
       execute: vi.fn().mockResolvedValue({
         success: true,
         data: { syllabus: '# Workshop Syllabus' }
+      })
+    },
+    generate_architecture_diagram: {
+      description: 'Generate architecture diagram',
+      parameters: {} as any,
+      execute: vi.fn().mockResolvedValue({
+        success: true,
+        data: { diagram: 'graph TD; A-->B', message: 'Generated' }
+      })
+    },
+    search_internal_case_studies: {
+      description: 'Search internal case studies',
+      parameters: {} as any,
+      execute: vi.fn().mockResolvedValue({
+        success: true,
+        data: { results: [], message: 'Searched' }
       })
     },
     simulate_cost_of_inaction: {
@@ -41,14 +65,14 @@ vi.mock('../tools/unified-tool-registry', () => ({
 }))
 
 // Mock AI generation
-vi.mock('../../lib/gemini-safe', () => ({
+vi.mock('../../../lib/gemini-safe.js', () => ({
   safeGenerateText: vi.fn().mockResolvedValue({
     text: 'Test response',
     metadata: {}
   })
 }))
 
-vi.mock('../../lib/ai-client', () => ({
+vi.mock('../../../lib/ai-client.js', () => ({
   google: vi.fn(),
   generateText: vi.fn().mockResolvedValue({
     text: 'Test response'
@@ -114,7 +138,7 @@ describe('Agent Tool Usage', () => {
 
   describe('Tool Availability', () => {
     it('should have teaser tools available in chat agents', async () => {
-      const { getChatToolDefinitions } = await import('../tools/unified-tool-registry')
+      const { getChatToolDefinitions } = await import('../../tools/unified-tool-registry.js')
       
       const tools = getChatToolDefinitions('test-session', 'Test Agent')
 
@@ -124,7 +148,7 @@ describe('Agent Tool Usage', () => {
     })
 
     it('should have consulting tools available', async () => {
-      const { getChatToolDefinitions } = await import('../tools/unified-tool-registry')
+      const { getChatToolDefinitions } = await import('../../tools/unified-tool-registry.js')
       
       const tools = getChatToolDefinitions('test-session', 'Test Agent')
 

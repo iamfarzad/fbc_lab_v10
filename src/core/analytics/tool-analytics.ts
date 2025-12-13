@@ -81,18 +81,16 @@ export class ToolAnalyticsService {
       const details = asJsonObject(log.details) as AuditLogDetails | undefined
       const toolName = details?.toolName
       if (toolName) {
-        if (!toolBreakdown[toolName]) {
-          toolBreakdown[toolName] = { count: 0, successes: 0, durations: [] }
-        }
-        toolBreakdown[toolName].count++
+        const tool = toolBreakdown[toolName] ?? (toolBreakdown[toolName] = { count: 0, successes: 0, durations: [] })
+        tool.count++
         
         if (details?.performance?.success === true) {
-          toolBreakdown[toolName].successes++
+          tool.successes++
         }
         
         const duration = details?.performance?.duration
         if (typeof duration === 'number') {
-          toolBreakdown[toolName].durations.push(duration)
+          tool.durations.push(duration)
         }
       }
     })

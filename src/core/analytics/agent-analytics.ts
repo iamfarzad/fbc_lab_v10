@@ -166,15 +166,13 @@ export class AgentAnalyticsService {
       const details = asJsonObject((log.details as any) as Json | undefined) as AuditLogDetails | undefined
       const stage = details?.stage
       if (stage) {
-        if (!stageGroups[stage]) {
-          stageGroups[stage] = { count: 0, durations: [] }
-        }
-        stageGroups[stage].count++
+        const group = stageGroups[stage] ?? (stageGroups[stage] = { count: 0, durations: [] })
+        group.count++
 
         // Get execution duration if available from related execution log
         const duration = details?.performance?.duration
         if (typeof duration === 'number') {
-          stageGroups[stage].durations.push(duration)
+          group.durations.push(duration)
         }
       }
     })

@@ -5,6 +5,7 @@ import { GEMINI_MODELS } from '../../config/constants.js'
 import { multimodalContextManager } from '../context/multimodal-context.js'
 import { buildModelSettings } from '../../lib/multimodal-helpers.js'
 import { z } from 'zod'
+import { getAgentTools, extractToolNames } from './utils/agent-tools.js'
 
 /**
  * Summary Agent - Analyzes full conversation and generates PDF summary
@@ -19,6 +20,8 @@ export async function summaryAgent(
 ) {
   const { sessionId, intelligenceContext, conversationFlow } = context
   const steps: ChainOfThoughtStep[] = []
+  const tools: any = getAgentTools(sessionId || 'anonymous', 'Summary Agent')
+  let toolsUsed: string[] = []
 
   // Step 1: Analyzing full conversation
   steps.push({
@@ -140,7 +143,8 @@ ${context.systemPromptSupplement || ''}`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: 'Generate the conversation summary based on all provided context.' }
       ],
-      temperature: 1.0
+      temperature: 1.0,
+      tools
     })
 
     // Stream all events (text, tool calls, reasoning, etc.) in real-time
@@ -180,6 +184,12 @@ ${context.systemPromptSupplement || ''}`
 
     // Get final result for metadata extraction
     result = await stream
+    try {
+      const tc = await result.toolCalls
+      toolsUsed = extractToolNames(tc)
+    } catch {
+      toolsUsed = []
+    }
     
     // Stream tool calls if they occurred (from final result)
     if (context.onMetadata) {
@@ -210,9 +220,11 @@ ${context.systemPromptSupplement || ''}`
         { role: 'system', content: systemPrompt },
         { role: 'user', content: 'Generate the conversation summary based on all provided context.' }
       ],
-      temperature: 1.0 // Recommended for high thinking
+      temperature: 1.0, // Recommended for high thinking
+      tools
     })
     generatedText = result.text || ''
+    toolsUsed = extractToolNames(result.toolCalls)
   }
 
   // Extract metadata (groundingMetadata, reasoning) from response
@@ -306,6 +318,7 @@ ${context.systemPromptSupplement || ''}`
     metadata: {
       stage: 'SUMMARY' as const,
       chainOfThought: { steps },
+      toolsUsed,
       summary: summaryWithArtifacts,
       multimodalEngagement: {
         voice: multimodalData.audioContext.length > 0,
@@ -323,7 +336,7 @@ function formatDiscoveryStatus(flow: { covered?: Record<string, boolean> }): str
   const categories = ['goals', 'pain', 'data', 'readiness', 'budget', 'success']
   const covered = flow.covered || {}
   return categories.map(cat =>
-    `${cat}: ${covered[cat] ? '✅ Covered' : '❌ Not covered'}`
+    `${cat}: ${covered[cat] ? 'covered' : 'not covered'}`
   ).join('\n')
 }
 

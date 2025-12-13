@@ -44,28 +44,6 @@ export async function detectAndExtractCorrections(
     return null
   }
 
-  // #region agent log
-  void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'debug-session',
-      runId: 'initial',
-      hypothesisId: 'H2',
-      location: 'src/core/agents/utils/detect-corrections.ts:52',
-      message: 'detectAndExtractCorrections trigger',
-      data: {
-        hasPhrase: hasCorrectionPhrase,
-        msgLen: userMessage.length,
-        msgSnippet: userMessage.slice(0, 120),
-        hasCompany: !!currentContext.company?.name,
-        hasPerson: !!currentContext.person?.fullName
-      },
-      timestamp: Date.now()
-    })
-  }).catch(() => {})
-  // #endregion
-
   try {
     const prompt = `You are analyzing a user message to detect if they are correcting information about themselves.
 
@@ -103,26 +81,6 @@ Rules:
       modelId: GEMINI_MODELS.DEFAULT_CHAT,
     })
 
-    // #region agent log
-    void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H2',
-        location: 'src/core/agents/utils/detect-corrections.ts:82',
-        message: 'LLM response meta',
-        data: {
-          hasText: !!response?.text,
-          textLen: response?.text?.length || 0,
-          textSnippet: response?.text?.slice(0, 120) || ''
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-
     if (!response || !response.text) {
       return null
     }
@@ -130,21 +88,6 @@ Rules:
     // Parse JSON response
     const jsonMatch = response.text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-      // #region agent log
-      void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'initial',
-          hypothesisId: 'H2',
-          location: 'src/core/agents/utils/detect-corrections.ts:94',
-          message: 'no JSON match in response',
-          data: { textSnippet: response.text.slice(0, 120) },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
       return null
     }
 
@@ -186,45 +129,8 @@ Rules:
       correction.person.role = parsed.correctedRole
     }
 
-    // #region agent log
-    void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H2',
-        location: 'src/core/agents/utils/detect-corrections.ts:134',
-        message: 'detectAndExtractCorrections parsed',
-        data: {
-          isCorrection: parsed.isCorrection ?? false,
-          confidence: parsed.confidence ?? 0,
-          nameLen: correction.name?.length || 0,
-          companyLen: correction.company?.name?.length || 0,
-          roleLen: correction.role?.length || 0
-        },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
-
     return correction.confidence >= 0.3 ? correction : null
   } catch (error) {
-    // #region agent log
-    void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: 'debug-session',
-        runId: 'initial',
-        hypothesisId: 'H2',
-        location: 'src/core/agents/utils/detect-corrections.ts:142',
-        message: 'detectAndExtractCorrections error',
-        data: { error: error instanceof Error ? error.message : String(error) },
-        timestamp: Date.now()
-      })
-    }).catch(() => {})
-    // #endregion
     console.warn('[detectAndExtractCorrections] Failed to detect corrections', error)
     return null
   }
@@ -238,6 +144,14 @@ export function applyCorrectionsToContext(
   corrections: CorrectionData
 ): IntelligenceContext {
   const updated = { ...context }
+  const hasIdentitySignals = Boolean(
+    corrections.name ||
+      corrections.person?.fullName ||
+      corrections.role ||
+      corrections.person?.role ||
+      corrections.company?.name ||
+      corrections.company?.domain
+  )
 
   if (corrections.name) {
     updated.name = corrections.name
@@ -279,6 +193,9 @@ export function applyCorrectionsToContext(
 
   // Mark as corrected
   updated.lastUpdated = new Date().toISOString()
+  if (hasIdentitySignals) {
+    ;(updated as any).identityConfirmed = true
+  }
 
   return updated
 }

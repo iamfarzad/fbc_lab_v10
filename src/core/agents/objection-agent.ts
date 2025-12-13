@@ -51,27 +51,19 @@ export async function objectionAgent(
   }
 
   // Build rebuttals with context
-  const companySize = intelligenceContext?.company?.employeeCount || 
-    (intelligenceContext?.company?.size === '1-10' ? 5 :
-     intelligenceContext?.company?.size === '11-50' ? 25 :
-     intelligenceContext?.company?.size === '51-200' ? 100 :
-     intelligenceContext?.company?.size === '201-1000' ? 500 :
-     intelligenceContext?.company?.size === '1000+' ? 2000 : 50)
-
-  const budgetMin = intelligenceContext?.budget?.minUsd || 100
   const personRole = intelligenceContext?.person?.role || 'leader'
   const companyIndustry = intelligenceContext?.company?.industry || 'your industry'
 
   const rebuttals: Record<string, string> = {
-    price: `I hear that — most teams assume this will be expensive. But when you factor in the ${companySize}+-person team and the $${budgetMin}K+ you're already spending on tools that aren't moving the needle, our clients see full ROI in under 4 months. Would you be open to seeing a quick breakdown?`,
+    price: `I hear that — cost is a fair concern. The right next step is to quantify the impact in your terms (time saved, avoided hires, reduced cycle time) and then decide if it makes sense. If you're open to it, what does “too expensive” mean for you — and which workflow is the highest-cost pain today?`,
     
-    timing: `Totally fair — timing is everything. The teams that win with AI are the ones who start 3–6 months before they "need" it. If we don't start soon, you're effectively choosing to fall further behind your competitors. When would be the earliest you'd be ready to explore this?`,
+    timing: `Totally fair — timing is everything. We can keep this lightweight: identify one high-leverage workflow, run a small proof in days, and only scale if it works. When would be the earliest window you could review a short plan and decide?`,
     
     authority: `Got it — you're not the final decision maker. Who else needs to be in the room for this conversation? I've helped ${personRole}s like you bring in the right stakeholders — happy to run a 15-minute prep call with them directly.`,
     
     need: `I understand that concern. Based on what you've shared about ${companyIndustry}, I've seen similar companies gain significant advantages by acting early. Would you be open to a quick 60-second analysis of where AI could make the biggest immediate impact for your specific situation?`,
     
-    trust: `Completely understandable. Here's a quick case study from a similar ${companyIndustry} company that was skeptical too — they saw 4.2x ROI in year one. Would you like to speak with their Head of Engineering directly?`,
+    trust: `Completely understandable. The best way to build trust here is to validate with something you can see: a small pilot scoped to one workflow, with clear success criteria and a stop/go decision. What would you need to see to feel confident moving forward?`,
   }
 
   const response = rebuttals[objection.type] || "That's a fair point. Let me make sure I understand your concern correctly..."
@@ -95,10 +87,10 @@ export async function objectionAgent(
     metadata: {
       stage: 'CLOSING',
       currentObjection: objection.type,
+      toolsUsed: [],
     },
   }
   
   if (onDone) onDone(result)
   return result
 }
-

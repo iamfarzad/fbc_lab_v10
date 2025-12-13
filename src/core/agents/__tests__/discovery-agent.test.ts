@@ -46,7 +46,7 @@ vi.mock('@/lib/gemini-safe', () => ({
 }))
 
 vi.mock('@/lib/exit-detection', () => ({
-  detectExitIntent: vi.fn().mockReturnValue(null)
+  detectExitIntent: vi.fn().mockReturnValue('CONTINUE')
 }))
 
 vi.mock('@/core/utils/url-analysis', () => ({
@@ -71,8 +71,10 @@ vi.mock('@/lib/multimodal-helpers', () => ({
 describe('Discovery Agent', () => {
   const sessionId = 'test-discovery-session'
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    const { detectExitIntent } = await import('@/lib/exit-detection')
+    vi.mocked(detectExitIntent).mockReturnValue('CONTINUE')
   })
 
   describe('Core Functionality', () => {

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { AgentContext, ChatMessage } from './types.js';
 import { GEMINI_MODELS, CALENDAR_CONFIG } from '../../config/constants.js';
 import { generateSalesConstraintInstructions } from './utils/context-briefing.js';
+import { extractToolNames } from './utils/agent-tools.js'
 
 // src/core/agents/closer-agent.ts — FINAL UPGRADED VERSION
 // Uses unified tool registry + agent-specific tools
@@ -106,9 +107,10 @@ Respond to the user's last message and close.`;
   };
 
   // Merge unified tools with agent-specific tools
-  const tools = {
+  const tools: any = {
     ...unifiedTools,
-    ...agentTools
+    ...agentTools,
+    googleSearch: {} as any
   };
 
   const modelSettings = buildModelSettings(context, messages, { thinkingLevel: 'high' })
@@ -126,7 +128,7 @@ Respond to the user's last message and close.`;
     model: `${GEMINI_MODELS.DEFAULT_CHAT} → ${GEMINI_MODELS.FALLBACK} (auto-fallback)`,
     metadata: {
       stage: 'CLOSING' as const,
-      toolsUsed: result.toolCalls?.length > 0,
+      toolsUsed: extractToolNames(result.toolCalls),
       multimodalProofUsed: Boolean(multimodalContext?.hasRecentAudio || multimodalContext?.hasRecentImages)
     }
   };

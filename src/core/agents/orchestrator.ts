@@ -16,6 +16,29 @@ import type { AgentResult, AgentContext, ChatMessage } from './types.js'
 import { logger } from '../../lib/logger.js'
 import { agentPersistence } from './agent-persistence.js'
 
+function hasObjectionCue(message: string): boolean {
+  const t = message.toLowerCase()
+  return (
+    t.includes('price') ||
+    t.includes('cost') ||
+    t.includes('budget') ||
+    t.includes('expens') ||
+    t.includes('too much') ||
+    t.includes('not now') ||
+    t.includes('later') ||
+    t.includes('timing') ||
+    t.includes('no time') ||
+    t.includes('need approval') ||
+    t.includes('talk to my') ||
+    t.includes('my boss') ||
+    t.includes('my manager') ||
+    t.includes('not interested') ||
+    t.includes('skeptic') ||
+    t.includes('scam') ||
+    t.includes('trust')
+  )
+}
+
 /**
  * Streaming callbacks interface
  */
@@ -57,32 +80,11 @@ export async function routeToAgent(params: {
 
   const lastMessage = messages[messages.length - 1]?.content || ''
 
-  // #region agent log
-  void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: 'debug-session',
-      runId: 'initial',
-      hypothesisId: 'H1',
-      location: 'src/core/agents/orchestrator.ts:60',
-      message: 'routeToAgent entry',
-      data: {
-        stage: currentStage,
-        trigger: trigger || 'none',
-        lastMsgLen: lastMessage.length,
-        hasIntel: !!intelligenceContext
-      },
-      timestamp: Date.now()
-    })
-  }).catch(() => {})
-  // #endregion
-
   // Will be set after correction detection
   let correctedIntelligenceContext: typeof intelligenceContext = intelligenceContext
 
-  // Generate system prompt supplement from intelligence context (will be updated if corrections detected)
-  const systemPromptSupplement = generateSystemPromptSupplement(intelligenceContext)
+  // Generate system prompt supplement from intelligence context (recomputed if corrections detected)
+  let systemPromptSupplement = generateSystemPromptSupplement(intelligenceContext)
 
   // Helper function to add briefing to context
   // Note: correctedIntelligenceContext is set after correction detection
@@ -90,7 +92,7 @@ export async function routeToAgent(params: {
     ...baseContext,
     systemPromptSupplement,
     sessionId: baseContext.sessionId || sessionId,
-    intelligenceContext: baseContext.intelligenceContext || (correctedIntelligenceContext || intelligenceContext),
+    intelligenceContext: correctedIntelligenceContext || baseContext.intelligenceContext || intelligenceContext,
     multimodalContext: baseContext.multimodalContext || multimodalContext,
     conversationFlow: baseContext.conversationFlow || conversationFlow
   } as AgentContext)
@@ -155,28 +157,6 @@ export async function routeToAgent(params: {
     try {
       const { detectAndExtractCorrections, applyCorrectionsToContext } = await import('./utils/detect-corrections.js')
       const corrections = await detectAndExtractCorrections(lastMessage, intelligenceContext)
-      
-      // #region agent log
-      void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'initial',
-          hypothesisId: 'H2',
-          location: 'src/core/agents/orchestrator.ts:137',
-          message: 'correction detection result',
-          data: {
-            hasCorrections: !!corrections,
-            confidence: corrections?.confidence ?? 0,
-            correctedName: corrections?.name || null,
-            correctedCompany: corrections?.company?.name || null,
-            correctedRole: corrections?.role || corrections?.person?.role || null
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
 
       if (corrections && corrections.confidence >= 0.3) {
         logger.info('[Orchestrator] User correction detected', {
@@ -191,26 +171,7 @@ export async function routeToAgent(params: {
         
         // Apply corrections to context
         correctedIntelligenceContext = applyCorrectionsToContext(intelligenceContext, corrections)
-        
-        // #region agent log
-        void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'debug-session',
-            runId: 'initial',
-            hypothesisId: 'H3',
-            location: 'src/core/agents/orchestrator.ts:151',
-            message: 'context after correction applied',
-            data: {
-              name: correctedIntelligenceContext?.name || null,
-              company: correctedIntelligenceContext?.company?.name || null,
-              role: correctedIntelligenceContext?.role || correctedIntelligenceContext?.person?.role || null
-            },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
+        systemPromptSupplement = generateSystemPromptSupplement(correctedIntelligenceContext)
 
         // Persist corrected context immediately (non-blocking)
         if (sessionId && sessionId !== 'anonymous') {
@@ -227,21 +188,6 @@ export async function routeToAgent(params: {
               { attempts: 1, backoff: 0 }
             )
             logger.debug('[Orchestrator] Corrected intelligence context persisted', { sessionId })
-            // #region agent log
-            void fetch('http://127.0.0.1:7242/ingest/6378de97-2617-4621-b4d2-3d0f07a3e0c3', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                sessionId: 'debug-session',
-                runId: 'initial',
-                hypothesisId: 'H4',
-                location: 'src/core/agents/orchestrator.ts:165',
-                message: 'context persisted',
-                data: { sessionId },
-                timestamp: Date.now()
-              })
-            }).catch(() => {})
-            // #endregion
           } catch (persistErr) {
             logger.warn('[Orchestrator] Failed to persist corrected context', {
               error: persistErr instanceof Error ? persistErr.message : String(persistErr),
@@ -265,15 +211,17 @@ export async function routeToAgent(params: {
   // === OBJECTION OVERRIDE (highest priority) ===
   if (lastMessage) {
     try {
-      const objection = await detectObjection(lastMessage)
-      if (objection.type && objection.confidence > 0.7) {
-        intelligenceContext.currentObjection = objection.type
-        const objectionContext = addBriefingToContext({
-          sessionId,
-          intelligenceContext,
-          multimodalContext
-        })
-        return objectionAgent(messages, objectionContext)
+      if (hasObjectionCue(lastMessage)) {
+        const objection = await detectObjection(lastMessage)
+        if (objection.type && objection.confidence > 0.7) {
+          intelligenceContext.currentObjection = objection.type
+          const objectionContext = addBriefingToContext({
+            sessionId,
+            intelligenceContext,
+            multimodalContext
+          })
+          return objectionAgent(messages, objectionContext)
+        }
       }
     } catch (err) {
       // Non-fatal - continue with normal routing
@@ -406,7 +354,7 @@ export async function routeToAgent(params: {
   }
 
   // === RESPONSE VALIDATION ===
-  const validated = validateAndReturn(result, lastMessage, currentStage, sessionId)
+  const validated = validateAndReturn(result, lastMessage, currentStage, sessionId, correctedIntelligenceContext)
 
   // === NON-BLOCKING PERSISTENCE ===
   try {
@@ -433,14 +381,52 @@ function validateAndReturn(
   result: AgentResult,
   userMessage: string,
   stage: FunnelStage,
-  sessionId: string
+  sessionId: string,
+  intelligenceContext?: any
 ): AgentResult {
   // Extract tools used from metadata (ensure it's an array)
   const rawToolsUsed = result.metadata?.toolsUsed
   const toolsUsed: string[] = Array.isArray(rawToolsUsed) ? rawToolsUsed : []
 
+  const identity: {
+    confirmed: boolean
+    name?: string
+    company?: string
+    role?: string
+  } | undefined =
+    intelligenceContext && typeof intelligenceContext === 'object'
+      ? (() => {
+          const baseIdentity: { confirmed: boolean; name?: string; company?: string; role?: string } = {
+            confirmed: (intelligenceContext as any).identityConfirmed === true
+          }
+          const name =
+            typeof (intelligenceContext as any).name === 'string'
+              ? String((intelligenceContext as any).name)
+              : typeof (intelligenceContext as any)?.person?.fullName === 'string'
+                ? String((intelligenceContext as any).person.fullName)
+                : undefined
+          const company =
+            typeof (intelligenceContext as any)?.company?.name === 'string'
+              ? String((intelligenceContext as any).company.name)
+              : undefined
+          const role =
+            typeof (intelligenceContext as any)?.person?.role === 'string'
+              ? String((intelligenceContext as any).person.role)
+              : typeof (intelligenceContext as any)?.role === 'string'
+                ? String((intelligenceContext as any).role)
+                : undefined
+
+          // Only include properties that are not undefined
+          if (name !== undefined) baseIdentity.name = name
+          if (company !== undefined) baseIdentity.company = company
+          if (role !== undefined) baseIdentity.role = role
+
+          return baseIdentity
+        })()
+      : undefined
+
   // Quick validation for performance
-  const quickCheck = quickValidate(result.output, toolsUsed)
+  const quickCheck = quickValidate(result.output, toolsUsed, identity)
 
   if (quickCheck.hasCriticalIssue) {
     logger.warn('Critical validation issue detected', {
@@ -455,18 +441,36 @@ function validateAndReturn(
       toolsUsed,
       userQuestion: userMessage,
       agentName: result.agent,
-      stage
+      stage,
+      ...(identity ? { identity } : {})
     })
 
     logger.debug(generateValidationReport(fullValidation, {
       toolsUsed,
       userQuestion: userMessage,
       agentName: result.agent,
-      stage
+      stage,
+      ...(identity ? { identity } : {})
     }))
 
-    // Add warning to metadata but don't block response
-    // (Blocking can cause bad UX - better to log and improve prompts)
+    // If a response is critically unsafe (e.g., hallucinated user identity facts), replace it.
+    if (fullValidation.shouldBlock && fullValidation.correctedResponse) {
+      return {
+        ...result,
+        output: fullValidation.correctedResponse,
+        metadata: {
+          ...result.metadata,
+          validationIssues: fullValidation.issues.map(i => ({
+            type: i.type,
+            severity: i.severity
+          })),
+          validationPassed: false,
+          validationBlocked: true
+        }
+      }
+    }
+
+    // Otherwise, add warning metadata and return original output.
     return {
       ...result,
       metadata: {
@@ -573,15 +577,16 @@ export async function routeToAgentStream(
   const { onChunk, onMetadata, onDone, onError } = callbacks
   const lastMessage = messages[messages.length - 1]?.content || ''
 
-  // Generate system prompt supplement from intelligence context
-  const systemPromptSupplement = generateSystemPromptSupplement(intelligenceContext)
+  // Will be updated if we detect user corrections mid-stream.
+  let correctedIntelligenceContext: typeof intelligenceContext = intelligenceContext
+  let systemPromptSupplement = generateSystemPromptSupplement(intelligenceContext)
 
   // Helper function to add briefing to context (for streaming)
   const addBriefingToStreamingContext = (baseContext: Partial<AgentContext>): AgentContext => ({
     ...baseContext,
     systemPromptSupplement,
     sessionId: baseContext.sessionId || sessionId,
-    intelligenceContext: baseContext.intelligenceContext || intelligenceContext,
+    intelligenceContext: correctedIntelligenceContext || baseContext.intelligenceContext || intelligenceContext,
     multimodalContext: baseContext.multimodalContext || multimodalContext,
     conversationFlow: baseContext.conversationFlow || conversationFlow,
     streaming: true,
@@ -590,6 +595,46 @@ export async function routeToAgentStream(
   } as AgentContext)
 
   try {
+    // === CORRECTION DETECTION (streaming) ===
+    if (lastMessage && intelligenceContext) {
+      try {
+        const { detectAndExtractCorrections, applyCorrectionsToContext } = await import('./utils/detect-corrections.js')
+        const corrections = await detectAndExtractCorrections(lastMessage, intelligenceContext)
+        if (corrections && corrections.confidence >= 0.3) {
+          correctedIntelligenceContext = applyCorrectionsToContext(intelligenceContext, corrections)
+          systemPromptSupplement = generateSystemPromptSupplement(correctedIntelligenceContext)
+
+          // Persist corrected context (non-blocking)
+          if (sessionId && sessionId !== 'anonymous') {
+            void (async () => {
+              try {
+                const { ContextStorage } = await import('../context/context-storage.js')
+                const storage = new ContextStorage()
+                await storage.updateWithVersionCheck(
+                  sessionId,
+                  {
+                    intelligence_context: correctedIntelligenceContext as any,
+                    name: correctedIntelligenceContext.name,
+                    role: correctedIntelligenceContext.role || correctedIntelligenceContext.person?.role,
+                  },
+                  { attempts: 1, backoff: 0 }
+                )
+              } catch (persistErr) {
+                logger.debug('[Orchestrator] Failed to persist corrected context (streaming, non-fatal)', {
+                  error: persistErr instanceof Error ? persistErr.message : String(persistErr),
+                  sessionId
+                })
+              }
+            })()
+          }
+        }
+      } catch (err) {
+        logger.debug('[Orchestrator] Correction detection failed (streaming, non-fatal)', {
+          error: err instanceof Error ? err.message : String(err)
+        })
+      }
+    }
+
     // === HIGHEST PRIORITY: BOOKING / EXIT / ADMIN ===
     if (trigger === 'booking') {
       const result = await closerAgent(messages, addBriefingToStreamingContext({ 
@@ -645,17 +690,19 @@ export async function routeToAgentStream(
     // === OBJECTION OVERRIDE (highest priority) ===
     if (lastMessage) {
       try {
-        const objection = await detectObjection(lastMessage)
-        if (objection.type && objection.confidence > 0.7) {
-          intelligenceContext.currentObjection = objection.type
-          const objectionContext = addBriefingToStreamingContext({
-            sessionId,
-            intelligenceContext,
-            multimodalContext
-          })
-          const result = await objectionAgent(messages, objectionContext)
-          onDone(result)
-          return
+        if (hasObjectionCue(lastMessage)) {
+          const objection = await detectObjection(lastMessage)
+          if (objection.type && objection.confidence > 0.7) {
+            intelligenceContext.currentObjection = objection.type
+            const objectionContext = addBriefingToStreamingContext({
+              sessionId,
+              intelligenceContext,
+              multimodalContext
+            })
+            const result = await objectionAgent(messages, objectionContext)
+            onDone(result)
+            return
+          }
         }
       } catch (err) {
         // Non-fatal - continue with normal routing
@@ -782,7 +829,7 @@ export async function routeToAgentStream(
     }
 
     // Validate and return result via onDone callback
-    const validated = validateAndReturn(agentResult, lastMessage, currentStage, sessionId)
+    const validated = validateAndReturn(agentResult, lastMessage, currentStage, sessionId, correctedIntelligenceContext)
     
     // Non-blocking persistence
     try {
