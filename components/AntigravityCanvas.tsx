@@ -1,14 +1,22 @@
 
 import type React from 'react';
-import { useEffect, useRef } from 'react';
-import type { VisualState } from 'types';
+import { useEffect, useRef, useCallback } from 'react';
+import type { VisualState, VisualShape } from 'types';
 import { calculateParticleTarget } from 'utils/visuals/index';
 import type { ParticleContext } from 'utils/visuals/types';
+import { bloomRenderer } from 'utils/visuals/bloomRenderer';
+import { audioWaveformAnalyzer } from 'utils/visuals/audioWaveformAnalyzer';
+import { GestureRecognizer } from 'utils/visuals/gestureRecognizer';
+import { shapeMorpher } from 'utils/visuals/shapeMorpher';
+import { themeManager } from 'utils/visuals/visualThemes';
 import { useTheme } from '../context/ThemeContext';
 import { unifiedContext } from '../services/unifiedContext';
 
 interface AntigravityCanvasProps {
   visualState: VisualState;
+  chatWidth?: number;
+  onShapeChange?: (shape: VisualShape) => void;
+  userProfile?: { name?: string; email?: string } | null;
 }
 
 class Particle {
@@ -48,30 +56,39 @@ class Particle {
   }
 
   update(
-    w: number, 
-    h: number, 
-    mouseX: number, 
-    mouseY: number, 
+    w: number,
+    h: number,
+    mouseX: number,
+    mouseY: number,
     visualState: VisualState,
     smoothedAudio: number,
     time: number,
-    localTime?: string
+    localTime?: string,
+    customTarget?: { tx: number; ty: number; spring: number; friction: number; noise: number; targetAlpha?: number; teleport?: any; scale?: number }
   ) {
-    const context: ParticleContext = {
-        index: this.index,
-        total: this.totalParticles,
-        width: w,
-        height: h,
-        time,
-        audio: smoothedAudio, // Smoothed audio for general reactivity
-        rawAudio: Math.max(visualState.audioLevel || 0, 0), // Raw instantaneous audio (clamped to 0+)
-        mouse: { x: mouseX, y: mouseY },
-        p: { x: this.x, y: this.y, baseAlpha: this.baseAlpha },
-        visualState,
-        ...(localTime !== undefined ? { localTime } : {})
-    };
+    let tx, ty, spring, friction, noise, targetAlpha, teleport, scale;
 
-    const { tx, ty, spring, friction, noise, targetAlpha, teleport, scale } = calculateParticleTarget(visualState.shape, context);
+    if (customTarget) {
+      // Use provided custom target (for morphing)
+      ({ tx, ty, spring, friction, noise, targetAlpha, teleport, scale } = customTarget);
+    } else {
+      // Calculate target normally
+      const context: ParticleContext = {
+          index: this.index,
+          total: this.totalParticles,
+          width: w,
+          height: h,
+          time,
+          audio: smoothedAudio, // Smoothed audio for general reactivity
+          rawAudio: Math.max(visualState.audioLevel || 0, 0), // Raw instantaneous audio (clamped to 0+)
+          mouse: { x: mouseX, y: mouseY },
+          p: { x: this.x, y: this.y, baseAlpha: this.baseAlpha },
+          visualState,
+          ...(localTime !== undefined ? { localTime } : {})
+      };
+
+      ({ tx, ty, spring, friction, noise, targetAlpha, teleport, scale } = calculateParticleTarget(visualState.shape, context));
+    }
 
     this.targetAlpha = targetAlpha ?? this.baseAlpha;
     
@@ -153,22 +170,81 @@ class Particle {
     this.vy *= adjustedFriction;
   }
 
-  draw(ctx: CanvasRenderingContext2D, isDarkMode: boolean) {
+  draw(ctx: CanvasRenderingContext2D, isDarkMode: boolean, _trailsEnabled?: boolean, particleColors?: { primary: string; secondary: string; accent: string }) {
     if (this.rad < 0.05 || this.targetAlpha < 0.05) return;
-    
-    // Use bright particles in dark mode, dark particles in light mode
-    if (isDarkMode) {
-        ctx.fillStyle = `rgba(220, 220, 230, ${this.targetAlpha * 0.8})`;
-    } else {
-        ctx.fillStyle = `rgba(20, 20, 20, ${this.targetAlpha})`;
+
+    // Use custom colors if provided, otherwise default theme-based colors
+    let color = isDarkMode ? 'rgba(220, 220, 230, 0.8)' : 'rgba(20, 20, 20, 1.0)';
+    if (particleColors) {
+      // Use primary color with alpha based on mode
+      const baseColor = particleColors.primary;
+      const alpha = isDarkMode ? this.targetAlpha * 0.8 : this.targetAlpha;
+      color = this.hexToRgba(baseColor, alpha);
     }
-    
-    const d = Math.max(0.8, this.rad * 2); 
+
+    ctx.fillStyle = color;
+
+    const d = Math.max(0.8, this.rad * 2);
     ctx.fillRect(Math.floor(this.x), Math.floor(this.y), d, d);
+  }
+
+  private hexToRgba(hex: string, alpha: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 }
 
-const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) => {
+class ParticleTrail {
+  positions: Array<{x: number, y: number, alpha: number, age: number}> = [];
+  maxLength = 15;
+  decayRate = 0.05;
+
+  constructor(length: number = 15, decay: number = 0.05) {
+    this.maxLength = length;
+    this.decayRate = decay;
+  }
+
+  update(x: number, y: number, alpha: number) {
+    this.positions.unshift({x, y, alpha, age: 0});
+    if (this.positions.length > this.maxLength) {
+      this.positions.pop();
+    }
+    // Age existing positions
+    this.positions.forEach(pos => {
+      pos.age += 1;
+      pos.alpha *= (1 - this.decayRate);
+    });
+  }
+
+  draw(ctx: CanvasRenderingContext2D, isDarkMode: boolean, particleColors?: { primary: string; secondary: string; accent: string }) {
+    this.positions.forEach((pos, i) => {
+      const trailAlpha = pos.alpha * (1 - i/this.maxLength);
+      if (trailAlpha < 0.01) return;
+
+      // Use same color logic as particles
+      let color = isDarkMode ? 'rgba(220, 220, 230, 0.3)' : 'rgba(20, 20, 20, 0.3)';
+      if (particleColors) {
+        const baseColor = particleColors.secondary || particleColors.primary;
+        color = this.hexToRgba(baseColor, trailAlpha * 0.5);
+      }
+
+      ctx.fillStyle = color;
+      const size = Math.max(0.5, 2 - i * 0.1);
+      ctx.fillRect(Math.floor(pos.x), Math.floor(pos.y), size, size);
+    });
+  }
+
+  private hexToRgba(hex: string, alpha: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+}
+
+const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState, chatWidth = 0, onShapeChange, userProfile }) => {
   const { isDarkMode } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const visualStateRef = useRef(visualState);
@@ -177,8 +253,24 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
   const requestRef = useRef<number>(0);
   const mouseRef = useRef({ x: -1000, y: -1000 });
   const particlesRef = useRef<Particle[]>([]);
+  const trailsRef = useRef<Map<number, ParticleTrail>>(new Map());
+  const audioWaveformRef = useRef(audioWaveformAnalyzer);
+  const chatWidthRef = useRef(chatWidth);
+  const resizeCallbackRef = useRef<(() => void) | null>(null);
+  const performanceRef = useRef({ fps: 60, frameCount: 0, lastTime: 0 });
 
-  const buildKeywordPool = (state: VisualState) => {
+  // Gesture recognition
+  const gestureRecognizerRef = useRef<GestureRecognizer | null>(null);
+
+  // Initialize gesture recognizer
+  useEffect(() => {
+    gestureRecognizerRef.current = new GestureRecognizer((shape) => {
+      // Trigger shape change through callback
+      onShapeChange?.(shape);
+    });
+  }, [onShapeChange]);
+
+  const buildKeywordPool = useCallback((state: VisualState) => {
     const snapshot = unifiedContext.getSnapshot();
     const research = snapshot.researchContext;
     const intel = snapshot.intelligenceContext || {};
@@ -232,7 +324,7 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
     if (unique.length > 0) return unique;
     if (state.researchActive) return ['Research', 'Context', 'Signals', 'Leads', 'Trends', 'Insights'];
     return ['Research'];
-  };
+  }, []);
   
   // Clock state
   const currentTimeRef = useRef("");
@@ -243,8 +335,16 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
   }, [isDarkMode]);
 
   useEffect(() => {
+    chatWidthRef.current = chatWidth;
+    // Trigger resize when chat width changes
+    if (resizeCallbackRef.current) {
+      resizeCallbackRef.current();
+    }
+  }, [chatWidth]);
+
+  useEffect(() => {
     visualStateRef.current = visualState;
-    
+
     // Handle Clock Mode
     if (visualState.shape === 'clock') {
          const updateTime = () => {
@@ -259,8 +359,36 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
         if (timerRef.current) clearInterval(timerRef.current);
     }
 
+    // Select theme based on user profile
+    themeManager.selectThemeFromUser(userProfile);
+
+    // Apply theme to visual state
+    const themedVisualState = themeManager.applyToVisualState(visualState);
+
+  // Handle Audio Waveform Connection
+    if (themedVisualState.waveformEnabled && (themedVisualState.shape === 'wave' || themedVisualState.shape === 'scanner')) {
+      // Try to connect to any available audio stream
+      const connectToAudio = async () => {
+        try {
+          // Get audio stream from user media if available
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false
+          });
+          audioWaveformRef.current.connectAudioStream(stream);
+        } catch (error) {
+          console.warn('Could not connect audio waveform analyzer:', error);
+        }
+      };
+
+      connectToAudio();
+    } else {
+      audioWaveformRef.current.disconnectAudioStream();
+    }
+
     return () => {
         if (timerRef.current) clearInterval(timerRef.current);
+        audioWaveformRef.current.disconnectAudioStream();
     };
   }, [visualState]);
 
@@ -270,53 +398,117 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
     const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true }); 
     if (!ctx) return;
 
+    const container = canvas.parentElement;
+    if (!container) return;
+
     const initParticles = () => {
         particlesRef.current = [];
         const baseCount = 4000;
         // Increase particle count based on citation count (more citations = more particles)
         const citationCount = visualStateRef.current.citationCount || 0;
         const citationMultiplier = 1 + (citationCount * 0.1); // 10% more particles per citation, max ~2x
-        const count = Math.floor(baseCount * Math.min(citationMultiplier, 2.0));
+
+        // Adaptive particle count based on performance
+        const performanceMultiplier = Math.min(1.0, performanceRef.current.fps / 50);
+        const count = Math.floor(baseCount * Math.min(citationMultiplier, 2.0) * performanceMultiplier);
         
-        // Use display dimensions (not scaled) for particle initialization
-        const displayWidth = window.innerWidth;
-        const displayHeight = window.innerHeight;
+        // Use current display dimensions for particle initialization
+        const currentWidth = displayWidth;
+        const currentHeight = displayHeight;
         
         for (let i = 0; i < count; i++) {
-            particlesRef.current.push(new Particle(displayWidth, displayHeight, i, count));
+            particlesRef.current.push(new Particle(currentWidth, currentHeight, i, count));
         }
     };
 
-    // Store display dimensions (not scaled)
-    let displayWidth = window.innerWidth;
-    let displayHeight = window.innerHeight;
+    const adjustParticlesToBounds = () => {
+        // Constrain existing particles to visible bounds (left side only)
+        particlesRef.current.forEach(p => {
+            // If particle is outside visible area (right of chat panel), move it to left side
+            if (p.x > displayWidth || p.x < 0 || p.y < 0 || p.y > displayHeight) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * Math.min(displayWidth, displayHeight) * 0.3;
+                p.x = displayWidth / 2 + Math.cos(angle) * dist;
+                // Ensure particle stays within visible bounds
+                p.x = Math.max(0, Math.min(displayWidth, p.x));
+                p.y = displayHeight / 2 + Math.sin(angle) * dist;
+                p.y = Math.max(0, Math.min(displayHeight, p.y));
+                p.vx = 0;
+                p.vy = 0;
+            }
+        });
+    };
+
+    // Store full window dimensions for canvas (always full-screen)
+    let fullWidth = window.innerWidth;
+    let fullHeight = window.innerHeight;
+    
+    // Store visible area dimensions (excludes chat panel)
+    let displayWidth = fullWidth - chatWidthRef.current;
+    let displayHeight = fullHeight;
 
     const resize = () => {
         const dpr = window.devicePixelRatio || 1;
-        displayWidth = window.innerWidth;
-        displayHeight = window.innerHeight;
         
-        // Set actual canvas size in memory (scaled for device pixel ratio)
-        canvas.width = displayWidth * dpr;
-        canvas.height = displayHeight * dpr;
+        // Get full window dimensions
+        fullWidth = window.innerWidth;
+        fullHeight = window.innerHeight;
         
-        // Scale the canvas back down using CSS
-        canvas.style.width = `${displayWidth}px`;
-        canvas.style.height = `${displayHeight}px`;
+        // Calculate visible area (excludes chat) - use ref to get latest value
+        const newDisplayWidth = fullWidth - chatWidthRef.current;
+        const newDisplayHeight = fullHeight;
+        
+        // Canvas matches visible area (not full screen)
+        canvas.width = newDisplayWidth * dpr;
+        canvas.height = newDisplayHeight * dpr;
+        
+        // Canvas CSS matches visible area
+        canvas.style.width = `${newDisplayWidth}px`;
+        canvas.style.height = `${newDisplayHeight}px`;
         
         // Reset transform and scale the drawing context
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.scale(dpr, dpr);
         
-        initParticles();
+        // Update display dimensions for particle constraints
+        const widthChanged = displayWidth !== newDisplayWidth;
+        displayWidth = newDisplayWidth;
+        displayHeight = newDisplayHeight;
+        
+        // Adjust existing particles to new bounds if width changed
+        if (widthChanged && particlesRef.current.length > 0) {
+            adjustParticlesToBounds();
+        } else if (particlesRef.current.length === 0) {
+            initParticles();
+        }
     };
 
+    // Store resize callback so it can be triggered from outside
+    resizeCallbackRef.current = resize;
+
+    // Use ResizeObserver to watch container size changes (handles drag/resize)
+    const resizeObserver = new ResizeObserver(() => {
+        resize();
+    });
+    resizeObserver.observe(container);
+
+    // Also listen to window resize as fallback
     window.addEventListener('resize', resize);
     resize();
 
     const animate = (time: number) => {
-      const baseState = visualStateRef.current;
+      // Performance monitoring
+      performanceRef.current.frameCount++;
+      if (performanceRef.current.frameCount % 60 === 0) {
+        const now = performance.now();
+        const deltaTime = now - performanceRef.current.lastTime;
+        performanceRef.current.fps = 1000 / (deltaTime / 60);
+        performanceRef.current.lastTime = now;
+      }
+
+      const baseState = themeManager.applyToVisualState(visualStateRef.current);
       const darkMode = isDarkModeRef.current;
+      // Use visible area center for calculations
       const cx = displayWidth / 2;
       const cy = displayHeight / 2;
 
@@ -340,13 +532,16 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
       if (renderState.mode === 'speaking') clearOpacity = 0.3; 
       
       // Dynamic background clear for trails
-      // In dark mode, we clear with pure black for maximum contrast
+      // Match App.tsx background exactly: bg-gray-50 (#f9fafb) or bg-black (#000000)
       if (darkMode) {
-          ctx.fillStyle = `rgba(0, 0, 0, ${clearOpacity})`;
+          ctx.fillStyle = `rgba(0, 0, 0, ${clearOpacity})`; // #000000 = bg-black
       } else {
-          ctx.fillStyle = `rgba(248, 249, 250, ${clearOpacity})`;
+          ctx.fillStyle = `rgba(249, 250, 251, ${clearOpacity})`; // #f9fafb = bg-gray-50
       }
       ctx.fillRect(0, 0, displayWidth, displayHeight);
+
+      // Create a snapshot of the current canvas state before bloom
+      const preBloomImageData = ctx.getImageData(0, 0, displayWidth, displayHeight);
 
       // Constellation Lines
       if (renderState.shape === 'constellation') {
@@ -431,18 +626,105 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
       }
 
       particlesRef.current.forEach(p => {
+        // Create particle context
+        const particleCtx: ParticleContext = {
+          index: p.index,
+          total: particlesRef.current.length,
+          width: displayWidth,
+          height: displayHeight,
+          time,
+          audio: smoothedAudioRef.current,
+          rawAudio: Math.max(renderState.audioLevel || 0, 0),
+          mouse: mouseRef.current,
+          p: { x: p.x, y: p.y, baseAlpha: p.baseAlpha },
+          visualState: renderState,
+          localTime: currentTimeRef.current
+        };
+
+        // Get target position - use morphed position if morphing is active
+        let targetResult;
+        if (shapeMorpher.isActive() && renderState.morphingTo) {
+          targetResult = shapeMorpher.getMorphedPosition(particleCtx);
+        } else {
+          targetResult = calculateParticleTarget(renderState.shape, particleCtx);
+        }
+
+        // Update particle with calculated target
         p.update(
-            displayWidth, 
-            displayHeight, 
-            mouseRef.current.x, 
-            mouseRef.current.y, 
-            renderState,
+            displayWidth,
+            displayHeight,
+            mouseRef.current.x,
+            mouseRef.current.y,
+            {
+              ...renderState,
+              shape: renderState.morphingTo || renderState.shape // Use target shape for physics
+            },
             smoothedAudioRef.current,
             time,
-            currentTimeRef.current 
+            currentTimeRef.current,
+            targetResult // Pass custom target if morphed
         );
-        p.draw(ctx, darkMode);
+
+        // Update trails if enabled
+        if (renderState.trailsEnabled) {
+          let trail = trailsRef.current.get(p.index);
+          if (!trail) {
+            trail = new ParticleTrail(15, 0.05);
+            trailsRef.current.set(p.index, trail);
+          }
+          trail.update(p.x, p.y, p.targetAlpha);
+        }
+
+        // Performance optimizations: LOD and culling
+        const distanceFromCenter = Math.sqrt(
+          Math.pow(p.x - displayWidth / 2, 2) +
+          Math.pow(p.y - displayHeight / 2, 2)
+        );
+
+        // Adaptive particle count based on performance
+        const targetFPS = 50;
+        const currentFPS = performanceRef.current.fps;
+        const lodFactor = Math.min(1.0, currentFPS / targetFPS);
+
+        // Distance-based LOD: reduce alpha and skip drawing for distant particles
+        const maxDistance = Math.sqrt(displayWidth * displayWidth + displayHeight * displayHeight) / 2;
+        const distanceFactor = 1 - (distanceFromCenter / maxDistance);
+
+        // Only draw particles that are in the visible area and pass LOD
+        if (p.x >= 0 && p.x <= displayWidth && p.y >= 0 && p.y <= displayHeight &&
+            distanceFactor > 0.1 && lodFactor > 0.3) {
+
+          // Adjust alpha based on distance and performance
+          const originalAlpha = p.targetAlpha;
+          p.targetAlpha *= distanceFactor * lodFactor;
+
+          p.draw(ctx, darkMode, renderState.trailsEnabled, renderState.particleColors);
+
+          // Draw trails if enabled (with LOD)
+          if (renderState.trailsEnabled && distanceFactor > 0.3) {
+            const trail = trailsRef.current.get(p.index);
+            if (trail) {
+              trail.draw(ctx, darkMode, renderState.particleColors);
+            }
+          }
+
+          // Restore original alpha
+          p.targetAlpha = originalAlpha;
+        }
       });
+
+      // Apply bloom effect if enabled
+      if (renderState.bloomEnabled) {
+        bloomRenderer.renderBloom(canvasRef.current!, ctx, {
+          enabled: true,
+          intensity: renderState.bloomIntensity || 1.2,
+          radius: renderState.bloomRadius || 8,
+          threshold: 0.3 // Extract brighter particles for bloom
+        });
+      }
+
+      // Remove unused variable
+      void preBloomImageData;
 
       requestRef.current = requestAnimationFrame(animate);
     };
@@ -450,35 +732,102 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
     requestRef.current = requestAnimationFrame(animate);
 
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(requestRef.current);
     };
-  }, []);
+  }, [buildKeywordPool]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    mouseRef.current = { x: e.clientX, y: e.clientY };
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      mouseRef.current = { x: e.clientX, y: e.clientY };
+
+      // Update gesture recognizer
+      if (gestureRecognizerRef.current) {
+        gestureRecognizerRef.current.onPointerMove(x, y);
+      }
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect && gestureRecognizerRef.current) {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      gestureRecognizerRef.current.onPointerDown(x, y);
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect && gestureRecognizerRef.current) {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      gestureRecognizerRef.current.onPointerUp(x, y);
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length > 0) {
-        const touch = e.touches[0];
-        if (touch) {
-            mouseRef.current = { x: touch.clientX, y: touch.clientY };
+      const touch = e.touches[0];
+      if (touch) {
+        mouseRef.current = { x: touch.clientX, y: touch.clientY };
+
+        // Update gesture recognizer
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect && gestureRecognizerRef.current) {
+          const x = touch.clientX - rect.left;
+          const y = touch.clientY - rect.top;
+          gestureRecognizerRef.current.onPointerMove(x, y);
         }
+      }
     }
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      if (touch) {
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect && gestureRecognizerRef.current) {
+          const x = touch.clientX - rect.left;
+          const y = touch.clientY - rect.top;
+          gestureRecognizerRef.current.onPointerDown(x, y);
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = (_e: React.TouchEvent) => {
+    if (gestureRecognizerRef.current) {
+      // Use the last known position
+      gestureRecognizerRef.current.onPointerUp(mouseRef.current.x, mouseRef.current.y);
+    }
+  };
+
+  // Calculate visible width (excludes chat panel)
+  const visibleWidth = typeof window !== 'undefined' ? window.innerWidth - (chatWidth || 0) : '100%';
+
   return (
-    <div className="fixed top-0 left-0 w-full h-full z-0 pointer-events-auto touch-none">
+    <div 
+        className="fixed top-0 left-0 h-full z-0 pointer-events-auto touch-none overflow-hidden"
+        style={{ 
+            width: `${visibleWidth}px`,
+            backgroundColor: isDarkMode ? '#000000' : '#f9fafb' // Match App.tsx bg-black / bg-gray-50
+        }}
+    >
         <canvas
             ref={canvasRef}
             className="absolute top-0 left-0 w-full h-full"
             onMouseMove={handleMouseMove}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
             onTouchMove={handleTouchMove}
-            onTouchStart={handleTouchMove}
-            onTouchEnd={() => {
-              mouseRef.current = { x: -1000, y: -1000 };
-            }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
             style={{ background: 'transparent' }}
         />
         
@@ -517,7 +866,8 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
             {visualState.sourceCount !== undefined && visualState.sourceCount > 0 && (
                 <div className="absolute top-6 right-6 animate-fade-in-up">
                     <div className={`flex items-center gap-2 backdrop-blur-md px-3 py-1.5 rounded-full border shadow-lg ${isDarkMode ? 'bg-black/60 border-orange-500/30 text-orange-400' : 'bg-white/80 border-orange-300 text-orange-700'}`}>
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-label="Source link">
+                            <title>Source link icon</title>
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                         </svg>
@@ -532,7 +882,8 @@ const AntigravityCanvas: React.FC<AntigravityCanvasProps> = ({ visualState }) =>
             {visualState.reasoningComplexity !== undefined && visualState.reasoningComplexity > 0.3 && (
                 <div className="absolute bottom-6 right-6 animate-fade-in-up">
                     <div className={`flex items-center gap-2 backdrop-blur-md px-3 py-1.5 rounded-full border shadow-lg ${isDarkMode ? 'bg-black/60 border-purple-500/30 text-purple-400' : 'bg-white/80 border-purple-300 text-purple-700'}`}>
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-label="Reasoning complexity">
+                            <title>Reasoning complexity icon</title>
                             <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                         </svg>
                         <span className="text-xs font-semibold">

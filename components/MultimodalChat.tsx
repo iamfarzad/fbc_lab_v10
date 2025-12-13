@@ -12,6 +12,7 @@ import { ResponseTimeBadge } from './chat/MessageMetadata';
 import WebcamPreview from './chat/WebcamPreview';
 import ScreenSharePreview from './chat/ScreenSharePreview';
 import IconButton from './chat/shared/IconButton';
+import { CONTACT_CONFIG } from 'src/config/constants';
 
 interface MultimodalChatProps {
   items: TranscriptItem[];
@@ -50,7 +51,11 @@ interface MultimodalChatProps {
   screenShareError?: string | null;
   // Research
   isResearching?: boolean;
+  // Per-turn thinking (separate from research)
+  isThinking?: boolean;
   reasoning?: string;
+  onWidthChange?: (width: number) => void;
+  onVisibilityChange?: (visible: boolean) => void;
 }
 
 const MultimodalChat: React.FC<MultimodalChatProps> = ({ 
@@ -84,7 +89,10 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     agentMode = 'idle',
     screenShareStream,
     screenShareError,
-    isResearching = false
+    isResearching = false,
+    isThinking = false,
+    onWidthChange,
+    onVisibilityChange
 }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState('');
@@ -280,14 +288,20 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
   };
 
   useEffect(() => {
-      if (isWebcamActive && connectionState === LiveConnectionState.CONNECTED && !systemMessageSentRef.current) {
-          onSendMessage("[System: Webcam video stream started. User is now sharing their camera feed.]");
-          systemMessageSentRef.current = true;
-      }
-      if (!isWebcamActive) {
-          systemMessageSentRef.current = false;
-      }
-  }, [isWebcamActive, connectionState, onSendMessage]);
+      onWidthChange?.(sidebarWidth);
+  }, [sidebarWidth, onWidthChange]);
+
+  useEffect(() => {
+      onVisibilityChange?.(visible);
+  }, [visible, onVisibilityChange]);
+
+  // Note: Do not inject system transcript messages for webcam state.
+  // The app already attaches the latest webcam frame to agent turns when enabled,
+  // and the UI renders the webcam preview separately. Injecting a message causes
+  // unwanted extra agent turns and duplicate "thinking" bubbles.
+  useEffect(() => {
+      if (!isWebcamActive) systemMessageSentRef.current = false;
+  }, [isWebcamActive]);
 
 
   return (
@@ -310,31 +324,34 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
     >
       {/* Drag & Drop Overlay */}
       {isDragging && (
-          <div className="absolute inset-0 z-[100] bg-white/80 dark:bg-black/80 backdrop-blur-xl m-4 rounded-3xl border-2 border-dashed border-blue-400 flex flex-col items-center justify-center pointer-events-none animate-fade-in-up">
-               <div className="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-500 mb-4">
+          <div className="absolute inset-0 z-[100] bg-white/80 dark:bg-black/80 backdrop-blur-xl m-4 rounded-3xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex flex-col items-center justify-center pointer-events-none animate-fade-in-up">
+               <div className="p-6 bg-zinc-100 dark:bg-zinc-900 rounded-full text-zinc-700 dark:text-zinc-200 mb-4">
                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                </div>
-               <h3 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Drop to Analyze</h3>
-               <p className="text-blue-600/60 dark:text-blue-200/60 mt-2">Images, PDFs, and text files supported</p>
+               <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Drop to Analyze</h3>
+               <p className="text-zinc-600/60 dark:text-zinc-300/60 mt-2">Images, PDFs, and text files supported</p>
           </div>
       )}
 
-      {/* Resize Handle (Desktop Only) */}
+      {/* Resize Handle (Desktop Only) - Invisible, only shows on hover */}
       <div 
           onMouseDown={startResizing}
-          className="hidden md:flex items-center justify-center absolute top-0 left-6 -ml-3 w-6 h-full cursor-ew-resize z-50 pointer-events-auto group/handle touch-none"
+          className="hidden md:flex items-center justify-center absolute top-0 left-0 -ml-1.5 w-3 h-full cursor-ew-resize z-50 pointer-events-auto group/handle touch-none"
           title="Drag to resize chat"
       >
-          <div className="w-1 h-full rounded-full transition-all duration-300 bg-transparent group-hover/handle:bg-blue-400/20 group-active/handle:bg-blue-500/40 backdrop-blur-[2px]" />
+          <div className="w-0.5 h-full rounded-full transition-all duration-300 bg-transparent group-hover/handle:bg-zinc-400/30 group-active/handle:bg-zinc-500/50" />
       </div>
 
       <div 
         className={`
-            relative flex flex-col w-full h-full md:h-[calc(100%-3rem)] md:m-6 md:rounded-[32px] overflow-hidden 
-            bg-white dark:bg-black
-            backdrop-blur-xl border border-white/25 dark:border-white/10 md:border md:border-white/25 dark:md:border-white/10 
-            md:shadow-2xl pointer-events-auto transition-colors duration-500
+            relative flex flex-col w-full h-full md:h-[calc(100%-3rem)] md:mt-6 md:mr-6 md:mb-6 md:ml-0 md:rounded-[32px] overflow-hidden 
+            bg-gray-50 dark:bg-black
+            backdrop-blur-xl border-t border-r border-b border-white/25 dark:border-white/10 md:border-t md:border-r md:border-b md:border-white/25 dark:md:border-white/10 
+            pointer-events-auto transition-colors duration-500
         `}
+        style={{
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -374,7 +391,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
           {/* MOBILE DRAG HANDLE */}
           <div 
-             className="w-full flex justify-center pt-3 pb-2 md:hidden cursor-grab active:cursor-grabbing shrink-0 z-50 bg-white dark:bg-black backdrop-blur-md"
+             className={`w-full flex justify-center pt-3 pb-2 md:hidden cursor-grab active:cursor-grabbing shrink-0 z-50 backdrop-blur-md ${isDarkMode ? 'bg-black' : 'bg-gray-50'}`}
              onTouchStart={handleTouchStart}
              onTouchMove={handleTouchMove}
              onTouchEnd={handleTouchEnd}
@@ -383,12 +400,12 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
           </div>
 
           {/* CHAT HEADER */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10 shrink-0 z-10 bg-white dark:bg-black backdrop-blur-md gap-4">
+          <div className={`flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10 shrink-0 z-10 backdrop-blur-md gap-4 ${isDarkMode ? 'bg-black' : 'bg-gray-50'}`}>
               <div className="flex items-center gap-3 min-w-0">
                  {/* Connection Dot & Title */}
                  <div className="flex items-center gap-2.5 whitespace-nowrap">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-500 ${connectionState === LiveConnectionState.CONNECTED ? 'bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
-                    <span className="text-sm font-semibold tracking-wide text-gray-800 dark:text-gray-100 font-mono">
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors duration-500 ${connectionState === LiveConnectionState.CONNECTED ? 'bg-amber-600 animate-pulse shadow-[0_0_8px_rgba(0,0,0,0.25)]' : 'bg-amber-600'}`}></div>
+                    <span className="text-sm font-semibold tracking-wide text-gray-800 dark:text-gray-100 font-mono" style={{ fontFamily: '"Dot Matrix"' }}>
                         F.B/c
                     </span>
                  </div>
@@ -482,7 +499,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
                   {/* Book a Call Button */}
                   <IconButton
-                      onClick={() => window.open('https://cal.com/farzadbayat/30min', '_blank')}
+                      onClick={() => window.open(CONTACT_CONFIG.SCHEDULING.BOOKING_URL, '_blank')}
                       ariaLabel="Book a consultation call"
                   >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -501,6 +518,8 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
 
           <div className={`
                 relative flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8 custom-scrollbar mask-image-gradient
+                text-zinc-900 dark:text-white
+                ${isDarkMode ? 'bg-black' : ''}
                 ${items.length === 0 && !isResearching ? 'flex flex-col justify-center' : ''} 
             `}>
             {(() => {
@@ -532,9 +551,10 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
                       agentMode={agentMode}
                       activeTools={activeTools}
                       isResearching={isResearching}
+                      isThinking={isThinking}
                       onDownloadReport={onDownloadDiscoveryReport}
                       onEmailReport={onEmailDiscoveryReport}
-                      onBookCall={() => window.open('https://cal.com/farzadbayat/30min', '_blank')}
+                      onBookCall={() => window.open(CONTACT_CONFIG.SCHEDULING.BOOKING_URL, '_blank')}
                     />
                     {index === items.length - 1 && item.role === 'model' && item.isFinal && item.processingTime && (
                       <ResponseTimeBadge 
@@ -568,7 +588,7 @@ const MultimodalChat: React.FC<MultimodalChatProps> = ({
             onConnect={onConnect}
             onDisconnect={onDisconnect}
             onStopGeneration={onStopGeneration}
-            isGenerating={items.some(i => !i.isFinal)}
+            isGenerating={isThinking || items.some(i => !i.isFinal)}
           />
       </div>
 

@@ -16,7 +16,7 @@ export const WebPreviewCard: React.FC<{ title: string; url: string; type: 'web' 
             className={`
                 flex flex-col justify-between p-3 rounded-xl border transition-all duration-200 group/card 
                 min-w-[140px] md:min-w-[160px] max-w-[200px] flex-1
-                bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800
+                bg-white dark:bg-black border-zinc-200 dark:border-zinc-800
                 hover:border-zinc-400 dark:hover:border-zinc-600
                 ${className}
             `}
@@ -138,7 +138,7 @@ export const Lightbox: React.FC<{ attachment: any; onClose: () => void }> = ({ a
                         draggable={false}
                     />
                 ) : (
-                    <div className="max-w-3xl w-full max-h-[85vh] bg-[#1e1e1e] rounded-xl overflow-hidden flex flex-col shadow-2xl border border-white/10">
+                    <div className="max-w-3xl w-full max-h-[85vh] bg-black rounded-xl overflow-hidden flex flex-col shadow-2xl border border-white/10">
                          <div className="px-4 py-3 bg-white/5 border-b border-white/5 flex justify-between items-center shrink-0">
                             <div className="flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -146,7 +146,7 @@ export const Lightbox: React.FC<{ attachment: any; onClose: () => void }> = ({ a
                             </div>
                             <span className="text-[10px] font-mono text-white/30 uppercase">{attachment.mimeType}</span>
                          </div>
-                         <div className="flex-1 overflow-auto p-6 custom-scrollbar bg-[#1a1a1a]">
+                         <div className="flex-1 overflow-auto p-6 custom-scrollbar bg-black">
                              <pre className="text-xs md:text-sm font-mono text-gray-300 whitespace-pre-wrap leading-relaxed">
                                  {textContent}
                              </pre>
@@ -175,7 +175,7 @@ export const StagingArea: React.FC<StagingAreaProps> = ({ selectedFile, onRemove
     
     return (
         <div className="w-full animate-fade-in-up">
-             <div className="flex items-center gap-4 p-3 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-xl border border-white/40 dark:border-white/10 shadow-sm ring-1 ring-black/5 mx-auto max-w-full group">
+             <div className="flex items-center gap-4 p-3 bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-xl border border-white/40 dark:border-white/10 shadow-sm ring-1 ring-black/5 mx-auto max-w-full group">
                  {/* Preview Icon/Image */}
                  <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
                      {selectedFile.type === 'image' ? (

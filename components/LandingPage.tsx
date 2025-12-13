@@ -109,7 +109,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
             <header className="fixed top-0 left-0 w-full p-6 md:p-8 flex justify-between items-center z-50 pointer-events-none">
                 <div className="pointer-events-auto flex items-center gap-2 animate-fade-in-up">
                     <div className={`w-8 h-8 flex items-center justify-center rounded-lg font-bold font-matrix text-sm shadow-lg ${isDarkMode ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}`}>FB</div>
-                    <span className={`font-matrix font-semibold tracking-tight backdrop-blur-md px-3 py-1.5 rounded-lg border shadow-sm text-sm transition-colors duration-300 ${isDarkMode ? 'bg-slate-900/60 border-white/10 text-white' : 'bg-white/40 border-white/40 text-slate-900'}`}>F.B/c Consulting</span>
                 </div>
 
                 {/* Desktop Navigation */}
@@ -192,7 +191,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                         </h2>
 
                         <h1 className={`text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[0.95] ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                            <span className="font-matrix">F.B/c</span> <br />
+                            <span className="font-matrix">F.B<span className="text-orange-500">/c</span></span> <br />
                             <span className={`text-transparent bg-clip-text ${isDarkMode ? 'bg-gradient-to-b from-slate-200 to-slate-500' : 'bg-gradient-to-b from-slate-800 to-slate-500'}`}>
                                 Consulting
                             </span>
@@ -279,10 +278,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
                             </div>
                             <h2 className={`text-4xl md:text-6xl font-bold tracking-tight leading-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                                 MEET THE <br />
-                                <span className="font-matrix text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-blue-500">F.B/c AGENT</span>
+                                <span className="font-matrix">
+                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-blue-500">F.B</span>
+                                    <span className="text-orange-500">/c</span>
+                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-blue-500"> AGENT</span>
+                                </span>
                             </h2>
                             <p className={`text-lg font-light leading-relaxed max-w-lg ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                                Experience F.B/c&apos;s custom-built autonomous research agent. Capable of deep &quot;System 2&quot; reasoning, real-time multimodal interaction, and live web research.
+                                Experience F.B<span className="text-orange-500">/c</span>&apos;s custom-built autonomous research agent. Capable of deep &quot;System 2&quot; reasoning, real-time multimodal interaction, and live web research.
                             </p>
                             <p className={`text-xs font-medium italic ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
                                 * Hover over the cards below to visualize capabilities
@@ -813,7 +816,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartChat, onSectionChange,
 
                 {/* Bottom Bar */}
                 <div className={`max-w-6xl mx-auto pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4 text-xs ${isDarkMode ? 'border-white/10 text-slate-500' : 'border-slate-200/50 text-slate-500'}`}>
-                    <span>© 2024 F.B/c AI Consultant. All rights reserved.</span>
+                    <span>© 2024 F.B<span className="text-orange-500">/c</span> AI Consultant. All rights reserved.</span>
                     <div className="flex gap-6 items-center">
                         <a href="#" className={`hover:transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-slate-900'}`}>Privacy Policy</a>
                         <a href="#" className={`hover:transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-slate-900'}`}>Terms of Service</a>

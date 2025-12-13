@@ -6,6 +6,7 @@ import { StagingArea } from './Attachments';
 import FileUpload from './FileUpload';
 import { Mic, Camera, CameraOff, Monitor, MonitorOff, Paperclip, X, ArrowUp, AudioLines } from 'lucide-react';
 import IconButton from './shared/IconButton';
+import { useTheme } from '../../context/ThemeContext';
 
 interface ChatInputDockProps {
     inputValue: string;
@@ -42,6 +43,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
     onStopGeneration,
     isGenerating = false
 }) => {
+    const { isDarkMode } = useTheme();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     
@@ -198,14 +200,14 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
             <div 
                 className="w-full transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) ease-out overflow-visible opacity-100"
             >
-                <div className="
-                    w-full
-                    bg-white dark:bg-black
-                    backdrop-blur-xl border-t border-white/20 dark:border-white/10
-                    p-4 pb-[env(safe-area-inset-bottom,24px)] md:pb-6
-                    md:rounded-b-[32px]
-                    shadow-[0_-4px_20px_rgba(0,0,0,0.1)]
-                ">
+	                <div className={`
+	                    w-full
+	                    ${isDarkMode ? 'bg-black' : 'bg-gray-50'}
+	                    backdrop-blur-xl border-t ${isDarkMode ? 'border-white/10' : 'border-white/20'}
+	                    p-4 pb-[env(safe-area-inset-bottom,24px)] md:pb-6
+	                    md:rounded-b-[32px]
+	                    shadow-[0_-4px_20px_rgba(0,0,0,0.1)]
+	                `}>
                     <div className="relative w-full mb-4">
                         <StagingArea 
                             selectedFile={selectedFile}
@@ -216,22 +218,26 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                     {/* Advanced Upload Dropzone */}
                     {showUpload && !selectedFile && (
                         <div className="mb-4 animate-fade-in-up">
-                            <FileUpload 
-                                onFilesSelected={(files) => {
-                                    if (files[0]) processFile(files[0]);
-                                    setShowUpload(false);
-                                }}
-                                maxFiles={1}
-                                className="bg-gray-50/50 dark:bg-black backdrop-blur-sm"
-                            />
-                        </div>
-                    )}
+	                            <FileUpload 
+	                                onFilesSelected={(files) => {
+	                                    if (files[0]) processFile(files[0]);
+	                                    setShowUpload(false);
+	                                }}
+	                                maxFiles={1}
+	                                className={`${isDarkMode ? 'bg-black/50' : 'bg-gray-50/50'} backdrop-blur-sm`}
+	                            />
+	                        </div>
+	                    )}
 
-                    <div className="relative flex flex-col gap-2 bg-gray-50/80 dark:bg-black backdrop-blur-xl border border-gray-100 dark:border-white/10 p-2 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] ring-1 ring-black/5 dark:ring-white/5 transition-all focus-within:ring-black/10 dark:focus-within:ring-white/20 focus-within:bg-white dark:focus-within:bg-black">
+	                    <div className={`relative flex flex-col gap-2 backdrop-blur-xl border p-2 rounded-[28px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] ring-1 transition-all ${
+	                        isDarkMode
+	                            ? 'bg-black/80 border-white/10 ring-white/5 focus-within:ring-white/20 focus-within:bg-black'
+	                            : 'bg-gray-50/80 border-gray-100 ring-black/5 focus-within:ring-black/10 focus-within:bg-white'
+	                    }`}>
                         
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*,application/pdf,text/plain,text/csv,application/json" onChange={handleFileSelect} />
 
-                        <div className="relative flex items-start gap-2">
+                        <div className="relative flex items-start gap-2" style={{ fontFamily: '"Dot Matrix"' }}>
                             <textarea 
                                 data-testid="chat-input-textarea"
                                 ref={textareaRef}
@@ -242,6 +248,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                 placeholder="Message F.B/c..."
                                 autoFocus
                                 className="flex-1 max-h-48 min-h-[50px] py-3.5 px-4 bg-transparent text-[15px] text-gray-900 dark:text-gray-100 font-normal placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none resize-none custom-scrollbar leading-relaxed"
+                                style={{ fontFamily: '"Dot Matrix"' }}
                                 rows={1}
                             />
                             
@@ -299,7 +306,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                 <button
                                     onClick={() => onWebcamChange(!isWebcamActive)}
                                     aria-label={isWebcamActive ? "Turn off camera" : "Turn on camera"}
-                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-300 ${isWebcamActive ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
+                                    className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-300 ${isWebcamActive ? 'bg-zinc-200 dark:bg-white/20 text-black dark:text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
                                 >
                                     {isWebcamActive ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
                                 </button>
@@ -313,7 +320,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                         aria-label={isScreenShareActive ? "Stop screen sharing" : "Start screen sharing"}
                                         className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors duration-300 ${
                                             isScreenShareActive
-                                                ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-600'
+                                                ? 'bg-zinc-200 dark:bg-white/20 text-black dark:text-white'
                                                 : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'
                                         } ${isScreenShareInitializing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
@@ -328,10 +335,10 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                     onClick={handleVoiceToggle}
                                     className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${
                                         isConnected 
-                                            ? 'bg-orange-500 text-white shadow-[0_0_10px_rgba(249,115,22,0.4)]' 
+                                            ? 'bg-black dark:bg-white text-white dark:text-black shadow-[0_0_10px_rgba(0,0,0,0.2)]' 
                                             : isConnecting
-                                                ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-500 animate-pulse'
-                                                : 'text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600'
+                                                ? 'bg-zinc-200 dark:bg-white/10 text-zinc-500 dark:text-zinc-300 animate-pulse'
+                                                : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'
                                     } hover:scale-105 active:scale-95`
                                     }
                                 >
@@ -354,7 +361,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                     <button
                                         onClick={onStopGeneration}
                                         aria-label="Stop AI response generation"
-                                        className="w-9 h-9 flex items-center justify-center rounded-full bg-black dark:bg-white text-white dark:text-black shadow-md hover:scale-105 active:scale-95 transition-all duration-300"
+                                        className="w-9 h-9 flex items-center justify-center rounded-full bg-black dark:bg-black text-white dark:text-white shadow-md hover:scale-105 active:scale-95 transition-all duration-300"
                                     >
                                         <div className="w-3 h-3 bg-current rounded-sm" />
                                     </button>
@@ -367,7 +374,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                         aria-label="Send message"
                                         className={`w-9 h-9 flex items-center justify-center rounded-full shadow-md transition-all duration-300 transform active:scale-95 ${
                                             inputValue.trim() || selectedFile
-                                                ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200'
+                                                ? 'bg-black dark:bg-black text-white dark:text-white hover:bg-zinc-800 dark:hover:bg-zinc-800'
                                                 : 'bg-zinc-200 dark:bg-white/10 text-zinc-400 dark:text-white/20 cursor-not-allowed'
                                         }`}
                                     >
@@ -388,13 +395,13 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
             >
                 <div className="flex items-center gap-3 w-full max-w-[500px] mx-auto">
                     
-                    <div className="flex-1 h-[60px] bg-white/90 dark:bg-black backdrop-blur-2xl border border-white/25 dark:border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 ring-black/5 dark:ring-white/5 flex items-center p-1.5 gap-2 transition-transform hover:scale-[1.01]">
+                    <div className={`flex-1 h-[60px] backdrop-blur-2xl border rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.08)] ring-1 flex items-center p-1.5 gap-2 transition-transform hover:scale-[1.01] ${isDarkMode ? 'bg-black/90 border-white/10 ring-white/5' : 'bg-white/90 border-white/25 ring-black/5'}`}>
                         
                         <Tooltip text={isWebcamActive ? "Close Camera" : "Open Camera"}>
                             <button 
                                 onClick={() => onWebcamChange(!isWebcamActive)}
                                 className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${
-                                    isWebcamActive ? 'bg-black/5 dark:bg-white/10 text-blue-500' : 'bg-transparent text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'
+                                    isWebcamActive ? 'bg-black/5 dark:bg-white/10 text-black dark:text-white' : 'bg-transparent text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'
                                 }`}
                             >
                                 {isWebcamActive ? <Camera className="w-5 h-5" strokeWidth={1.5} /> : <CameraOff className="w-5 h-5" strokeWidth={1.5} />}
@@ -416,10 +423,10 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                 className={`
                                     relative w-12 h-12 flex items-center justify-center rounded-full transition-all duration-500
                                     ${isConnected 
-                                        ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)] animate-pop-in' 
+                                        ? 'bg-black dark:bg-white text-white dark:text-black shadow-[0_0_15px_rgba(0,0,0,0.2)] animate-pop-in' 
                                         : isConnecting
-                                            ? 'bg-orange-100 text-orange-400 animate-pulse'
-                                            : 'bg-transparent text-zinc-500 dark:text-zinc-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600'
+                                            ? 'bg-zinc-200 dark:bg-white/10 text-zinc-500 dark:text-zinc-300 animate-pulse'
+                                            : 'bg-transparent text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-black dark:hover:text-white'
                                     }
                                 `}
                             >
@@ -434,7 +441,7 @@ const ChatInputDock: React.FC<ChatInputDockProps> = ({
                                 )}
                                 
                                 {isConnecting && (
-                                    <div className="absolute inset-0 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="absolute inset-0 border-2 border-zinc-400 dark:border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
                                 )}
                             </button>
                         </Tooltip>
