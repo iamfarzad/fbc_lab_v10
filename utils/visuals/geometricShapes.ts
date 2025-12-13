@@ -3,6 +3,7 @@
 
 import { ParticleContext, ShapeResult } from './types';
 import { cx, cy, PHYSICS } from './mathHelpers';
+import { audioWaveformAnalyzer } from './audioWaveformAnalyzer';
 
 // 5x5 Bitmap Font for A-Z, 0-9, and symbols
 // 1 = Particle, 0 = Empty
@@ -1238,6 +1239,511 @@ export const GeometricShapes = {
       friction: PHYSICS.StandardFriction,
       noise: 0.015,
       targetAlpha
+    };
+  },
+
+  // Audio waveform visualizations
+  oscilloscope(ctx: ParticleContext): ShapeResult {
+    const { index, total, width, height } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const waveformData = audioWaveformAnalyzer.getWaveformData();
+    if (waveformData.length === 0) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    // Map particle to waveform sample
+    const sampleIndex = Math.floor((index / total) * waveformData.length);
+    const sample = waveformData[sampleIndex] || 0;
+
+    // Create horizontal oscilloscope display
+    const x = (sampleIndex / waveformData.length) * width;
+    const y = centerY + sample * height * 0.3; // Amplify vertical scale
+
+    // Calculate velocity for trail effects
+    const prevSample = waveformData[Math.max(0, sampleIndex - 1)] || 0;
+    const velocity = Math.abs(sample - prevSample);
+
+    return {
+      tx: x,
+      ty: y,
+      spring: 0.95, // Very responsive
+      friction: 0.9,
+      noise: 0.005,
+      targetAlpha: 0.8 + velocity * 0.2, // Brightness based on signal change
+      scale: 1 + velocity * 2 // Size based on velocity
+    };
+  },
+
+  spectrum(ctx: ParticleContext): ShapeResult {
+    const { index, total, height } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const frequencyData = audioWaveformAnalyzer.getFrequencyData();
+    if (frequencyData.length === 0) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    // Map particle to frequency bin
+    const binIndex = Math.floor((index / total) * frequencyData.length);
+    const magnitude = frequencyData[binIndex] || 0;
+
+    // Create vertical spectrum analyzer bars
+    const barWidth = ctx.width / frequencyData.length;
+    const x = binIndex * barWidth + barWidth / 2;
+    const barHeight = magnitude * height * 0.8;
+    const y = centerY + height * 0.4 - barHeight;
+
+    return {
+      tx: x,
+      ty: y,
+      spring: 0.8,
+      friction: 0.85,
+      noise: 0.01,
+      targetAlpha: magnitude,
+      scale: 1 + magnitude * 0.5
+    };
+  },
+
+  // Tool calling visualizations
+  toolCall(ctx: ParticleContext): ShapeResult {
+    const { index, total, time, visualState } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const toolData = visualState.toolCallData;
+    if (!toolData) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    // Progress-based ring animation
+    const progress = toolData.progress || 0;
+    const angle = (index / total) * Math.PI * 2;
+    const ringRadius = 120 + Math.sin(time * 0.003) * 10;
+
+    // Only show particles up to progress point
+    const progressAngle = progress * Math.PI * 2;
+    if (angle > progressAngle) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    return {
+      tx: centerX + Math.cos(angle) * ringRadius,
+      ty: centerY + Math.sin(angle) * ringRadius,
+      spring: 0.1,
+      friction: 0.95,
+      noise: 0.01,
+      targetAlpha: 0.8 + Math.sin(time * 0.005 + index * 0.1) * 0.2
+    };
+  },
+
+  functionPulse(ctx: ParticleContext): ShapeResult {
+    const { index, total, time, visualState } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const toolData = visualState.toolCallData;
+    if (!toolData || toolData.state !== 'running') {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    // Pulsing function execution indicator
+    const pulse = Math.sin(time * 0.01) * 0.5 + 0.5;
+    const radius = 80 + pulse * 40;
+    const angle = (index / total) * Math.PI * 2;
+
+    return {
+      tx: centerX + Math.cos(angle) * radius,
+      ty: centerY + Math.sin(angle) * radius,
+      spring: 0.15,
+      friction: 0.9,
+      noise: 0.02,
+      targetAlpha: pulse * 0.8
+    };
+  },
+
+  // Research activity visualizations
+  dataFlow(ctx: ParticleContext): ShapeResult {
+    const { index, total, time, width, visualState } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const researchData = visualState.researchData;
+    if (!researchData) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    // Flowing data streams
+    const streamCount = researchData.activeQueries || 1;
+    const streamIndex = index % streamCount;
+    Math.floor(total / streamCount); // Calculate but don't use for now
+    const particleInStream = Math.floor(index / streamCount);
+
+    const streamY = (streamIndex / streamCount) * ctx.height;
+    const flowSpeed = 2 + (researchData.intensity || 0) * 3;
+    const x = (time * flowSpeed + particleInStream * 20) % (width + 100) - 50;
+
+    return {
+      tx: x,
+      ty: streamY + Math.sin(x * 0.01 + time * 0.002) * 30,
+      spring: 0.05,
+      friction: 0.95,
+      noise: 0.01,
+      targetAlpha: 0.7,
+      scale: 1 + (researchData.intensity || 0) * 0.5
+    };
+  },
+
+  insightBurst(ctx: ParticleContext): ShapeResult {
+    const { index, total, time, visualState } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const researchData = visualState.researchData;
+    if (!researchData?.insightFound) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    // Burst effect when research yields results
+    const burstAge = time - researchData.insightFound;
+    const maxAge = 2000; // 2 seconds
+
+    if (burstAge > maxAge) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    const progress = burstAge / maxAge;
+    const angle = (index / total) * Math.PI * 2;
+    const radius = progress * 200;
+
+    return {
+      tx: centerX + Math.cos(angle) * radius,
+      ty: centerY + Math.sin(angle) * radius,
+      spring: 0.2,
+      friction: 0.8,
+      noise: 0.05,
+      targetAlpha: (1 - progress) * 0.9
+    };
+  },
+
+  // Context-driven visualizations
+  solarSystem(ctx: ParticleContext): ShapeResult {
+    const { index, time, visualState } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const solarData = visualState.solarSystemData || {};
+    const planets = [
+      { name: 'mercury', distance: 60, size: 3, speed: 4.15, color: '#8C7853' },
+      { name: 'venus', distance: 80, size: 4, speed: 1.62, color: '#FFC649' },
+      { name: 'earth', distance: 100, size: 4, speed: 1.00, color: '#6B93D6' },
+      { name: 'mars', distance: 130, size: 3.5, speed: 0.53, color: '#C1440E' },
+      { name: 'jupiter', distance: 180, size: 12, speed: 0.084, color: '#D8CA9D' },
+      { name: 'saturn', distance: 220, size: 10, speed: 0.034, color: '#FAD5A5' },
+      { name: 'uranus', distance: 260, size: 6, speed: 0.012, color: '#4FD0E7' },
+      { name: 'neptune', distance: 300, size: 6, speed: 0.006, color: '#4B70DD' }
+    ];
+
+    // Sun at center
+    if (index === 0) {
+      return {
+        tx: centerX,
+        ty: centerY,
+        spring: PHYSICS.StandardSpring,
+        friction: PHYSICS.StandardFriction,
+        noise: 0.02,
+        targetAlpha: 1.0,
+        scale: 8
+      };
+    }
+
+    const planetIndex = index - 1;
+    if (planetIndex < planets.length) {
+      const planet = planets[planetIndex];
+      if (!planet) {
+        return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+      }
+      const angle = time * planet.speed * 0.01;
+      const distance = solarData.scale === 'educational' ?
+        planet.distance * 0.7 : planet.distance;
+
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
+
+      // Highlight focused planet
+      const isFocused = solarData.focusPlanet === planet.name;
+      const alpha = isFocused ? 1.0 : 0.7;
+
+      return {
+        tx: centerX + x,
+        ty: centerY + y,
+        spring: PHYSICS.StandardSpring,
+        friction: PHYSICS.StandardFriction,
+        noise: 0.01,
+        targetAlpha: alpha,
+        scale: planet.size
+      };
+    }
+
+    // Orbital paths
+    if (solarData.showOrbits && planetIndex < planets.length) {
+      const planet = planets[planetIndex];
+      if (!planet) {
+        return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+      }
+      const pointOnOrbit = (index - planets.length - 1) % 20;
+      const angle = (pointOnOrbit / 20) * Math.PI * 2;
+      const distance = solarData.scale === 'educational' ?
+        planet.distance * 0.7 : planet.distance;
+
+      return {
+        tx: centerX + Math.cos(angle) * distance,
+        ty: centerY + Math.sin(angle) * distance,
+        spring: PHYSICS.StandardSpring,
+        friction: PHYSICS.StandardFriction,
+        noise: 0.005,
+        targetAlpha: 0.3
+      };
+    }
+
+    return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+  },
+
+  network(ctx: ParticleContext): ShapeResult {
+    const { index, visualState } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const networkData = visualState.networkData;
+    if (!networkData || networkData.nodes.length === 0) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    const { nodes, connections, layout } = networkData;
+
+    if (index < nodes.length) {
+      // Node positions
+      const nodeIndex = index;
+      const angle = (nodeIndex / nodes.length) * Math.PI * 2;
+      let radius = 150;
+
+      if (layout === 'circular') {
+        radius = 120;
+      } else if (layout === 'hierarchical') {
+        // Simple hierarchical layout
+        const level = Math.floor(nodeIndex / 3);
+        radius = 80 + level * 40;
+      }
+
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+
+      return {
+        tx: centerX + x,
+        ty: centerY + y,
+        spring: PHYSICS.StandardSpring,
+        friction: PHYSICS.StandardFriction,
+        noise: 0.01,
+        targetAlpha: 0.8,
+        scale: 1.5
+      };
+    }
+
+    // Connection lines
+    const connectionIndex = index - nodes.length;
+    if (connectionIndex < connections.length * 5) {
+      const connection = connections[Math.floor(connectionIndex / 5)];
+      if (!connection) {
+        return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+      }
+      const progress = (connectionIndex % 5) / 4;
+
+      const fromNode = nodes.indexOf(connection.from);
+      const toNode = nodes.indexOf(connection.to);
+
+      if (fromNode >= 0 && toNode >= 0) {
+        const fromAngle = (fromNode / nodes.length) * Math.PI * 2;
+        const toAngle = (toNode / nodes.length) * Math.PI * 2;
+
+        const fromX = Math.cos(fromAngle) * 120;
+        const fromY = Math.sin(fromAngle) * 120;
+        const toX = Math.cos(toAngle) * 120;
+        const toY = Math.sin(toAngle) * 120;
+
+        const x = fromX + (toX - fromX) * progress;
+        const y = fromY + (toY - fromY) * progress;
+
+        return {
+          tx: centerX + x,
+          ty: centerY + y,
+          spring: PHYSICS.StandardSpring,
+          friction: PHYSICS.StandardFriction,
+          noise: 0.005,
+          targetAlpha: connection.strength * 0.5
+        };
+      }
+    }
+
+    return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+  },
+
+  molecule(ctx: ParticleContext): ShapeResult {
+    const { index, total, visualState } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const moleculeData = visualState.moleculeData;
+    if (!moleculeData) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    // Simple molecular structures
+    if (moleculeData.formula === 'H2O') {
+      // Water molecule
+      if (index === 0) {
+        // Oxygen
+        return {
+          tx: centerX,
+          ty: centerY,
+          spring: PHYSICS.StandardSpring,
+          friction: PHYSICS.StandardFriction,
+          noise: 0.01,
+          targetAlpha: 1.0,
+          scale: 3
+        };
+      } else if (index < 3) {
+        // Hydrogen atoms
+        const angle = (index - 1) * Math.PI * 0.6 + Math.PI * 0.7;
+        const distance = 30;
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+
+        return {
+          tx: centerX + x,
+          ty: centerY + y,
+          spring: PHYSICS.StandardSpring,
+          friction: PHYSICS.StandardFriction,
+          noise: 0.01,
+          targetAlpha: 0.8,
+          scale: 1.5
+        };
+      } else if (index < 5) {
+        // Bonds
+        const bondIndex = index - 3;
+        const angle = bondIndex * Math.PI * 0.6 + Math.PI * 0.7;
+        const distance = 15;
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+
+        return {
+          tx: centerX + x,
+          ty: centerY + y,
+          spring: PHYSICS.StandardSpring,
+          friction: PHYSICS.StandardFriction,
+          noise: 0.005,
+          targetAlpha: 0.6
+        };
+      }
+    } else if (moleculeData.formula === 'CO2') {
+      // Carbon dioxide
+      if (index === 0 || index === 3) {
+        // Oxygen atoms
+        const side = index === 0 ? -1 : 1;
+        return {
+          tx: centerX + side * 40,
+          ty: centerY,
+          spring: PHYSICS.StandardSpring,
+          friction: PHYSICS.StandardFriction,
+          noise: 0.01,
+          targetAlpha: 0.9,
+          scale: 2.5
+        };
+      } else if (index === 1) {
+        // Carbon
+        return {
+          tx: centerX,
+          ty: centerY,
+          spring: PHYSICS.StandardSpring,
+          friction: PHYSICS.StandardFriction,
+          noise: 0.01,
+          targetAlpha: 1.0,
+          scale: 2
+        };
+      } else if (index === 2 || index === 4) {
+        // Bonds
+        const side = index === 2 ? -1 : 1;
+        const x = side * 20;
+        return {
+          tx: centerX + x,
+          ty: centerY,
+          spring: PHYSICS.StandardSpring,
+          friction: PHYSICS.StandardFriction,
+          noise: 0.005,
+          targetAlpha: 0.7
+        };
+      }
+    }
+
+    // Default molecular structure (simple ring or chain)
+    const angle = (index / total) * Math.PI * 2;
+    const radius = moleculeData.structure === 'space-filling' ? 80 : 60;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+
+    return {
+      tx: centerX + x,
+      ty: centerY + y,
+      spring: PHYSICS.StandardSpring,
+      friction: PHYSICS.StandardFriction,
+      noise: 0.01,
+      targetAlpha: 0.8,
+      scale: moleculeData.structure === 'space-filling' ? 2 : 1
+    };
+  },
+
+  mathGraph(ctx: ParticleContext): ShapeResult {
+    const { index, total, visualState } = ctx;
+    const centerX = cx(ctx);
+    const centerY = cy(ctx);
+
+    const mathData = visualState.mathData;
+    if (!mathData) {
+      return { tx: centerX, ty: centerY, spring: 0, friction: 0, noise: 0, targetAlpha: 0 };
+    }
+
+    // Simple function plotting
+    const domain = mathData.domain || [-10, 10];
+    const domainWidth = domain[1] - domain[0];
+
+    const x = domain[0] + (index / total) * domainWidth;
+    let y = 0;
+
+    // Simple function evaluation (for demo)
+    if (mathData.equation?.includes('sin')) {
+      y = Math.sin(x) * 2;
+    } else if (mathData.equation?.includes('cos')) {
+      y = Math.cos(x) * 2;
+    } else if (mathData.equation?.includes('x^2')) {
+      y = x * x * 0.1;
+    } else {
+      y = Math.sin(x * 0.5) + Math.cos(x * 0.3);
+    }
+
+    // Scale to screen coordinates
+    const screenX = centerX + (x / domainWidth) * 200;
+    const range = mathData.range || [-10, 10];
+    const rangeHeight = range[1] - range[0];
+    const screenY = centerY - (y / rangeHeight) * 100;
+
+    return {
+      tx: screenX,
+      ty: screenY,
+      spring: PHYSICS.StandardSpring,
+      friction: PHYSICS.StandardFriction,
+      noise: 0.005,
+      targetAlpha: 0.9
     };
   }
 };

@@ -108,22 +108,22 @@ export function CalendarWidget({
       {/* Main Card with F.B/c Design */}
       <div className="relative bg-white/70 dark:bg-black/50 backdrop-blur-2xl border border-white/60 dark:border-white/10 rounded-3xl overflow-hidden shadow-2xl ring-1 ring-black/5">
         {/* Header with F.B/c Branding */}
-        <div className="px-6 py-5 bg-gradient-to-r from-orange-500/20 via-blue-500/20 to-orange-500/20 border-b border-white/20 dark:border-white/5 relative overflow-hidden">
+        <div className="px-6 py-5 bg-gradient-to-r from-zinc-100/60 via-white/40 to-zinc-100/60 dark:from-white/5 dark:via-white/0 dark:to-white/5 border-b border-white/20 dark:border-white/5 relative overflow-hidden">
           {/* Subtle animated particle dots */}
           <div className="absolute inset-0 opacity-40">
-            <div className="absolute top-3 left-6 w-1 h-1 rounded-full bg-orange-400 animate-pulse"></div>
-            <div className="absolute top-7 right-10 w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-            <div className="absolute bottom-4 left-14 w-1 h-1 rounded-full bg-orange-300 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-            <div className="absolute bottom-6 right-6 w-1 h-1 rounded-full bg-blue-300 animate-pulse" style={{ animationDelay: '0.7s' }}></div>
+            <div className="absolute top-3 left-6 w-1 h-1 rounded-full bg-zinc-400 dark:bg-white/40 animate-pulse"></div>
+            <div className="absolute top-7 right-10 w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-white/30 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+            <div className="absolute bottom-4 left-14 w-1 h-1 rounded-full bg-zinc-300 dark:bg-white/30 animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+            <div className="absolute bottom-6 right-6 w-1 h-1 rounded-full bg-zinc-400 dark:bg-white/40 animate-pulse" style={{ animationDelay: '0.7s' }}></div>
           </div>
 
           <div className="relative flex items-start gap-4">
             {/* F.B/c Logo Badge */}
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-orange-400 via-blue-500 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-lg relative overflow-hidden">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-zinc-900 via-zinc-700 to-zinc-900 dark:from-white dark:via-zinc-200 dark:to-white flex items-center justify-center text-white dark:text-black font-bold text-xs shadow-lg relative overflow-hidden">
                 <span className="relative z-10 font-matrix tracking-tight">F.B/c</span>
                 {/* Animated shimmer overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse opacity-50"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse opacity-50"></div>
               </div>
             </div>
 

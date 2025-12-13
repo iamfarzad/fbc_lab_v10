@@ -1,5 +1,5 @@
 
-import { VisualState } from '../../types.ts';
+import { VisualState } from '../../types';
 
 /**
  * Context passed to every particle update function.

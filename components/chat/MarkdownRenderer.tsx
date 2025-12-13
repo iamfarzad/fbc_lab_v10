@@ -14,14 +14,78 @@ const isCalComUrl = (url: string): boolean => {
     }
 };
 
-const formatInline = (text: string, isDarkMode: boolean = false, depth: number = 0): React.ReactNode[] => {
+const CITE_MARKER_RE = /\[\[CITE:([0-9,]+)\]\]/g;
+
+const formatInline = (
+    text: string,
+    isDarkMode: boolean = false,
+    depth: number = 0,
+    options?: { onOpenDetails?: (section?: 'sources' | 'tools' | 'reasoning' | 'context') => void }
+): React.ReactNode[] => {
     // Prevent infinite recursion
     if (depth > 10) return [text];
     
+    // Render inline citation markers as superscript numbers.
+    const markerParts: React.ReactNode[] = [];
+    let markerLastIndex = 0;
+    for (const match of text.matchAll(CITE_MARKER_RE)) {
+        const idx = match.index ?? 0;
+        const before = text.slice(markerLastIndex, idx);
+        if (before) {
+            markerParts.push(...formatInline(before, isDarkMode, depth + 1, options));
+        }
+
+        const rawNums = match[1] || '';
+        const nums = rawNums
+            .split(',')
+            .map((n) => parseInt(n, 10))
+            .filter((n) => Number.isFinite(n) && n > 0);
+
+        if (nums.length > 0) {
+            markerParts.push(
+                <sup key={`cite-${depth}-${idx}`} className="ml-0.5 align-super">
+                    {nums.map((n, i) => (
+                        <button
+                            key={`cite-btn-${depth}-${idx}-${n}`}
+                            type="button"
+                            onClick={() => options?.onOpenDetails?.('sources')}
+                            className={`text-[10px] font-mono underline-offset-2 hover:underline ${
+                                isDarkMode ? 'text-zinc-300' : 'text-zinc-600'
+                            }`}
+                            aria-label={`Open sources for citation ${n}`}
+                        >
+                            {n}
+                            {i < nums.length - 1 ? ',' : ''}
+                        </button>
+                    ))}
+                </sup>
+            );
+        }
+
+        markerLastIndex = idx + match[0].length;
+    }
+
+    if (markerLastIndex > 0) {
+        const rest = text.slice(markerLastIndex);
+        if (rest) {
+            markerParts.push(...formatInline(rest, isDarkMode, depth + 1, options));
+        }
+        return markerParts;
+    }
+
     const codeParts = text.split(/(`.*?`)/g);
     return codeParts.flatMap<React.ReactNode>((part, i) => {
         if (part.startsWith('`') && part.endsWith('`')) {
-            return <code key={i} className="bg-black/5 px-1 py-0.5 rounded text-xs font-mono">{part.slice(1,-1)}</code>;
+            return (
+                <code 
+                    key={i} 
+                    className={`px-1 py-0.5 rounded text-xs font-mono ${
+                        isDarkMode ? 'bg-white/10 text-zinc-200' : 'bg-black/5 text-zinc-900'
+                    }`}
+                >
+                    {part.slice(1,-1)}
+                </code>
+            );
         }
         
         // First, handle markdown links [text](url)
@@ -49,7 +113,7 @@ const formatInline = (text: string, isDarkMode: boolean = false, depth: number =
                         href={linkMatch[2]} 
                         target="_blank" 
                         rel="noopener noreferrer" 
-                        className="text-orange-600 hover:underline hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 font-medium"
+                        className="text-zinc-700 dark:text-zinc-200 hover:underline font-medium"
                     >
                         {linkMatch[1]}
                     </a>
@@ -71,7 +135,7 @@ const formatInline = (text: string, isDarkMode: boolean = false, depth: number =
                     if (urlIndex > lastIndex) {
                         const beforeText = subPart.substring(lastIndex, urlIndex);
                         if (beforeText) {
-                            segments.push(...formatInline(beforeText, isDarkMode, depth + 1));
+                            segments.push(...formatInline(beforeText, isDarkMode, depth + 1, options));
                         }
                     }
                     
@@ -93,7 +157,7 @@ const formatInline = (text: string, isDarkMode: boolean = false, depth: number =
                 if (lastIndex < subPart.length) {
                     const afterText = subPart.substring(lastIndex);
                     if (afterText) {
-                        segments.push(...formatInline(afterText, isDarkMode, depth + 1));
+                        segments.push(...formatInline(afterText, isDarkMode, depth + 1, options));
                     }
                 }
                 
@@ -127,20 +191,79 @@ interface MarkdownRendererProps {
     content: string;
     isUser: boolean;
     isDarkMode?: boolean;
+    groundingMetadata?: import('types').GroundingMetadata;
+    onOpenDetails?: (section?: 'sources' | 'tools' | 'reasoning' | 'context') => void;
 }
 
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser, isDarkMode = false }) => {
-    const lines = content.split('\n');
+function injectInlineCitations(content: string, groundingMetadata?: import('types').GroundingMetadata): string {
+    const supports = groundingMetadata?.groundingSupports;
+    const chunks = groundingMetadata?.groundingChunks;
+    if (!supports || supports.length === 0 || !chunks || chunks.length === 0) return content;
+
+    // Map chunk index -> visible citation number (only chunks with a usable URI).
+    const chunkIndexToCitationNum = new Map<number, number>();
+    let nextNum = 1;
+    chunks.forEach((c: any, idx: number) => {
+        const uri = c?.web?.uri || c?.maps?.uri;
+        if (typeof uri === 'string' && uri.trim()) {
+            chunkIndexToCitationNum.set(idx, nextNum++);
+        }
+    });
+    if (chunkIndexToCitationNum.size === 0) return content;
+
+    const byIndex = new Map<number, Set<number>>();
+    for (const s of supports) {
+        const endIndex = s?.segment?.endIndex;
+        if (typeof endIndex !== 'number' || !Number.isFinite(endIndex)) continue;
+        if (endIndex < 0 || endIndex > content.length) continue;
+
+        const nums = (s?.groundingChunkIndices || [])
+            .map((i) => chunkIndexToCitationNum.get(i))
+            .filter((n): n is number => typeof n === 'number' && n > 0);
+        if (nums.length === 0) continue;
+
+        const set = byIndex.get(endIndex) ?? new Set<number>();
+        nums.forEach((n) => set.add(n));
+        byIndex.set(endIndex, set);
+    }
+    if (byIndex.size === 0) return content;
+
+    const insertions = Array.from(byIndex.entries())
+        .map(([at, set]) => ({
+            at,
+            marker: `[[CITE:${Array.from(set).sort((a, b) => a - b).join(',')}]]`
+        }))
+        .sort((a, b) => b.at - a.at);
+
+    let out = content;
+    for (const ins of insertions) {
+        out = out.slice(0, ins.at) + ins.marker + out.slice(ins.at);
+    }
+    return out;
+}
+
+const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser, isDarkMode = false, groundingMetadata, onOpenDetails }) => {
+    const enhancedContent = injectInlineCitations(content, groundingMetadata);
+    const lines = enhancedContent.split('\n');
     const elements: React.ReactNode[] = [];
     let listBuffer: React.ReactNode[] = [];
     let codeBlockBuffer: string[] | null = null;
     let codeLanguage = "";
     let tableBuffer: string[] = [];
 
+    const inlineOptions = onOpenDetails ? { onOpenDetails } : undefined;
+
     const flushList = () => {
         if (listBuffer.length > 0) {
             elements.push(
-                <ul key={`list-${elements.length}`} className={`list-disc ml-5 mb-3 space-y-1.5 ${isUser ? 'marker:text-white/60' : 'marker:text-black/40'}`}>
+                <ul 
+                    key={`list-${elements.length}`} 
+                    className={`list-disc ml-5 mb-3 space-y-1.5 ${
+                        isUser 
+                            ? (isDarkMode ? 'marker:text-white/60' : 'marker:text-black/40') 
+                            : (isDarkMode ? 'marker:text-white/40' : 'marker:text-black/40')
+                    }`}
+                >
                     {...listBuffer}
                 </ul>
             );
@@ -207,24 +330,44 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser, is
 
         if (trimmed.startsWith('### ')) {
             flushList();
-            elements.push(<h3 key={i} className={`text-sm font-bold mt-5 mb-2 uppercase tracking-wider ${isUser ? 'text-white' : 'text-orange-700'}`}>{formatInline(trimmed.slice(4), isDarkMode)}</h3>);
+            elements.push(
+                <h3 key={i} className={`text-sm font-bold mt-5 mb-2 uppercase tracking-wider ${isUser ? 'text-white' : 'text-current'}`}>
+                    {formatInline(trimmed.slice(4), isDarkMode, 0, inlineOptions)}
+                </h3>
+            );
         } else if (trimmed.startsWith('## ')) {
             flushList();
-            elements.push(<h2 key={i} className="text-base font-bold mt-6 mb-3 tracking-tight">{formatInline(trimmed.slice(3), isDarkMode)}</h2>);
+            elements.push(
+                <h2 key={i} className="text-base font-bold mt-6 mb-3 tracking-tight">
+                    {formatInline(trimmed.slice(3), isDarkMode, 0, inlineOptions)}
+                </h2>
+            );
         } 
         else if (trimmed.match(/^[*-]\s+(.*)/)) {
              const match = trimmed.match(/^[*-]\s+(.*)/);
              if (match && match[1]) {
-                 listBuffer.push(<li key={`li-${i}`} className="pl-1 leading-relaxed">{formatInline(match[1], isDarkMode)}</li>);
+                 listBuffer.push(
+                     <li key={`li-${i}`} className="pl-1 leading-relaxed">
+                         {formatInline(match[1], isDarkMode, 0, inlineOptions)}
+                     </li>
+                 );
              }
         }
         else if (trimmed.startsWith('> ')) {
             flushList();
-            elements.push(<blockquote key={i} className="border-l-2 border-orange-500/30 pl-3 italic opacity-80 my-3">{formatInline(trimmed.slice(2), isDarkMode)}</blockquote>);
+            elements.push(
+                <blockquote key={i} className="border-l-2 border-zinc-300/60 dark:border-zinc-700/60 pl-3 italic opacity-80 my-3">
+                    {formatInline(trimmed.slice(2), isDarkMode, 0, inlineOptions)}
+                </blockquote>
+            );
         }
         else if (trimmed.length > 0) {
             flushList();
-            elements.push(<p key={i} className="mb-2.5 last:mb-0 min-h-[1em] leading-relaxed">{formatInline(line, isDarkMode)}</p>);
+            elements.push(
+                <p key={i} className="mb-2.5 last:mb-0 min-h-[1em] leading-relaxed">
+                    {formatInline(line, isDarkMode, 0, inlineOptions)}
+                </p>
+            );
         }
     });
     

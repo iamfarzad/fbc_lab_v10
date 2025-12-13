@@ -2,7 +2,7 @@
 import { ParticleContext, ShapeResult } from './types';
 import { FaceLandmarkStore } from './store';
 import { cx, cy, PHYSICS, latLngToVector3 } from './mathHelpers';
-import { calculatePixelText } from './geometricShapes.ts';
+import { calculatePixelText } from './geometricShapes';
 
 // 64x32 Bitmask of Earth's Continents (1 = Land, 0 = Water)
 // Equirectangular Projection approximation

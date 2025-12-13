@@ -9,6 +9,7 @@ interface TermsOverlayProps {
     voice: boolean;
     webcam: boolean;
     location: boolean;
+    research: boolean;
   }) => void;
   onCancel: () => void;
 }
@@ -27,7 +28,8 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
   const [permissions, setPermissions] = useState({
     voice: true,
     webcam: false,
-    location: false
+    location: false,
+    research: false
   });
 
   // Generic email providers to trigger progressive disclosure
@@ -132,7 +134,10 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
         
         {/* Header - Minimal */}
         <div className="flex flex-col gap-3 mb-6 text-center">
-            <div className={`w-10 h-10 mx-auto flex items-center justify-center rounded-lg font-bold font-mono text-xs ${isDarkMode ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}`}>
+            <div 
+                className={`w-10 h-10 mx-auto flex items-center justify-center rounded-lg font-bold font-mono text-xs ${isDarkMode ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}`}
+                style={{ fontFamily: '"Dot Matrix"' }}
+            >
                 FB
             </div>
             <h2 className="text-xl font-semibold tracking-tight">Concierge Access</h2>
@@ -265,6 +270,29 @@ const TermsOverlay: React.FC<TermsOverlayProps> = ({ onComplete, onCancel }) => 
                             type="checkbox"
                             checked={permissions.webcam}
                             onChange={(e) => setPermissions(prev => ({ ...prev, webcam: e.target.checked }))}
+                            className="sr-only"
+                        />
+                    </label>
+
+                    {/* Research Toggle */}
+                    <label className="flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all hover:bg-white/5">
+                        <div className="flex items-center gap-3">
+                            <svg className={`w-4 h-4 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                            <div>
+                                <div className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Research</div>
+                                <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Enrich via public sources</div>
+                            </div>
+                        </div>
+                        <div className={`relative w-10 h-5 rounded-full transition-colors ${permissions.research ? (isDarkMode ? 'bg-orange-500' : 'bg-orange-500') : (isDarkMode ? 'bg-white/10' : 'bg-slate-300')}`}>
+                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${permissions.research ? 'translate-x-5' : 'translate-x-0'}`} />
+                        </div>
+                        <input
+                            type="checkbox"
+                            checked={permissions.research}
+                            onChange={(e) => setPermissions(prev => ({ ...prev, research: e.target.checked }))}
                             className="sr-only"
                         />
                     </label>

@@ -55,7 +55,7 @@ export const Shimmer: React.FC<{ mode?: 'idle' | 'listening' | 'thinking' | 'spe
   }
 
   return (
-    <div className="w-full max-w-[240px] p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 flex flex-col gap-3 mt-2 border border-zinc-200 dark:border-zinc-800 shadow-sm animate-pulse">
+    <div className="w-full max-w-[240px] p-4 rounded-2xl bg-zinc-50 dark:bg-black flex flex-col gap-3 mt-2 border border-zinc-200 dark:border-zinc-800 shadow-sm animate-pulse">
       <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-ping"></div>
           <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 dark:text-zinc-600 font-medium">{label}</span>

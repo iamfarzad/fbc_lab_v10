@@ -2,10 +2,10 @@
 
 
 import { ParticleContext, ShapeResult } from './types';
-import { GeometricShapes } from './geometricShapes.ts';
-import { CosmicShapes } from './cosmicShapes.ts';
-import { ComplexShapes } from './complexShapes.ts';
-import { AgentShapes } from './agentShapes.ts';
+import { GeometricShapes } from './geometricShapes';
+import { CosmicShapes } from './cosmicShapes';
+import { ComplexShapes } from './complexShapes';
+import { AgentShapes } from './agentShapes';
 import { VisualShape } from 'types';
 
 /**
@@ -39,6 +39,12 @@ export function calculateParticleTarget(
         case 'fireworks': return GeometricShapes.fireworks(ctx);
         case 'lightning': return GeometricShapes.lightning(ctx);
         case 'flower': return GeometricShapes.flower(ctx);
+        case 'oscilloscope': return GeometricShapes.oscilloscope(ctx);
+        case 'spectrum': return GeometricShapes.spectrum(ctx);
+        case 'toolCall': return GeometricShapes.toolCall(ctx);
+        case 'functionPulse': return GeometricShapes.functionPulse(ctx);
+        case 'dataFlow': return GeometricShapes.dataFlow(ctx);
+        case 'insightBurst': return GeometricShapes.insightBurst(ctx);
 
         // Organic / Nature
         case 'wave': return GeometricShapes.wave(ctx);
@@ -70,6 +76,12 @@ export function calculateParticleTarget(
         case 'proposal': return AgentShapes.proposal(ctx);
         case 'admin': return AgentShapes.admin(ctx);
         case 'retargeting': return AgentShapes.retargeting(ctx);
+
+        // Context-driven shapes
+        case 'solarSystem': return GeometricShapes.solarSystem(ctx);
+        case 'network': return GeometricShapes.network(ctx);
+        case 'molecule': return GeometricShapes.molecule(ctx);
+        case 'mathGraph': return GeometricShapes.mathGraph(ctx);
 
         default: return GeometricShapes.orb(ctx);
     }
