@@ -47,6 +47,7 @@ export class GeminiLiveService {
   private inputSource: MediaStreamAudioSourceNode | null = null;
   private processor: ScriptProcessorNode | AudioWorkletNode | null = null;
   private outputNode: GainNode | null = null;
+  private outputMuted = false;
 
   // Analysers for real-time visuals
   private inputAnalyser: AnalyserNode | null = null;
@@ -192,7 +193,7 @@ export class GeminiLiveService {
 
       // Setup event listeners for Fly.io server events
       this.liveClient.on('connected', (connectionId) => {
-        logger.debug('[GeminiLiveService] ✅ WebSocket CONNECTED to server', { 
+        logger.debug('[GeminiLiveService] WebSocket connected to server', { 
           connectionId,
           timestamp: new Date().toISOString()
         });
@@ -205,7 +206,10 @@ export class GeminiLiveService {
         // Pass full user context including name, email, and location for personalization
         try {
           const userContext: { name?: string; email?: string } = {};
-          if (rc?.person?.fullName) {
+          const confirmedName = typeof (ic as any)?.name === 'string' ? String((ic as any).name).trim() : '';
+          if (confirmedName) {
+            userContext.name = confirmedName;
+          } else if (rc?.person?.fullName) {
             userContext.name = rc.person.fullName;
           }
           // Email might be in intelligenceContext.email (from lead research) or passed directly
@@ -267,7 +271,7 @@ export class GeminiLiveService {
       });
 
       this.liveClient.on('session_started', (payload) => {
-        logger.debug('[GeminiLiveService] ✅ SESSION STARTED', { 
+        logger.debug('[GeminiLiveService] Session started', { 
           payload,
           timestamp: new Date().toISOString()
         });
@@ -293,42 +297,26 @@ export class GeminiLiveService {
         }, 200); // 200ms delay to ensure backend session is registered
         
         this.config.onStateChange('CONNECTED');
-        logger.debug('[GeminiLiveService] ✅ State changed to CONNECTED');
+        logger.debug('[GeminiLiveService] State changed to CONNECTED');
       });
 
       this.liveClient.on('input_transcript', (text, isFinal) => {
-        console.log('🔵 [GeminiLiveService] INPUT_TRANSCRIPT EVENT RECEIVED', { 
-          text: text?.substring(0, 100), 
-          isFinal, 
-          hasCallback: !!this.config.onTranscript,
-          fullLength: text?.length 
-        });
         logger.debug('[GeminiLiveService] Received input_transcript', { text, isFinal, hasCallback: !!this.config.onTranscript });
         // onTranscript callback updates React state, which syncs to unifiedContext via useChatSession
         if (this.config.onTranscript) {
-          console.log('🔵 [GeminiLiveService] Calling onTranscript callback for INPUT', { text: text?.substring(0, 50) });
           this.config.onTranscript(text, true, isFinal);
         } else {
-          console.error('🔴 [GeminiLiveService] onTranscript callback NOT SET for input!');
           logger.warn('[GeminiLiveService] onTranscript callback not set!');
         }
         // Removed duplicate unifiedContext.addTranscriptItem() - handled by handleTranscriptUpdate
       });
 
       this.liveClient.on('output_transcript', (text, isFinal) => {
-        console.log('🟢 [GeminiLiveService] OUTPUT_TRANSCRIPT EVENT RECEIVED', { 
-          text: text?.substring(0, 100), 
-          isFinal, 
-          hasCallback: !!this.config.onTranscript,
-          fullLength: text?.length 
-        });
         logger.debug('[GeminiLiveService] Received output_transcript', { text, isFinal, hasCallback: !!this.config.onTranscript });
         // onTranscript callback updates React state, which syncs to unifiedContext via useChatSession
         if (this.config.onTranscript) {
-          console.log('🟢 [GeminiLiveService] Calling onTranscript callback for OUTPUT', { text: text?.substring(0, 50) });
           this.config.onTranscript(text, false, isFinal);
         } else {
-          console.error('🔴 [GeminiLiveService] onTranscript callback NOT SET for output!');
           logger.warn('[GeminiLiveService] onTranscript callback not set!');
         }
         // Removed duplicate unifiedContext.addTranscriptItem() - handled by handleTranscriptUpdate
@@ -343,6 +331,10 @@ export class GeminiLiveService {
       // NEW: Listen for stage updates to trigger agent-specific animations
       this.liveClient.on('stage_update', (payload: any) => {
         logger.debug('[GeminiLiveService] Stage update from server:', payload as Record<string, unknown>);
+        // Persist flow updates so text agents and UI stay in sync
+        if (payload?.flow) {
+          unifiedContext.setConversationFlow(payload.flow);
+        }
         // Forward agent metadata to transcript handler for shape changes
         if (this.config.onTranscript && payload) {
           const agentMetadata = {
@@ -581,7 +573,30 @@ export class GeminiLiveService {
     });
   }
 
+  /**
+   * Mute/unmute Live model audio output. Useful when routing responses through agents + local TTS.
+   */
+  public setOutputMuted(muted: boolean) {
+    this.outputMuted = muted;
+    if (this.outputNode) {
+      this.outputNode.gain.value = muted ? 0 : 1;
+    }
+  }
+
   public sendRealtimeMedia(media: { mimeType: string; data: string }) {
+    const mimeType = media.mimeType || ''
+    const isSupported =
+      mimeType.startsWith('image/') ||
+      mimeType.startsWith('audio/') ||
+      mimeType.startsWith('video/') ||
+      mimeType.includes('pcm') ||
+      mimeType.includes('rate=')
+
+    if (!isSupported) {
+      logger.warn('[GeminiLiveService] Realtime media blocked: unsupported mimeType', { mimeType })
+      return
+    }
+
     // CRITICAL FIX: Allow queuing even if not fully connected (client exists = connection in progress)
     // Only require liveClient to exist - if it exists, we can queue frames
     if (!this.liveClient) {
@@ -722,7 +737,7 @@ export class GeminiLiveService {
       
       const sendBatch = () => {
         if (batchIndex >= framesToSend.length) {
-          logger.debug(`[GeminiLiveService] ✅ Flushed all ${framesToSend.length} queued frames (unified multimodal stream)`);
+          logger.debug(`[GeminiLiveService] Flushed all ${framesToSend.length} queued frames (unified multimodal stream)`);
           return;
         }
         
@@ -742,7 +757,7 @@ export class GeminiLiveService {
         if (batchIndex < framesToSend.length) {
           setTimeout(sendBatch, 50);
         } else {
-          logger.debug(`[GeminiLiveService] ✅ Flushed all ${framesToSend.length} queued frames (unified multimodal stream)`);
+          logger.debug(`[GeminiLiveService] Flushed all ${framesToSend.length} queued frames (unified multimodal stream)`);
         }
       };
       
@@ -837,6 +852,7 @@ export class GeminiLiveService {
   // Audio playback
   private playAudio(audioData: string, _mimeType: string) {
     if (!this.outputAudioContext || !this.outputNode) return;
+    if (this.outputMuted) return;
 
     try {
       // Decode base64 audio data
@@ -860,6 +876,11 @@ export class GeminiLiveService {
 
   // Visual analysis
   private startAnalysisLoop() {
+    const raf = (cb: FrameRequestCallback) => {
+      if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(cb);
+      return setTimeout(() => cb(Date.now()), 16) as unknown as number;
+    };
+
     const analyze = () => {
       // Continue analysis even if not fully connected (for visual feedback during connection)
       // Only stop if explicitly disconnected
@@ -869,7 +890,7 @@ export class GeminiLiveService {
 
       // Input analysis
       let inputVolume = 0;
-      if (this.inputAnalyser) {
+      if (this.inputAnalyser && typeof this.inputAnalyser.getByteFrequencyData === 'function') {
         const dataArray = new Uint8Array(this.inputAnalyser.frequencyBinCount);
         this.inputAnalyser.getByteFrequencyData(dataArray);
         // Calculate RMS (Root Mean Square) for more accurate volume representation
@@ -879,7 +900,7 @@ export class GeminiLiveService {
 
       // Output analysis
       let outputVolume = 0;
-      if (this.outputAnalyser) {
+      if (this.outputAnalyser && typeof this.outputAnalyser.getByteFrequencyData === 'function') {
         const dataArray = new Uint8Array(this.outputAnalyser.frequencyBinCount);
         this.outputAnalyser.getByteFrequencyData(dataArray);
         // Calculate RMS for output as well
@@ -892,15 +913,19 @@ export class GeminiLiveService {
         this.config.onVolumeChange(inputVolume, outputVolume);
       }
       
-      this.analysisFrameId = requestAnimationFrame(analyze);
+      this.analysisFrameId = raf(analyze);
     };
 
-    this.analysisFrameId = requestAnimationFrame(analyze);
+    this.analysisFrameId = raf(analyze);
   }
 
   private stopAnalysisLoop() {
     if (this.analysisFrameId !== null) {
-      cancelAnimationFrame(this.analysisFrameId);
+      if (typeof cancelAnimationFrame === 'function') {
+        cancelAnimationFrame(this.analysisFrameId);
+      } else {
+        clearTimeout(this.analysisFrameId as unknown as ReturnType<typeof setTimeout>);
+      }
       this.analysisFrameId = null;
     }
   }

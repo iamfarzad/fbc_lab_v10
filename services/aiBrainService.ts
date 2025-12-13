@@ -77,6 +77,28 @@ export class AIBrainService {
         return 'http://localhost:3002';
     }
 
+    private normalizeIntelligenceContextForApi(input: any): any | undefined {
+        if (!input || typeof input !== 'object') return undefined;
+        const email =
+            typeof input.email === 'string' && input.email.trim() ? input.email.trim() : undefined;
+        const nameRaw =
+            typeof input.name === 'string' && input.name.trim() ? input.name.trim() : undefined;
+        const nameFromPerson =
+            typeof input.person?.fullName === 'string' && input.person.fullName.trim()
+                ? input.person.fullName.trim()
+                : undefined;
+        const name = nameRaw || nameFromPerson;
+
+        if (!email && !name) return undefined;
+
+        // Keep original object (it may include budget/timeline/etc), but ensure `name` is present if derivable.
+        return {
+            ...input,
+            ...(email ? { email } : {}),
+            ...(name ? { name } : {})
+        };
+    }
+
     /**
      * Sends a message to the server-side AI Brain API.
      * This API orchestrates the multi-agent system.
@@ -241,12 +263,13 @@ export class AIBrainService {
         try {
             // const snapshot = unifiedContext.getSnapshot(); // Not used
             const url = `${this.baseUrl}/api/chat`;
+            const intelligenceContext = this.normalizeIntelligenceContextForApi(options?.intelligenceContext);
 
             const payload = {
                 messages,
                 sessionId: this.sessionId,
                 ...(options?.conversationFlow && { conversationFlow: options.conversationFlow }),
-                ...(options?.intelligenceContext && { intelligenceContext: options.intelligenceContext })
+                ...(intelligenceContext ? { intelligenceContext } : {})
             };
 
             const response = await fetch(url, {
@@ -352,13 +375,14 @@ export class AIBrainService {
     ): Promise<AgentResponse> {
         try {
             const url = `${this.baseUrl}/api/chat`;
+            const intelligenceContext = this.normalizeIntelligenceContextForApi(options?.intelligenceContext);
 
             const payload = {
                 messages,
                 sessionId: this.sessionId,
                 stream: true, // Enable streaming
                 ...(options?.conversationFlow && { conversationFlow: options.conversationFlow }),
-                ...(options?.intelligenceContext && { intelligenceContext: options.intelligenceContext })
+                ...(intelligenceContext ? { intelligenceContext } : {})
             };
 
             const response = await fetch(url, {
@@ -467,8 +491,10 @@ export class AIBrainService {
                                         }
                                     }
 
-                                    // Handle metadata events (tool calls, reasoning, thinking)
-                                    if (parsed.type === 'meta') {
+                                    // Handle metadata events (tool calls, reasoning, thinking, status)
+                                    // Server may emit many event types (tool_call, tool_result, reasoning, status, etc.).
+                                    // Treat anything that's not content/done as metadata for UI.
+                                    if (parsed.type && parsed.type !== 'content' && parsed.type !== 'done') {
                                         metadataCount++;
                                         console.log('[AIBrainService] Received metadata event', { 
                                             metadataCount,
@@ -479,14 +505,7 @@ export class AIBrainService {
                                         
                                         // Call onMetadata callback immediately for UI updates
                                         if (options?.onMetadata) {
-                                            const metadata: { type: string; toolCall?: any; reasoning?: string; message?: string; [key: string]: any } = {
-                                                type: parsed.type || 'meta',
-                                                ...parsed
-                                            };
-                                            if (parsed.toolCall) metadata.toolCall = parsed.toolCall;
-                                            if (parsed.reasoning) metadata.reasoning = parsed.reasoning;
-                                            if (parsed.message) metadata.message = parsed.message;
-                                            options.onMetadata(metadata);
+                                            options.onMetadata({ ...parsed, type: parsed.type });
                                         }
                                         
                                         // Also accumulate them in metadata for final result
@@ -507,6 +526,13 @@ export class AIBrainService {
                                             }
                                             (finalResult.metadata.tools as any[]).push(parsed.toolCall);
                                         }
+                                        if (parsed.toolResult) {
+                                            if (!finalResult.metadata) finalResult.metadata = {};
+                                            if (!Array.isArray(finalResult.metadata.tools)) {
+                                                finalResult.metadata.tools = [];
+                                            }
+                                            (finalResult.metadata.tools as any[]).push(parsed.toolResult);
+                                        }
                                         if (parsed.reasoning) {
                                             if (!finalResult.metadata) finalResult.metadata = {};
                                             finalResult.metadata.reasoning = parsed.reasoning;
@@ -520,12 +546,24 @@ export class AIBrainService {
                                             finalLength: accumulatedContent.length,
                                             agent: parsed.agent
                                         });
+                                        // Allow the server to override the final output (e.g., post-validation correction).
+                                        const finalOutput =
+                                            typeof (parsed as any).output === 'string' && (parsed as any).output.trim()
+                                                ? String((parsed as any).output)
+                                                : accumulatedContent;
+                                        if (finalOutput !== accumulatedContent) {
+                                            accumulatedContent = finalOutput;
+                                            options?.onChunk?.(finalOutput);
+                                        }
                                         finalResult = {
                                             success: true,
-                                            output: accumulatedContent,
+                                            output: finalOutput,
                                             agent: parsed.agent || 'Unknown',
                                             model: parsed.model || '',
-                                            metadata: parsed.metadata || (finalResult?.metadata || {})
+                                            metadata: {
+                                                ...(finalResult?.metadata || {}),
+                                                ...(parsed.metadata || {})
+                                            }
                                         };
                                     }
                                 } catch (parseError) {
